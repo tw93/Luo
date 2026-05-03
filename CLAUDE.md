@@ -23,10 +23,15 @@ Source font: `source/LXGWWenKaiScreen-Regular.ttf`
 5. Complexity-aware horizontal narrowing
 6. Vertical face-ratio scaling (SCALE_Y=1.05)
 7. Component-aware refinement (7 categories: enclosed, dense_top, wide_split, walk_enclosed, dense_complex, multi_horiz, top_bottom)
-8. CJK punctuation proportional width (0.75em)
-9. Space half-width (50%)
-10. CJK spacing stays 1em by default for reading rhythm
-11. Name table rewrite, output
+8. Dot contour compression + directional rotation (xiaokai feel)
+9. Second-pass hook tightening (targeted chars, tip sharpening)
+10. Bone turn refinement (outward apex + inner tightening at direction changes)
+11. Stroke taper (endpoint containment, graduated inward pull)
+12. Heart character refinement (dot compress/rotate/space, reclining hook shorten)
+13. CJK punctuation proportional width (0.75em)
+14. Space half-width (50%)
+15. CJK spacing stays 1em by default for reading rhythm
+16. Name table rewrite, output
 
 ## Design Direction (frozen v0.3)
 

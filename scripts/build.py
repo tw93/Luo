@@ -103,6 +103,34 @@ SPACING_STEP = float(os.environ.get("LUO_SPACING_STEP", "0.000"))
 SPACING_ONSET = int(os.environ.get("LUO_SPACING_ONSET", "3"))
 SPACING_CAP = float(os.environ.get("LUO_SPACING_CAP", "1.00"))
 
+# --- Dot contour refinement (Pass A) ---
+DOT_AREA_PCT = float(os.environ.get("LUO_DOT_AREA_PCT", "5.0"))
+DOT_MAX_POINTS = int(os.environ.get("LUO_DOT_MAX_POINTS", "20"))
+DOT_COMPRESS = float(os.environ.get("LUO_DOT_COMPRESS", "0.82"))
+DOT_ROTATE_DEG = float(os.environ.get("LUO_DOT_ROTATE_DEG", "6.0"))
+
+# --- Second hook pass (Pass B) ---
+HOOK_FINAL_SHORTEN = float(os.environ.get("LUO_HOOK_FINAL_SHORTEN", "0.10"))
+HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.12"))
+
+# --- Bone turn refinement (Pass C) ---
+BONE_TURN_ANGLE_MAX = float(os.environ.get("LUO_BONE_TURN_ANGLE_MAX", "120"))
+BONE_TURN_SEG_MIN = float(os.environ.get("LUO_BONE_TURN_SEG_MIN", "15"))
+BONE_TURN_SEG_MAX = float(os.environ.get("LUO_BONE_TURN_SEG_MAX", "80"))
+BONE_TURN_DISPLACE = float(os.environ.get("LUO_BONE_TURN_DISPLACE", "2.0"))
+BONE_TURN_INNER_REDUCE = float(os.environ.get("LUO_BONE_TURN_INNER_REDUCE", "0.92"))
+
+# --- Stroke taper refinement (Pass D) ---
+TAPER_ARC_PCT = float(os.environ.get("LUO_TAPER_ARC_PCT", "0.15"))
+TAPER_INWARD = float(os.environ.get("LUO_TAPER_INWARD", "0.04"))
+TAPER_MIN_CONTOUR_PTS = int(os.environ.get("LUO_TAPER_MIN_CONTOUR_PTS", "12"))
+
+# --- Heart character refinement (Pass E) ---
+HEART_DOT_COMPRESS = float(os.environ.get("LUO_HEART_DOT_COMPRESS", "0.80"))
+HEART_DOT_ANGLE = float(os.environ.get("LUO_HEART_DOT_ANGLE", "8.0"))
+HEART_HOOK_SHORTEN = float(os.environ.get("LUO_HEART_HOOK_SHORTEN", "0.08"))
+HEART_DOT_SPACING = float(os.environ.get("LUO_HEART_DOT_SPACING", "1.06"))
+
 BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "starter")
 
 FAMILY = os.environ.get("LUO_FAMILY", "Luo")
@@ -848,6 +876,573 @@ def refine_by_category(font: TTFont) -> None:
         print(f"[luo] refined {total} glyphs by category ({detail})")
 
 
+# --- Pass A: Dot contour refinement ---
+
+HEART_CHARS = (
+    "心思意念想感悲惠慨悟您志必恩愁惊慎"
+    "忠忽怠恨恐恭忙忆忍忘"
+)
+
+HOOK_FINAL_CHARS = (
+    "字书亭序家设计排版印旅妙馈成式透远道遇永可事将到"
+    "心清落读说规则使用方族校"
+)
+
+
+def _build_cmap(font: TTFont) -> dict[int, str]:
+    cmap: dict[int, str] = {}
+    if "cmap" in font:
+        for table in font["cmap"].tables:
+            if table.cmap:
+                cmap.update(table.cmap)
+    return cmap
+
+
+def refine_dot_contours(font: TTFont) -> None:
+    """Compress and rotate small dot contours for directional xiaokai feel."""
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+
+    dot_count = 0
+    glyph_count = 0
+    rad = math.radians(DOT_ROTATE_DEG)
+    cos_r, sin_r = math.cos(rad), math.sin(rad)
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if not cp:
+            continue
+        char = chr(cp)
+        if not (0x3400 <= cp <= 0x9FFF):
+            continue
+        if char in HEART_CHARS:
+            continue
+
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+
+        coords = glyph.coordinates
+        ends = list(glyph.endPtsOfContours)
+        all_xs = [coords[i][0] for i in range(len(coords))]
+        all_ys = [coords[i][1] for i in range(len(coords))]
+        total_area = (max(all_xs) - min(all_xs)) * (max(all_ys) - min(all_ys))
+        if total_area <= 0:
+            continue
+
+        glyph_x_mid = (min(all_xs) + max(all_xs)) / 2.0
+        glyph_y_min = min(all_ys)
+        glyph_y_range = max(all_ys) - glyph_y_min
+        touched = False
+
+        start = 0
+        for end in ends:
+            n_pts = end - start + 1
+            if n_pts > DOT_MAX_POINTS:
+                start = end + 1
+                continue
+
+            c_xs = [coords[i][0] for i in range(start, end + 1)]
+            c_ys = [coords[i][1] for i in range(start, end + 1)]
+            c_w = max(c_xs) - min(c_xs)
+            c_h = max(c_ys) - min(c_ys)
+            if c_w <= 0 or c_h <= 0:
+                start = end + 1
+                continue
+
+            aspect = max(c_w, c_h) / min(c_w, c_h)
+            if aspect > 4.0:
+                start = end + 1
+                continue
+
+            c_area = c_w * c_h
+            pct = c_area / total_area * 100
+            if pct >= DOT_AREA_PCT:
+                start = end + 1
+                continue
+
+            cx = sum(c_xs) / n_pts
+            cy = sum(c_ys) / n_pts
+
+            rot = DOT_ROTATE_DEG
+            is_left = cx < glyph_x_mid
+            is_top = glyph_y_range > 0 and (cy - glyph_y_min) / glyph_y_range > 0.6
+            left_dots_on_left = is_left and not is_top
+            top_dots = is_top
+
+            if left_dots_on_left:
+                rot *= 1.3
+            elif top_dots:
+                rot *= 0.5
+
+            local_rad = math.radians(rot)
+            local_cos = math.cos(local_rad)
+            local_sin = math.sin(local_rad)
+
+            for i in range(start, end + 1):
+                x, y = coords[i]
+                dx = (x - cx) * DOT_COMPRESS
+                dy = (y - cy) * DOT_COMPRESS
+                rx = dx * local_cos - dy * local_sin
+                ry = dx * local_sin + dy * local_cos
+                coords[i] = (int(round(cx + rx)), int(round(cy + ry)))
+
+            dot_count += 1
+            touched = True
+            start = end + 1
+
+        if touched:
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] refined {dot_count} dot contours across {glyph_count} glyphs "
+        f"(compress={DOT_COMPRESS}, rotate={DOT_ROTATE_DEG}°)"
+    )
+
+
+# --- Pass B: Second hook refinement ---
+
+def refine_hooks_final(font: TTFont) -> None:
+    """Second-pass hook tightening on targeted characters."""
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+
+    hook_count = 0
+    glyph_count = 0
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if not cp:
+            continue
+        char = chr(cp)
+        if char not in HOOK_FINAL_CHARS:
+            continue
+
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+
+        coords = glyph.coordinates
+        ends = glyph.endPtsOfContours
+        new_coords = list(coords)
+        touched = False
+
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            if n < 5:
+                start = end + 1
+                continue
+
+            for j in range(n):
+                idx = start + j
+                i_prev = start + (j - 1) % n
+                i_next = start + (j + 1) % n
+                i_next2 = start + (j + 2) % n
+
+                p0 = coords[i_prev]
+                p1 = coords[idx]
+                p2 = coords[i_next]
+                p3 = coords[i_next2]
+
+                d_in = (p1[0] - p0[0], p1[1] - p0[1])
+                d_out = (p2[0] - p1[0], p2[1] - p1[1])
+
+                len_in = math.hypot(*d_in)
+                len_out = math.hypot(*d_out)
+                if len_in < 8 or len_out < 5:
+                    continue
+                if len_out <= 20:
+                    continue
+
+                cos_a = (d_in[0] * d_out[0] + d_in[1] * d_out[1]) / (len_in * len_out)
+                cos_a = max(-1.0, min(1.0, cos_a))
+                angle = math.degrees(math.acos(cos_a))
+
+                if angle < 60 or angle > 130:
+                    continue
+                if len_out > 90 or len_in < len_out * 1.5:
+                    continue
+
+                new_coords[i_next] = (
+                    int(round(p2[0] + HOOK_FINAL_SHORTEN * (p1[0] - p2[0]))),
+                    int(round(p2[1] + HOOK_FINAL_SHORTEN * (p1[1] - p2[1]))),
+                )
+
+                axis_x = p2[0] - p1[0]
+                axis_y = p2[1] - p1[1]
+                axis_len = math.hypot(axis_x, axis_y)
+                if axis_len > 1e-6:
+                    perp_x = -axis_y / axis_len
+                    perp_y = axis_x / axis_len
+                    for tip_idx in (i_next, i_next2):
+                        pt = new_coords[tip_idx]
+                        proj = (pt[0] - p1[0]) * perp_x + (pt[1] - p1[1]) * perp_y
+                        new_coords[tip_idx] = (
+                            int(round(pt[0] - HOOK_FINAL_TIP_SHARPEN * proj * perp_x)),
+                            int(round(pt[1] - HOOK_FINAL_TIP_SHARPEN * proj * perp_y)),
+                        )
+
+                hook_count += 1
+                touched = True
+
+            start = end + 1
+
+        if touched:
+            for i, c in enumerate(new_coords):
+                coords[i] = c
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] final-refined {hook_count} hooks across {glyph_count} glyphs "
+        f"(shorten={HOOK_FINAL_SHORTEN}, sharpen={HOOK_FINAL_TIP_SHARPEN})"
+    )
+
+
+# --- Pass C: Bone turn refinement ---
+
+def refine_bone_turns(font: TTFont) -> None:
+    """Add bone-node quality at sharp direction changes."""
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+
+    threshold_rad = math.radians(BONE_TURN_ANGLE_MAX)
+    turn_count = 0
+    glyph_count = 0
+
+    for name in font.getGlyphOrder():
+        glyph = glyf[name]
+        if glyph.numberOfContours <= 0:
+            continue
+        if not _is_cjk_glyph(name, cmap):
+            continue
+
+        coords = glyph.coordinates
+        flags = glyph.flags
+        ends = glyph.endPtsOfContours
+        new_coords = list(coords)
+        touched = False
+
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            if n < 4:
+                start = end + 1
+                continue
+
+            for j in range(n):
+                idx = start + j
+                if not (flags[idx] & 1):
+                    continue
+
+                i_prev = start + (j - 1) % n
+                i_next = start + (j + 1) % n
+
+                cx, cy = coords[idx]
+                px, py = coords[i_prev]
+                nx_pt, ny_pt = coords[i_next]
+
+                dx_in, dy_in = px - cx, py - cy
+                dx_out, dy_out = nx_pt - cx, ny_pt - cy
+
+                len_in = math.hypot(dx_in, dy_in)
+                len_out = math.hypot(dx_out, dy_out)
+                if len_in < BONE_TURN_SEG_MIN or len_in > BONE_TURN_SEG_MAX:
+                    continue
+                if len_out < BONE_TURN_SEG_MIN or len_out > BONE_TURN_SEG_MAX:
+                    continue
+
+                dot = max(-1.0, min(1.0,
+                    (dx_in * dx_out + dy_in * dy_out) / (len_in * len_out)))
+                angle = math.acos(dot)
+                if angle >= threshold_rad:
+                    continue
+
+                ang_in = abs(math.atan2(dy_in, dx_in))
+                ang_out = abs(math.atan2(dy_out, dx_out))
+                is_h_in = ang_in < 0.26 or ang_in > 2.88
+                is_v_in = 1.31 < ang_in < 1.83
+                is_h_out = ang_out < 0.26 or ang_out > 2.88
+                is_v_out = 1.31 < ang_out < 1.83
+                if (is_h_in or is_v_in) and (is_h_out or is_v_out):
+                    continue
+
+                v_in_x, v_in_y = dx_in / len_in, dy_in / len_in
+                v_out_x, v_out_y = dx_out / len_out, dy_out / len_out
+                bis_x = -(v_in_x + v_out_x)
+                bis_y = -(v_in_y + v_out_y)
+                bis_len = math.hypot(bis_x, bis_y)
+                if bis_len < 1e-6:
+                    continue
+
+                bis_x /= bis_len
+                bis_y /= bis_len
+
+                new_coords[idx] = (
+                    int(round(cx + BONE_TURN_DISPLACE * bis_x)),
+                    int(round(cy + BONE_TURN_DISPLACE * bis_y)),
+                )
+
+                cross = dx_in * dy_out - dy_in * dx_out
+                inner_idx = i_next if cross > 0 else i_prev
+                ix, iy = new_coords[inner_idx]
+                apex_x, apex_y = new_coords[idx]
+                new_coords[inner_idx] = (
+                    int(round(apex_x + BONE_TURN_INNER_REDUCE * (ix - apex_x))),
+                    int(round(apex_y + BONE_TURN_INNER_REDUCE * (iy - apex_y))),
+                )
+
+                turn_count += 1
+                touched = True
+
+            start = end + 1
+
+        if touched:
+            for i, c in enumerate(new_coords):
+                coords[i] = c
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] refined {turn_count} bone turns across {glyph_count} glyphs "
+        f"(displace={BONE_TURN_DISPLACE}, inner={BONE_TURN_INNER_REDUCE})"
+    )
+
+
+# --- Pass D: Stroke taper refinement ---
+
+def refine_stroke_taper(font: TTFont) -> None:
+    """Taper stroke endings for clean containment."""
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+
+    taper_points = 0
+    glyph_count = 0
+
+    for name in font.getGlyphOrder():
+        glyph = glyf[name]
+        if glyph.numberOfContours <= 0:
+            continue
+        if not _is_cjk_glyph(name, cmap):
+            continue
+
+        coords = glyph.coordinates
+        flags = glyph.flags
+        ends = glyph.endPtsOfContours
+        new_coords = list(coords)
+        touched = False
+
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            if n < TAPER_MIN_CONTOUR_PTS:
+                start = end + 1
+                continue
+
+            c_xs = [coords[i][0] for i in range(start, end + 1)]
+            c_ys = [coords[i][1] for i in range(start, end + 1)]
+            cx = sum(c_xs) / n
+            cy = sum(c_ys) / n
+
+            arc_lengths = [0.0]
+            for k in range(1, n):
+                dx = coords[start + k][0] - coords[start + k - 1][0]
+                dy = coords[start + k][1] - coords[start + k - 1][1]
+                arc_lengths.append(arc_lengths[-1] + math.hypot(dx, dy))
+            total_arc = arc_lengths[-1]
+            if total_arc < 1e-6:
+                start = end + 1
+                continue
+
+            threshold = total_arc * TAPER_ARC_PCT
+
+            for k in range(n):
+                idx = start + k
+                arc = arc_lengths[k]
+
+                if arc < threshold:
+                    t = 1.0 - arc / threshold
+                elif arc > total_arc - threshold:
+                    t = (arc - (total_arc - threshold)) / threshold
+                else:
+                    continue
+
+                i_prev = start + (k - 1) % n
+                i_next = start + (k + 1) % n
+                px, py = coords[i_prev]
+                nx_pt, ny_pt = coords[i_next]
+                dx_s = nx_pt - px
+                dy_s = ny_pt - py
+                seg_ang = abs(math.atan2(dy_s, dx_s))
+
+                x, y = coords[idx]
+                dx_in = coords[idx][0] - px
+                dy_in = coords[idx][1] - py
+                dx_out = nx_pt - coords[idx][0]
+                dy_out = ny_pt - coords[idx][1]
+                len_a = math.hypot(dx_in, dy_in)
+                len_b = math.hypot(dx_out, dy_out)
+                if len_a > 1e-6 and len_b > 1e-6:
+                    dot_val = (dx_in * dx_out + dy_in * dy_out) / (len_a * len_b)
+                    dot_val = max(-1.0, min(1.0, dot_val))
+                    local_angle = math.degrees(math.acos(dot_val))
+                    is_h = seg_ang < 0.26 or seg_ang > 2.88
+                    is_v = 1.31 < seg_ang < 1.83
+                    if 75 < local_angle < 105 and (is_h or is_v):
+                        continue
+
+                factor = 1.0 - TAPER_INWARD * t
+                new_x = cx + (x - cx) * factor
+                new_y = cy + (y - cy) * factor
+                new_coords[idx] = (int(round(new_x)), int(round(new_y)))
+                taper_points += 1
+                touched = True
+
+            start = end + 1
+
+        if touched:
+            for i, c in enumerate(new_coords):
+                coords[i] = c
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] tapered {taper_points} stroke endpoints across {glyph_count} glyphs "
+        f"(arc={TAPER_ARC_PCT:.0%}, inward={TAPER_INWARD})"
+    )
+
+
+# --- Pass E: Heart character refinement ---
+
+def refine_heart_chars(font: TTFont) -> None:
+    """Reshape heart-bottom dots and reclining hook for xiaokai feel."""
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+
+    dot_count = 0
+    hook_count = 0
+    glyph_count = 0
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if not cp:
+            continue
+        char = chr(cp)
+        if char not in HEART_CHARS:
+            continue
+
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+
+        coords = glyph.coordinates
+        ends = list(glyph.endPtsOfContours)
+        all_ys = [coords[i][1] for i in range(len(coords))]
+        all_xs = [coords[i][0] for i in range(len(coords))]
+        y_mid = (min(all_ys) + max(all_ys)) / 2.0
+        glyph_cx = (min(all_xs) + max(all_xs)) / 2.0
+        total_area = (max(all_xs) - min(all_xs)) * (max(all_ys) - min(all_ys))
+        if total_area <= 0:
+            continue
+
+        contour_info = []
+        start = 0
+        for ci, end in enumerate(ends):
+            c_xs = [coords[i][0] for i in range(start, end + 1)]
+            c_ys = [coords[i][1] for i in range(start, end + 1)]
+            c_cx = sum(c_xs) / len(c_xs)
+            c_cy = sum(c_ys) / len(c_ys)
+            c_w = max(c_xs) - min(c_xs)
+            c_h = max(c_ys) - min(c_ys)
+            c_area = c_w * c_h
+            contour_info.append({
+                "idx": ci, "start": start, "end": end,
+                "cx": c_cx, "cy": c_cy,
+                "area": c_area, "pct": c_area / total_area * 100,
+                "xmin": min(c_xs),
+            })
+            start = end + 1
+
+        is_standalone = char == "心"
+
+        if is_standalone:
+            bottom_contours = contour_info
+        else:
+            bottom_contours = [c for c in contour_info if c["cy"] < y_mid]
+
+        if not bottom_contours:
+            continue
+
+        hook_contour = max(bottom_contours, key=lambda c: c["area"])
+        dot_contours = sorted(
+            [c for c in bottom_contours
+             if c["idx"] != hook_contour["idx"] and c["pct"] < 12],
+            key=lambda c: c["cx"],
+        )
+
+        touched = False
+
+        for di, dc in enumerate(dot_contours):
+            s, e = dc["start"], dc["end"]
+            n_pts = e - s + 1
+            dc_cx = dc["cx"]
+            dc_cy = dc["cy"]
+
+            if di == 0:
+                rot_deg = HEART_DOT_ANGLE
+            elif di == len(dot_contours) - 1:
+                rot_deg = -HEART_DOT_ANGLE * 0.5
+            else:
+                rot_deg = HEART_DOT_ANGLE * 0.6
+
+            rad = math.radians(rot_deg)
+            cos_r = math.cos(rad)
+            sin_r = math.sin(rad)
+
+            offset_x = (dc_cx - glyph_cx) * (HEART_DOT_SPACING - 1.0)
+
+            for i in range(s, e + 1):
+                x, y = coords[i]
+                dx = (x - dc_cx) * HEART_DOT_COMPRESS
+                dy = (y - dc_cy) * HEART_DOT_COMPRESS
+                rx = dx * cos_r - dy * sin_r
+                ry = dx * sin_r + dy * cos_r
+                coords[i] = (int(round(dc_cx + rx + offset_x)), int(round(dc_cy + ry)))
+
+            dot_count += 1
+            touched = True
+
+        hc = hook_contour
+        hs, he = hc["start"], hc["end"]
+        h_xs = [coords[i][0] for i in range(hs, he + 1)]
+        h_xmin = min(h_xs)
+        h_xmax = max(h_xs)
+        h_xrange = h_xmax - h_xmin
+        if h_xrange > 0:
+            cutoff = h_xmin + h_xrange * 0.3
+            for i in range(hs, he + 1):
+                x, y = coords[i]
+                if x < cutoff:
+                    t = 1.0 - (x - h_xmin) / (cutoff - h_xmin) if cutoff > h_xmin else 0
+                    pull = HEART_HOOK_SHORTEN * t
+                    coords[i] = (int(round(x + pull * (h_xmax - x))), y)
+            hook_count += 1
+            touched = True
+
+        if touched:
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] refined {dot_count} heart dots + {hook_count} hooks "
+        f"across {glyph_count} glyphs "
+        f"(compress={HEART_DOT_COMPRESS}, angle={HEART_DOT_ANGLE}°, "
+        f"spacing={HEART_DOT_SPACING}, hook={HEART_HOOK_SHORTEN})"
+    )
+
+
 def fit_punctuation_width(font: TTFont, width_ratio: float) -> None:
     """Compress CJK punctuation advances and keep marks close to preceding text."""
     glyf = font["glyf"]
@@ -1237,6 +1832,11 @@ def main() -> None:
         narrow_and_scale(font, NARROW_SIMPLE, NARROW_REGULAR, NARROW_COMPLEX, SCALE_Y)
 
     refine_by_category(font)
+    refine_dot_contours(font)
+    refine_hooks_final(font)
+    refine_bone_turns(font)
+    refine_stroke_taper(font)
+    refine_heart_chars(font)
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
     adjust_cjk_spacing(font)
