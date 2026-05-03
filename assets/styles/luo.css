@@ -1,0 +1,202 @@
+@font-face {
+  font-family: "Luo";
+  src: url("../../dist/Luo-Regular.woff2?v=v0.3.0") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-9FFF, U+3400-4DBF, U+3000-303F, U+FF00-FFEF;
+}
+
+:root {
+  --parchment: #f5f4ed;
+  --ivory: #faf9f5;
+  --paper: #f5f4ed;
+  --panel: #fbfaf6;
+  --near-black: #141413;
+  --ink: #141413;
+  --dark-warm: #3d3d3a;
+  --olive: #504e49;
+  --stone: #6b6a64;
+  --muted: #6b6a64;
+  --brand: #1B365D;
+  --brand-light: #2D5A8A;
+  --border: #e8e6dc;
+  --border-soft: #e5e3d8;
+  --line: #d8d5c8;
+  --line-strong: #c6c1b3;
+  --green: #2f6b50;
+  --warm: #8c5b2f;
+  --red: #9b3f33;
+  --latin: "Avenir Next", Inter, "Helvetica Neue", "SF Pro Text", sans-serif;
+  --display: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
+  --serif: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
+  --sans: var(--serif);
+  --mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Monaco, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--parchment);
+  color: var(--near-black);
+  font-family: "Luo", "Avenir Next", Inter, "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--brand);
+}
+
+.luo-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 72px 56px 104px;
+}
+
+.luo-kicker,
+.luo-label,
+.luo-meta {
+  font-family: var(--latin);
+  color: var(--stone);
+  letter-spacing: 0.04em;
+}
+
+.luo-kicker {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.luo-rule-top {
+  border-top: 1px solid var(--border-soft);
+}
+
+.luo-rule-bottom {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.luo-section {
+  margin-bottom: 72px;
+}
+
+.luo-section-head {
+  margin-bottom: 24px;
+}
+
+.luo-section-num {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--brand);
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+}
+
+.luo-section-title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 32px;
+  line-height: 1.2;
+  color: var(--near-black);
+  margin: 0;
+}
+
+.luo-section-lede {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--olive);
+  margin: 12px 0 0;
+}
+
+.luo-glyph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 1px;
+  background-color: var(--border-soft);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+
+.luo-tianzige {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 42px;
+  line-height: 1;
+  color: var(--near-black);
+  background-color: #fffdf8;
+  background-image:
+    linear-gradient(to right, transparent calc(50% - .5px), rgba(27,54,93,.22) calc(50% - .5px), rgba(27,54,93,.22) calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(to bottom, transparent calc(50% - .5px), rgba(27,54,93,.22) calc(50% - .5px), rgba(27,54,93,.22) calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(45deg, transparent calc(50% - .5px), rgba(27,54,93,.1) calc(50% - .5px), rgba(27,54,93,.1) calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(-45deg, transparent calc(50% - .5px), rgba(27,54,93,.1) calc(50% - .5px), rgba(27,54,93,.1) calc(50% + .5px), transparent calc(50% + .5px));
+}
+
+.luo-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  background: var(--ivory);
+}
+
+.luo-stat-row div {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.luo-stat-row div:last-child {
+  border-right: 0;
+}
+
+.luo-stat-row b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--brand);
+  margin-bottom: 4px;
+}
+
+.luo-stat-row span {
+  color: var(--stone);
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .luo-page {
+    padding: 48px 24px 80px;
+  }
+
+  .luo-stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .luo-section-title {
+    font-size: 28px;
+  }
+
+  .luo-stat-row {
+    grid-template-columns: 1fr;
+  }
+}

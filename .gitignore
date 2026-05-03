@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.claude/
+.DS_Store
+AGENTS.md
+
+# base fonts (large, not committed)
+source/*.ttf
+source/*.otf
+source/*.woff
+source/*.woff2
+
+# generated proof outputs
+debug/
+print/
+proof/*.json
+proof/*.txt
+proof/*.pdf
+proof/*.png
+proof/*-preview.html

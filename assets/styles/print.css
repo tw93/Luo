@@ -1,0 +1,131 @@
+@font-face {
+  font-family: "Luo";
+  src: url("../../dist/Luo-Regular.woff2?v=v0.3.0") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-9FFF, U+3400-4DBF, U+3000-303F, U+FF00-FFEF;
+}
+
+@page {
+  size: A4;
+  margin: 16mm;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Luo", "Avenir Next", Inter, "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  color: #141413;
+  background: #fff;
+  line-height: 1.55;
+}
+
+h1 {
+  font-size: 48pt;
+  line-height: 1.04;
+  font-weight: 500;
+  margin-bottom: 4pt;
+}
+
+.subtitle,
+.label,
+.note {
+  font-family: "Avenir Next", Inter, "SF Pro Text", sans-serif;
+  color: #6b6a64;
+}
+
+.subtitle {
+  font-size: 10pt;
+  margin-bottom: 14pt;
+}
+
+.section {
+  margin-bottom: 13pt;
+  page-break-inside: avoid;
+}
+
+.label {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 3pt;
+}
+
+.s48 {
+  font-size: 48pt;
+  line-height: 1.08;
+}
+
+.s24 {
+  font-size: 24pt;
+  line-height: 1.22;
+}
+
+.s16 {
+  font-size: 16pt;
+  line-height: 1.55;
+}
+
+.s14 {
+  font-size: 14pt;
+  line-height: 1.6;
+}
+
+.s12 {
+  font-size: 12pt;
+  line-height: 1.72;
+}
+
+.s10 {
+  font-size: 10pt;
+  line-height: 1.8;
+}
+
+hr {
+  border: 0;
+  border-top: .45pt solid #d8d5c8;
+  margin: 10pt 0;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.grid span {
+  display: inline-block;
+  width: 25pt;
+  height: 25pt;
+  line-height: 25pt;
+  text-align: center;
+  font-size: 16pt;
+  border: .25pt solid #e1dfd4;
+}
+
+.dense span {
+  width: 28pt;
+}
+
+.reverse {
+  background: #141413;
+  color: #fff;
+  padding: 9pt 10pt;
+  margin-top: 4pt;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12pt;
+}
+
+.note {
+  font-size: 7pt;
+  margin-top: 10pt;
+}
