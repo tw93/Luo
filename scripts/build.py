@@ -54,9 +54,9 @@ BASE_FONT = Path(
 # --- Narrowing ---
 # Complexity-aware: complex chars narrower, simple chars wider.
 # Complexity is estimated by contour count as a proxy for stroke count.
-NARROW_SIMPLE = float(os.environ.get("LUO_NARROW_SIMPLE", "0.995"))   # 简字几乎不收，大方舒展
-NARROW_REGULAR = float(os.environ.get("LUO_NARROW_REGULAR", "0.965")) # 常规字微收，保持端正
-NARROW_COMPLEX = float(os.environ.get("LUO_NARROW_COMPLEX", "0.935")) # 复杂字适度收，不挤不糊
+NARROW_SIMPLE = float(os.environ.get("LUO_NARROW_SIMPLE", "1.000"))   # 简字不收，大方舒展
+NARROW_REGULAR = float(os.environ.get("LUO_NARROW_REGULAR", "0.975")) # 常规字轻收，保持端正
+NARROW_COMPLEX = float(os.environ.get("LUO_NARROW_COMPLEX", "0.950")) # 复杂字适度收，不挤不糊
 # Legacy single-value override; if set, disables complexity split.
 NARROW_X = os.environ.get("LUO_NARROW_X")
 
@@ -75,8 +75,8 @@ PUNCT_WIDTH_RATIO = float(os.environ.get("LUO_PUNCT_WIDTH", "0.75"))
 # --- Boldening ---
 # Direction-aware: horizontal strokes get less delta, vertical strokes more,
 # producing the 横细竖重 feel without uniform fattening.
-BOLDEN_H = float(os.environ.get("LUO_BOLDEN_H", "6"))   # 横画恢复分量，不能发虚
-BOLDEN_V = float(os.environ.get("LUO_BOLDEN_V", "15"))  # 竖重保持
+BOLDEN_H = float(os.environ.get("LUO_BOLDEN_H", "5"))   # 横画留白，避免长文发闷
+BOLDEN_V = float(os.environ.get("LUO_BOLDEN_V", "13"))  # 竖画有分量，但不压黑
 # Legacy single-value override.
 BOLDEN_DELTA = os.environ.get("LUO_BOLDEN")
 # Graduated boldening: reduce delta as contour count rises.
@@ -86,15 +86,15 @@ BOLDEN_GRAD_ONSET = int(os.environ.get("LUO_BOLDEN_GRAD_ONSET", "3"))
 
 # Endpoint softening (软切角): round sharp corners after boldening.
 SOFTEN_ANGLE = float(os.environ.get("LUO_SOFTEN_ANGLE", "130"))
-SOFTEN_BLEND = float(os.environ.get("LUO_SOFTEN_BLEND", "0.08"))
+SOFTEN_BLEND = float(os.environ.get("LUO_SOFTEN_BLEND", "0.055"))
 SOFTEN_SEG_MAX = float(os.environ.get("LUO_SOFTEN_SEG_MAX", "80"))
 
 # Space width: half-width space for tighter CJK typesetting.
 SPACE_WIDTH_RATIO = float(os.environ.get("LUO_SPACE_WIDTH", "0.50"))
 
 # Hook refinement (钩画): thinner root, shorter body, lighter tip.
-HOOK_ROOT_THIN = float(os.environ.get("LUO_HOOK_ROOT_THIN", "0.09"))
-HOOK_SHORTEN = float(os.environ.get("LUO_HOOK_SHORTEN", "0.14"))
+HOOK_ROOT_THIN = float(os.environ.get("LUO_HOOK_ROOT_THIN", "0.11"))
+HOOK_SHORTEN = float(os.environ.get("LUO_HOOK_SHORTEN", "0.18"))
 HOOK_TIP_TAPER = float(os.environ.get("LUO_HOOK_TIP_TAPER", "-0.02"))
 
 # CJK spacing: keep 1em advances by default for predictable reading text.
@@ -106,29 +106,29 @@ SPACING_CAP = float(os.environ.get("LUO_SPACING_CAP", "1.00"))
 # --- Dot contour refinement (Pass A) ---
 DOT_AREA_PCT = float(os.environ.get("LUO_DOT_AREA_PCT", "5.0"))
 DOT_MAX_POINTS = int(os.environ.get("LUO_DOT_MAX_POINTS", "20"))
-DOT_COMPRESS = float(os.environ.get("LUO_DOT_COMPRESS", "0.82"))
-DOT_ROTATE_DEG = float(os.environ.get("LUO_DOT_ROTATE_DEG", "6.0"))
+DOT_COMPRESS = float(os.environ.get("LUO_DOT_COMPRESS", "0.76"))
+DOT_ROTATE_DEG = float(os.environ.get("LUO_DOT_ROTATE_DEG", "8.0"))
 
 # --- Second hook pass (Pass B) ---
-HOOK_FINAL_SHORTEN = float(os.environ.get("LUO_HOOK_FINAL_SHORTEN", "0.10"))
-HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.12"))
+HOOK_FINAL_SHORTEN = float(os.environ.get("LUO_HOOK_FINAL_SHORTEN", "0.14"))
+HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.18"))
 
 # --- Bone turn refinement (Pass C) ---
 BONE_TURN_ANGLE_MAX = float(os.environ.get("LUO_BONE_TURN_ANGLE_MAX", "120"))
 BONE_TURN_SEG_MIN = float(os.environ.get("LUO_BONE_TURN_SEG_MIN", "15"))
 BONE_TURN_SEG_MAX = float(os.environ.get("LUO_BONE_TURN_SEG_MAX", "80"))
-BONE_TURN_DISPLACE = float(os.environ.get("LUO_BONE_TURN_DISPLACE", "2.0"))
-BONE_TURN_INNER_REDUCE = float(os.environ.get("LUO_BONE_TURN_INNER_REDUCE", "0.92"))
+BONE_TURN_DISPLACE = float(os.environ.get("LUO_BONE_TURN_DISPLACE", "2.6"))
+BONE_TURN_INNER_REDUCE = float(os.environ.get("LUO_BONE_TURN_INNER_REDUCE", "0.90"))
 
 # --- Stroke taper refinement (Pass D) ---
 TAPER_ARC_PCT = float(os.environ.get("LUO_TAPER_ARC_PCT", "0.15"))
-TAPER_INWARD = float(os.environ.get("LUO_TAPER_INWARD", "0.04"))
+TAPER_INWARD = float(os.environ.get("LUO_TAPER_INWARD", "0.055"))
 TAPER_MIN_CONTOUR_PTS = int(os.environ.get("LUO_TAPER_MIN_CONTOUR_PTS", "12"))
 
 # --- Heart character refinement (Pass E) ---
-HEART_DOT_COMPRESS = float(os.environ.get("LUO_HEART_DOT_COMPRESS", "0.80"))
-HEART_DOT_ANGLE = float(os.environ.get("LUO_HEART_DOT_ANGLE", "8.0"))
-HEART_HOOK_SHORTEN = float(os.environ.get("LUO_HEART_HOOK_SHORTEN", "0.08"))
+HEART_DOT_COMPRESS = float(os.environ.get("LUO_HEART_DOT_COMPRESS", "0.76"))
+HEART_DOT_ANGLE = float(os.environ.get("LUO_HEART_DOT_ANGLE", "10.0"))
+HEART_HOOK_SHORTEN = float(os.environ.get("LUO_HEART_HOOK_SHORTEN", "0.10"))
 HEART_DOT_SPACING = float(os.environ.get("LUO_HEART_DOT_SPACING", "1.06"))
 
 BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "starter")

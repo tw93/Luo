@@ -17,7 +17,7 @@ Source font: `source/LXGWWenKaiScreen-Regular.ttf`
 ## Pipeline (order matters)
 
 1. Subset to starter/site/seed characters
-2. Graduated stroke thickening (BOLDEN_H=6, BOLDEN_V=15, contour-scaled)
+2. Graduated stroke thickening (BOLDEN_H=5, BOLDEN_V=13, contour-scaled)
 3. Endpoint softening (sharp corners to soft-cut)
 4. Hook refinement (root thin, body shorten, tip direction)
 5. Complexity-aware horizontal narrowing
@@ -51,18 +51,18 @@ Do NOT change these without explicit approval:
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| BOLDEN_H | 6 | Horizontal stroke weight |
-| BOLDEN_V | 15 | Vertical stroke weight |
+| BOLDEN_H | 5 | Horizontal stroke weight |
+| BOLDEN_V | 13 | Vertical stroke weight |
 | BOLDEN_GRAD_STEP | 0.06 | Weight reduction per contour above onset |
 | BOLDEN_GRAD_FLOOR | 0.85 | Minimum weight scale for complex chars |
 | BOLDEN_GRAD_ONSET | 3 | Contour count where graduation starts |
-| NARROW_SIMPLE | 0.995 | Simple char horizontal scale |
-| NARROW_REGULAR | 0.965 | Regular char horizontal scale |
-| NARROW_COMPLEX | 0.935 | Complex char horizontal scale |
+| NARROW_SIMPLE | 1.000 | Simple char horizontal scale |
+| NARROW_REGULAR | 0.975 | Regular char horizontal scale |
+| NARROW_COMPLEX | 0.950 | Complex char horizontal scale |
 | SCALE_Y | 1.05 | Vertical face ratio |
-| SOFTEN_BLEND | 0.08 | Endpoint softening intensity |
-| HOOK_ROOT_THIN | 0.09 | Hook root thinning |
-| HOOK_SHORTEN | 0.14 | Hook body compression |
+| SOFTEN_BLEND | 0.055 | Endpoint softening intensity |
+| HOOK_ROOT_THIN | 0.11 | Hook root thinning |
+| HOOK_SHORTEN | 0.18 | Hook body compression |
 | HOOK_TIP_TAPER | -0.02 | Hook tip direction (negative = extend) |
 | SPACING_BASE | 1.00 | Keep CJK advances on 1em rhythm |
 | SPACING_STEP | 0.000 | No complexity-based advance widening by default |

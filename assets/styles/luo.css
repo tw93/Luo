@@ -50,6 +50,7 @@ body {
   background: var(--parchment);
   color: var(--near-black);
   font-family: "Luo", "Avenir Next", Inter, "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  font-synthesis: none;
   font-size: 14px;
   line-height: 1.55;
   letter-spacing: 0;
@@ -98,7 +99,7 @@ a {
 
 .luo-section-num {
   font-family: var(--serif);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 14px;
   color: var(--brand);
   letter-spacing: 0.04em;
@@ -107,7 +108,7 @@ a {
 
 .luo-section-title {
   font-family: var(--display);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 32px;
   line-height: 1.2;
   color: var(--near-black);
@@ -116,7 +117,7 @@ a {
 
 .luo-section-lede {
   font-family: var(--serif);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.55;
   color: var(--olive);
@@ -170,7 +171,7 @@ a {
   display: block;
   font-family: var(--serif);
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.2;
   color: var(--brand);
   margin-bottom: 4px;
