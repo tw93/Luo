@@ -16,19 +16,19 @@
 
 ## 这套字
 
-Luo 落文是一套正在造字中的开源中文字体，面向文章、文档、封面和项目官网等纸面感场景。它取法魏晋小楷式清骨，结合当代舒展楷意印刷字的开阔骨架，保持横轻竖重、端正含蓄、轮廓干净。
+Luo 落文是一套正在造字中的开源中文字体，面向文章、文档、封面和项目官网等纸面感场景，取法魏晋小楷式清骨，结合当代舒展楷意印刷字的开阔骨架，保持横轻竖重、端正含蓄、轮廓干净。
 
-落文不做书法复刻，不追求手写感，也不靠古风装饰制造气质。它希望在真实排版里安静、有秩序，读久了不腻。
+落文不做书法复刻，不追求手写感，也不靠古风装饰制造气质，希望在真实排版里安静、有秩序，读久了不腻。
 
 关键词：有筋骨、纸面耐读、端正含蓄、现代可排版。
 
 ## 造字状态
 
-落文目前是 v0.3 starter 预览版，已经覆盖官网、README、两页纸试读、内部打印样张和一组核心校准字。它可以用来查看风格、试排页面和参与造字反馈，但还不是完整 GB2312，也不是全量中文字体。
+落文目前是 v0.3 starter 预览版，已经覆盖官网、README、两页纸试读、内部打印样张和一组核心校准字，可以用来查看风格、试排页面和参与造字反馈，但还不是完整 GB2312，也不是全量中文字体。
 
-v0.3 的目标是先把小范围字集做可信：官网能看、样张能印、长文灰度稳定、核心字形语法成立。大范围扩字放到 v0.4 推进，先补 GB2312 一级常用字，再进入完整 GB2312 实验构建。
+v0.3 先把小范围字集做可信，让官网能看、样张能印、长文灰度稳定、核心字形语法成立，大范围扩字放到 v0.4 推进，先补 GB2312 一级常用字，再进入完整 GB2312 实验构建。
 
-后续会继续扩字、校准部件、检查小字号灰度和打印效果。字形、覆盖范围、文件大小和构建方式都可能继续调整，正式使用前建议先看网页样张、纸面试读和常用字校准页。
+后续会继续扩字、校准部件、检查小字号灰度和打印效果，字形、覆盖范围、文件大小和构建方式都可能继续调整，正式使用前建议先看网页样张、纸面试读和常用字校准页。
 
 ## 预览
 
@@ -64,9 +64,7 @@ body {
 }
 ```
 
-Luo Regular 只承担中文、中文标点和全角符号。英文和数字建议走 Seravek-first 的人文风格 fallback，避免过硬的几何无衬线或过强的古典衬线气质。
-
-Luo Regular intentionally covers CJK characters, CJK punctuation, and fullwidth symbols. Latin letters and numbers should come from the fallback stack.
+Luo Regular 只承担中文、中文标点和全角符号，英文和数字建议走 Seravek-first 的人文风格 fallback，避免过硬的几何无衬线或过强的古典衬线气质。
 
 ## 参与造字
 
@@ -74,6 +72,4 @@ Luo Regular intentionally covers CJK characters, CJK punctuation, and fullwidth 
 
 ## 授权与鸣谢
 
-Luo 采用 [SIL Open Font License 1.1](https://openfontlicense.org) 授权，可以自由使用、分享、嵌入和改造；衍生字体也需要继续使用 SIL OFL 授权。落文基于 [LXGW WenKai](https://github.com/lxgw/LxgwWenKai) 底层构建。
-
-详细授权见 [OFL.txt](OFL.txt)。
+Luo 采用 [SIL Open Font License 1.1](https://openfontlicense.org) 授权，可以自由使用、分享、嵌入和改造，衍生字体也需要继续使用 SIL OFL 授权，落文基于 [LXGW WenKai](https://github.com/lxgw/LxgwWenKai) 底层构建，向 LXGW / 落霞孤鹜和 Fontworks 的 Klee One 开源工作致谢，详细授权见 [OFL.txt](OFL.txt)。
