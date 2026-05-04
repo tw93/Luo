@@ -4,15 +4,14 @@
 <h1 align="center">Luo 落文</h1>
 <p align="center">正在造字中的中文字体，面向纸面排版和长文阅读。</p>
 <p align="center">
-  <a href="https://github.com/tw93/luo"><img src="https://img.shields.io/github/license/tw93/luo?style=flat-square" alt="License"></a>
-  <a href="https://github.com/tw93/luo/releases/latest"><img src="https://img.shields.io/github/release/tw93/luo?style=flat-square" alt="Release"></a>
+  <a href="https://luo.tw93.fun"><img src="https://img.shields.io/badge/preview-v0.3%20starter-14345f?style=flat-square" alt="Preview"></a>
+  <a href="OFL.txt"><img src="https://img.shields.io/badge/license-SIL%20OFL%201.1-14345f?style=flat-square" alt="License"></a>
+  <a href="https://luo.tw93.fun/proof/gb2312.html"><img src="https://img.shields.io/badge/GB2312-1115%2F6763-6f6b60?style=flat-square" alt="GB2312 coverage"></a>
 </p>
 
 <p align="center">
   <img src="assets/images/specimen.png" alt="Luo 落文网页样张截图">
 </p>
-
----
 
 ## 这套字
 
@@ -50,7 +49,7 @@ v0.3 先把小范围字集做可信，让官网能看、样张能印、长文灰
 ```css
 @font-face {
   font-family: "Luo";
-  src: url("https://cdn.jsdelivr.net/gh/tw93/luo@main/dist/Luo-Regular.woff2") format("woff2");
+  src: url("https://cdn.jsdelivr.net/gh/tw93/Luo@main/dist/Luo-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
