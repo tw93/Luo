@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Luo";
-  src: url("../../dist/Luo-Regular.woff2?v=v0.3.0") format("woff2");
+  src: url("../../dist/Luo-Regular.woff2?v=20260504-spread15") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -27,7 +27,9 @@
   --green: #2f6b50;
   --warm: #8c5b2f;
   --red: #9b3f33;
-  --latin: "Avenir Next", Inter, "Helvetica Neue", "SF Pro Text", sans-serif;
+  --latin: Seravek, Candara, Optima, "Iowan Old Style", Charter, Georgia, "Avenir Next", "SF Pro Text", sans-serif;
+  --latin-ui: Seravek, Candara, Optima, "Avenir Next", "SF Pro Text", sans-serif;
+  --number: Seravek, Candara, Optima, "Iowan Old Style", Charter, Georgia, "Avenir Next", sans-serif;
   --display: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
   --serif: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
   --sans: var(--serif);
@@ -49,10 +51,10 @@ body {
 body {
   background: var(--parchment);
   color: var(--near-black);
-  font-family: "Luo", "Avenir Next", Inter, "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  font-family: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
   font-synthesis: none;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.58;
   letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -63,15 +65,15 @@ a {
 }
 
 .luo-page {
-  max-width: 1200px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 72px 56px 104px;
+  padding: 88px 64px 120px;
 }
 
 .luo-kicker,
 .luo-label,
 .luo-meta {
-  font-family: var(--latin);
+  font-family: var(--latin-ui);
   color: var(--stone);
   letter-spacing: 0.04em;
 }
@@ -98,7 +100,7 @@ a {
 }
 
 .luo-section-num {
-  font-family: var(--serif);
+  font-family: var(--latin-ui);
   font-weight: 400;
   font-size: 14px;
   color: var(--brand);
@@ -109,7 +111,7 @@ a {
 .luo-section-title {
   font-family: var(--display);
   font-weight: 400;
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1.2;
   color: var(--near-black);
   margin: 0;
@@ -118,7 +120,7 @@ a {
 .luo-section-lede {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.55;
   color: var(--olive);
   margin: 12px 0 0;
@@ -140,7 +142,7 @@ a {
   align-items: center;
   justify-content: center;
   font-family: var(--display);
-  font-size: 42px;
+  font-size: 44px;
   line-height: 1;
   color: var(--near-black);
   background-color: #fffdf8;
@@ -169,8 +171,8 @@ a {
 
 .luo-stat-row b {
   display: block;
-  font-family: var(--serif);
-  font-size: 20px;
+  font-family: var(--number);
+  font-size: 22px;
   font-weight: 400;
   line-height: 1.2;
   color: var(--brand);
@@ -178,8 +180,9 @@ a {
 }
 
 .luo-stat-row span {
+  font-family: var(--latin-ui);
   color: var(--stone);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 @media (max-width: 860px) {
@@ -194,7 +197,7 @@ a {
 
 @media (max-width: 520px) {
   .luo-section-title {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .luo-stat-row {

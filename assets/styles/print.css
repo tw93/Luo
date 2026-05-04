@@ -1,15 +1,22 @@
 @font-face {
   font-family: "Luo";
-  src: url("../../dist/Luo-Regular.woff2?v=v0.3.0") format("woff2");
+  src: url("../../dist/Luo-Regular.woff2?v=20260504-spread15") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
   unicode-range: U+4E00-9FFF, U+3400-4DBF, U+3000-303F, U+FF00-FFEF;
 }
 
+:root {
+  --latin: Seravek, Candara, Optima, "Iowan Old Style", Charter, Georgia, "Avenir Next", "SF Pro Text", sans-serif;
+  --latin-ui: Seravek, Candara, Optima, "Avenir Next", "SF Pro Text", sans-serif;
+  --number: Seravek, Candara, Optima, "Iowan Old Style", Charter, Georgia, "Avenir Next", sans-serif;
+  --mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Monaco, monospace;
+}
+
 @page {
   size: A4;
-  margin: 16mm;
+  margin: 10mm 12mm;
 }
 
 * {
@@ -19,7 +26,7 @@
 }
 
 body {
-  font-family: "Luo", "Avenir Next", Inter, "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  font-family: "Luo", var(--latin), "Noto Sans CJK SC", sans-serif;
   color: #141413;
   background: #fff;
   line-height: 1.55;
@@ -35,17 +42,17 @@ h1 {
 .subtitle,
 .label,
 .note {
-  font-family: "Avenir Next", Inter, "SF Pro Text", sans-serif;
+  font-family: var(--latin-ui);
   color: #6b6a64;
 }
 
 .subtitle {
   font-size: 10pt;
-  margin-bottom: 14pt;
+  margin-bottom: 8pt;
 }
 
 .section {
-  margin-bottom: 13pt;
+  margin-bottom: 8pt;
   page-break-inside: avoid;
 }
 
@@ -78,18 +85,18 @@ h1 {
 
 .s12 {
   font-size: 12pt;
-  line-height: 1.72;
+  line-height: 1.58;
 }
 
 .s10 {
   font-size: 10pt;
-  line-height: 1.8;
+  line-height: 1.62;
 }
 
 hr {
   border: 0;
   border-top: .45pt solid #d8d5c8;
-  margin: 10pt 0;
+  margin: 7pt 0;
 }
 
 .grid {
@@ -106,6 +113,13 @@ hr {
   text-align: center;
   font-size: 16pt;
   border: .25pt solid #e1dfd4;
+}
+
+.grid.compact span {
+  width: 22pt;
+  height: 22pt;
+  line-height: 22pt;
+  font-size: 14pt;
 }
 
 .dense span {

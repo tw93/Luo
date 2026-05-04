@@ -5,22 +5,23 @@
   <title>Luo 落文：有魏晋风骨的长文纸面字</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles/luo.css">
+  <link rel="stylesheet" href="assets/styles/luo.css?v=20260504-spread15">
   <meta name="description" content="落文取法卫夫人笔意，横轻竖重，端正含蓄，适合中文长文、纸面排版和标题展示。">
   <style>
     .page {
-      max-width: 1200px;
+      max-width: 1120px;
       margin: 0 auto;
-      padding: 88px 72px 120px;
+      padding: 88px 64px 120px;
     }
 
     /* ─── Hero ─── */
     .hero {
       padding-bottom: 40px;
       border-bottom: 1px solid var(--border-soft);
-      margin-bottom: 80px;
+      margin-bottom: 64px;
     }
     .eyebrow {
+      font-family: var(--latin-ui);
       font-size: 12px;
       font-weight: 500;
       letter-spacing: 0.4px;
@@ -29,7 +30,7 @@
       margin: 0 0 28px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
     .eyebrow a {
       color: var(--stone);
@@ -42,14 +43,22 @@
     .hero-links {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       position: relative;
       top: -1px;
+    }
+    .hero-links .proof-nav {
+      font-family: var(--serif);
+      font-size: 13px;
+      color: var(--brand);
+      letter-spacing: 0.04em;
+      text-transform: none;
+      transform: translateY(1px);
     }
     .hero h1 {
       font-family: var(--display);
       font-weight: 400;
-      font-size: 96px;
+      font-size: 104px;
       line-height: 1.05;
       letter-spacing: 0;
       margin: 0 0 14px;
@@ -71,28 +80,38 @@
     }
     .hero-tokens {
       display: flex;
-      gap: 14px;
+      gap: 18px;
       flex-wrap: wrap;
       margin-top: 18px;
     }
+    .hero-tokens a,
     .hero-tokens span {
       display: flex;
+      align-items: center;
       gap: 4px;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--stone);
-      font-family: var(--latin);
+      font-family: var(--latin-ui);
       letter-spacing: 0;
+      text-decoration: none;
     }
     .hero-tokens b {
-      color: var(--dark-warm);
+      color: var(--near-black);
       font-weight: 500;
+    }
+    .hero-tokens a {
+      color: var(--brand);
+    }
+    .hero-tokens a:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
     }
 
 /* ─── Section ─── */
-    section { margin-bottom: 80px; }
-    .section-head { margin-bottom: 28px; }
+    section { margin-bottom: 72px; }
+    .section-head { margin-bottom: 24px; }
     .section-num {
-      font-family: var(--serif);
+      font-family: var(--latin-ui);
       font-weight: 400;
       font-size: 14px;
       color: var(--brand);
@@ -102,7 +121,7 @@
     .section-title {
       font-family: var(--display);
       font-weight: 400;
-      font-size: 32px;
+      font-size: 34px;
       line-height: 1.2;
       color: var(--near-black);
       margin: 0;
@@ -111,7 +130,7 @@
     .section-lede {
       font-family: var(--serif);
       font-weight: 400;
-      font-size: 16px;
+      font-size: 17px;
       line-height: 1.55;
       letter-spacing: 0.4px;
       color: var(--olive);
@@ -121,9 +140,9 @@
     /* ─── Glyph showcase ─── */
     .glyph-display {
       font-family: var(--display);
-      font-size: 48px;
-      line-height: 1.1;
-      letter-spacing: 0.5px;
+      font-size: 50px;
+      line-height: 1.18;
+      letter-spacing: 0.045em;
       margin: 0;
       color: var(--near-black);
       font-weight: 400;
@@ -139,62 +158,72 @@
     .type-row {
       display: grid;
       grid-template-columns: 140px 1fr;
-      column-gap: 32px;
+      column-gap: 36px;
       border-bottom: 1px solid var(--border-soft);
       align-items: center;
     }
     .type-row > * {
-      padding: 20px 32px;
+      padding: 24px 34px;
       min-width: 0;
     }
     .type-label {
-      font-family: var(--latin);
-      font-size: 13px;
+      font-family: var(--latin-ui);
+      font-size: 14px;
       font-weight: 500;
       color: var(--stone);
     }
 
     .latin-sample {
       font-family: var(--latin);
-      font-size: 22px;
+      font-size: 23px;
       letter-spacing: 0.08em;
       line-height: 1.6;
       overflow-wrap: anywhere;
     }
 
-    /* ─── Prose sample ─── */
-    .prose-card {
-      background: var(--ivory);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 40px 48px;
+    /* ─── Paper reading sample ─── */
+    .paper-preview {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      align-items: start;
+      padding-top: 8px;
     }
-    .prose-card .prose-title {
+    .paper-sheet {
+      width: 100%;
+      aspect-ratio: 210 / 297;
+      background: #fffdf8;
+      border: 1px solid var(--border);
+      padding: 40px 37px;
+      overflow: hidden;
+    }
+    .paper-title {
       font-family: var(--display);
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 400;
       margin: 0 0 6px;
       color: var(--near-black);
       letter-spacing: 0.08em;
     }
-    .prose-card .prose-byline {
-      font-size: 13px;
+    .paper-byline {
+      font-family: var(--serif);
+      font-size: 12px;
       color: var(--stone);
-      margin: 0 0 24px;
+      margin: 0 0 18px;
       letter-spacing: 0.06em;
     }
-    .prose-card .prose-body {
+    .paper-body {
       font-family: var(--serif);
-      font-size: 16px;
-      line-height: 1.9;
+      font-size: 12.8px;
+      line-height: 1.64;
       color: var(--dark-warm);
-      letter-spacing: 0.4px;
+      letter-spacing: 0.028em;
     }
-    .prose-card .prose-body p {
-      margin: 0 0 1.2em;
+    .paper-body p {
+      margin: 0 0 0.72em;
       text-align: justify;
     }
-    .prose-card .prose-body p:last-child { margin-bottom: 0; }
+    .paper-body p:last-child { margin-bottom: 0; }
 
     /* ─── Glyph grid (田字格) ─── */
     .glyph-grid {
@@ -213,7 +242,7 @@
       align-items: center;
       justify-content: center;
       font-family: var(--display);
-      font-size: 48px;
+      font-size: 50px;
       line-height: 1;
       color: var(--near-black);
       background-color: #fffdf8;
@@ -235,21 +264,22 @@
       background: var(--ivory);
     }
     .coverage-card div {
-      padding: 14px 16px;
+      padding: 16px 18px;
       border-right: 1px solid var(--border);
     }
     .coverage-card div:last-child { border-right: none; }
     .coverage-card b {
       display: block;
-      font-family: var(--serif);
-      font-size: 20px;
+      font-family: var(--number);
+      font-size: 22px;
       font-weight: 400;
       line-height: 1.2;
       color: var(--brand);
       margin-bottom: 4px;
     }
     .coverage-card span {
-      font-size: 12px;
+      font-family: var(--latin-ui);
+      font-size: 13px;
       color: var(--stone);
     }
 
@@ -259,15 +289,15 @@
     }
     .part-row {
       display: grid;
-      grid-template-columns: 88px minmax(220px, 1fr) minmax(260px, 1.1fr);
-      gap: 28px;
+      grid-template-columns: 88px minmax(420px, 1.62fr) minmax(220px, 0.78fr);
+      gap: 34px;
       align-items: center;
-      padding: 20px 0;
+      padding: 24px 0;
       border-bottom: 1px solid var(--border-soft);
     }
     .part-name {
-      font-family: var(--latin);
-      font-size: 12px;
+      font-family: var(--latin-ui);
+      font-size: 13px;
       font-weight: 600;
       color: var(--brand);
       letter-spacing: 0.04em;
@@ -276,17 +306,19 @@
     .part-sample {
       font-family: var(--display);
       font-size: 34px;
-      line-height: 1.15;
+      line-height: 1.35;
       color: var(--near-black);
-      white-space: nowrap;
-      letter-spacing: 3px;
+      white-space: normal;
+      letter-spacing: 0.11em;
+      min-width: 0;
     }
     .part-note {
       margin: 0;
-      font-size: 14px;
+      font-size: 15px;
       color: var(--dark-warm);
       line-height: 1.65;
       letter-spacing: 0.4px;
+      min-width: 0;
     }
     /* ─── Rules list ─── */
     .rules {
@@ -298,8 +330,8 @@
     }
     .rules li {
       display: grid;
-      grid-template-columns: 32px 1fr;
-      gap: 4px;
+      grid-template-columns: 34px 1fr;
+      gap: 6px;
       padding: 18px 24px 18px 0;
       border-bottom: 1px solid var(--border-soft);
       align-items: center;
@@ -309,13 +341,13 @@
     .rules .n {
       font-family: var(--serif);
       font-weight: 400;
-      font-size: 20px;
+      font-size: 22px;
       color: var(--brand);
       line-height: 1;
     }
     .rules p {
       margin: 0;
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.5;
       letter-spacing: 0.4px;
       color: var(--dark-warm);
@@ -328,6 +360,15 @@
       transition: opacity 0.15s;
     }
     .ref-link:hover { opacity: 0.7; }
+    .proof-link {
+      color: var(--brand);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+    .proof-link:hover {
+      opacity: 0.7;
+    }
 
     /* ─── Install ─── */
     pre.code {
@@ -336,9 +377,10 @@
       border-radius: 6px;
       padding: 18px 22px;
       font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--dark-warm);
+      font-size: 13.5px;
+      line-height: 1.55;
+      font-variant-numeric: tabular-nums;
+      color: var(--near-black);
       overflow-x: auto;
     }
     pre.code .c { color: var(--stone); }
@@ -346,7 +388,7 @@
 
     /* ─── Footer ─── */
     .footer {
-      margin-top: 64px;
+      margin-top: 56px;
       padding-top: 40px;
       border-top: 1px solid var(--border-soft);
       display: flex;
@@ -362,23 +404,30 @@
     .footer .wm-name {
       font-family: var(--serif);
       font-weight: 400;
-      font-size: 28px;
+      font-size: 30px;
       color: var(--near-black);
       margin: 0;
       line-height: 1;
     }
     .footer .wm-sub {
-      font-family: var(--serif);
+      font-family: var(--latin-ui);
       font-size: 14px;
       color: var(--olive);
       margin: 4px 0 0;
     }
     .footer .colophon {
-      font-size: 12px;
+      font-family: var(--latin-ui);
+      font-size: 13px;
       color: var(--stone);
       line-height: 1.6;
-      max-width: 420px;
+      max-width: 460px;
       text-align: right;
+    }
+    .footer .colophon-note {
+      margin-top: 8px;
+      color: var(--olive);
+      font-family: var(--serif);
+      letter-spacing: 0.2px;
     }
     .footer a { color: var(--brand); text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
@@ -386,6 +435,7 @@
     /* ─── Responsive ─── */
     @media (max-width: 860px) {
       .page { padding: 56px 28px 88px; }
+      .eyebrow { align-items: flex-start; flex-direction: column; gap: 8px; }
       .hero h1 { font-size: 64px; }
       .hero .tagline { font-size: 18px; }
       .glyph-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -394,7 +444,9 @@
       .rules { grid-template-columns: 1fr; }
       .rules li:nth-child(odd) { border-right: none; padding-right: 0; }
       .rules li:nth-child(even) { padding-left: 0; }
-      .prose-card { padding: 28px 24px; }
+      .paper-preview { grid-template-columns: 1fr; }
+      .paper-sheet { width: min(100%, 560px); justify-self: center; padding: 40px 37px; }
+      .paper-body { font-size: 12.7px; line-height: 1.62; }
       .footer { flex-direction: column; align-items: flex-start; gap: 24px; }
       .footer .colophon { text-align: left; max-width: 100%; }
       .footer .wm-name { font-size: 22px; }
@@ -404,13 +456,18 @@
       .hero h1 { font-size: 48px; }
       .hero h1 .cn { margin-left: 8px; }
       .hero .tagline { font-size: 17px; line-height: 1.5; }
+      .hero-tokens a,
+      .hero-tokens span { font-size: 13px; }
       section { margin-bottom: 64px; }
       .section-head { margin-bottom: 22px; }
       .section-title { font-size: 30px; letter-spacing: 0.8px; }
       .glyph-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .glyph-display { font-size: 32px; white-space: normal; }
+      .paper-sheet { aspect-ratio: auto; padding: 32px 24px; }
+      .paper-title { font-size: 22px; }
+      .paper-body { font-size: 12.5px; line-height: 1.66; }
       .type-row { grid-template-columns: 1fr; }
-      .type-row > * { padding: 14px 0; }
+      .type-row > * { padding: 16px 0; }
       .type-label { padding-bottom: 0; border-bottom: none; }
       .latin-sample {
         font-size: 14px;
@@ -420,7 +477,8 @@
       .part-row { padding: 18px 0; }
       .part-sample {
         font-size: 26px;
-        letter-spacing: 1px;
+        line-height: 1.42;
+        letter-spacing: 0.08em;
       }
       .coverage-card { grid-template-columns: repeat(2, 1fr); }
       .coverage-card div:nth-child(2) { border-right: 0; }
@@ -440,6 +498,7 @@
     <div class="eyebrow">
       <span>CJK Reading Type · v0.3.0 · 2026.05</span>
       <span class="hero-links">
+        <a class="proof-nav" href="proof/gb2312.html">常用字校准</a>
         <a href="https://github.com/tw93/luo" target="_blank" rel="noopener" aria-label="GitHub">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         </a>
@@ -453,7 +512,7 @@
     <div class="hero-tokens">
       <span><b>Use</b>Reading pages</span>
       <span><b>Tone</b>Clear pages</span>
-      <span><b>Proof</b>GB2312 grid</span>
+      <span><b>Paper</b>Two-page spread</span>
       <span><b>Stress</b>Lantingji Xu</span>
     </div>
   </header>
@@ -484,19 +543,19 @@
     <div class="type-grid">
       <div class="type-row">
         <div class="type-label">Display</div>
-        <div class="glyph-display" style="font-size:54px; letter-spacing:0;">落笔见心</div>
+        <div class="glyph-display" style="font-size:58px; letter-spacing:0.06em;">落笔见心</div>
       </div>
       <div class="type-row">
         <div class="type-label">Headline</div>
-        <div class="glyph-display" style="font-size:36px;">横轻竖重，字字端正</div>
+        <div class="glyph-display" style="font-size:38px; letter-spacing:0.055em;">横轻竖重，字字端正</div>
       </div>
       <div class="type-row">
         <div class="type-label">Subhead</div>
-        <div class="glyph-display" style="font-size:26px;">不圆不尖，不软不媚，刚好落在纸上</div>
+        <div class="glyph-display" style="font-size:28px; letter-spacing:0.045em;">不圆不尖，不软不媚，刚好落在纸上</div>
       </div>
       <div class="type-row">
         <div class="type-label">Body</div>
-        <div class="glyph-display" style="font-size:18px; line-height:1.7; letter-spacing:0.4px;">好字不争声色，读到最后你才发现，它从第一行就一直安静地陪你读下去。</div>
+        <div class="glyph-display" style="font-size:19px; line-height:1.7; letter-spacing:0.4px;">好字不争声色，读到最后你才发现，它从第一行就一直安静地陪你读下去。</div>
       </div>
       <div class="type-row">
         <div class="type-label">Latin</div>
@@ -506,11 +565,11 @@
   </section>
 
   <!-- 01.5 CALIBRATION -->
-  <section>
+  <section id="calibration">
     <div class="section-head">
       <p class="section-num">Calibration</p>
       <h2 class="section-title">字形一览</h2>
-      <p class="section-lede">天地玄黄，宇宙洪荒，选四十八字看结构、重心与灰度；完整字表见 <a class="ref-link" href="proof/gb2312.html">GB2312 常用字校准</a></p>
+      <p class="section-lede">天地玄黄，宇宙洪荒，选四十八字看结构、重心与灰度；<a class="proof-link" href="proof/gb2312.html">查看完整常用字校准</a></p>
     </div>
     <div class="glyph-grid">
       <span class="cell">天</span><span class="cell">地</span><span class="cell">玄</span><span class="cell">黄</span><span class="cell">宇</span><span class="cell">宙</span><span class="cell">洪</span><span class="cell">荒</span><span class="cell">日</span><span class="cell">月</span><span class="cell">盈</span><span class="cell">昃</span><span class="cell">辰</span><span class="cell">宿</span>
@@ -523,24 +582,36 @@
   <section>
     <div class="section-head">
       <p class="section-num">02 · Reading</p>
-      <h2 class="section-title">长文阅读</h2>
-      <p class="section-lede">长文最能检验字体，旧笔意落在新纸面，行距、灰度和重心都要经得起反复阅读</p>
+      <h2 class="section-title">两页纸试读</h2>
+      <p class="section-lede">左看归去来的疏朗，右看赤壁的清旷；两页各自成篇，刚好检查整页灰度和行距。</p>
     </div>
-    <div class="prose-card">
-      <p class="prose-title">兰亭集序</p>
-      <p class="prose-byline">王羲之 · 东晋</p>
-      <div class="prose-body">
-        <p>永和九年，岁在癸丑，暮春之初，会于会稽山阴之兰亭，修禊事也。群贤毕至，少长咸集。此地有崇山峻岭，茂林修竹，又有清流激湍，映带左右，引以为流觞曲水，列坐其次。虽无丝竹管弦之盛，一觞一咏，亦足以畅叙幽情。</p>
-        <p>是日也，天朗气清，惠风和畅。仰观宇宙之大，俯察品类之盛，所以游目骋怀，足以极视听之娱，信可乐也。</p>
-        <p>夫人之相与，俯仰一世。或取诸怀抱，悟言一室之内；或因寄所托，放浪形骸之外。虽趣舍万殊，静躁不同，当其欣于所遇，暂得于己，快然自足，不知老之将至。及其所之既倦，情随事迁，感慨系之矣。向之所欣，俯仰之间，已为陈迹，犹不能不以之兴怀。况修短随化，终期于尽。古人云：死生亦大矣。岂不痛哉！</p>
-        <p>每览昔人兴感之由，若合一契，未尝不临文嗟悼，不能喻之于怀。固知一死生为虚诞，齐彭殇为妄作。后之视今，亦犹今之视昔。悲夫！故列叙时人，录其所述，虽世殊事异，所以兴怀，其致一也。后之览者，亦将有感于斯文。</p>
+    <div class="paper-preview">
+      <div class="paper-sheet" aria-label="Guiqulai Ci reading sample">
+        <p class="paper-title">归去来兮辞</p>
+        <p class="paper-byline">陶渊明 · 东晋</p>
+        <div class="paper-body">
+          <p>余家贫，耕植不足以自给。幼稚盈室，瓶无储粟，生生所资，未见其术。亲故多劝余为长吏，脱然有怀，求之靡途。会有四方之事，诸侯以惠爱为德。家叔以余贫苦，遂见用于小邑。于时风波未静，心惮远役，彭泽去家百里，公田之利，足以为酒，故便求之。及少日，眷然有归欤之情。</p>
+          <p>何则？质性自然，非矫厉所得。饥冻虽切，违己交病。尝从人事，皆口腹自役。于是怅然慷慨，深愧平生之志。犹望一稔，当敛裳宵逝。寻程氏妹丧于武昌，情在骏奔，自免去职。仲秋至冬，在官八十余日。因事顺心，命篇曰归去来兮。乙巳岁十一月也。</p>
+          <p>归去来兮，田园将芜胡不归？既自以心为形役，奚惆怅而独悲？悟已往之不谏，知来者之可追。实迷途其未远，觉今是而昨非。舟遥遥以轻飏，风飘飘而吹衣。问征夫以前路，恨晨光之熹微。</p>
+          <p>乃瞻衡宇，载欣载奔。僮仆欢迎，稚子候门。三径就荒，松菊犹存。携幼入室，有酒盈樽。引壶觞以自酌，眄庭柯以怡颜。倚南窗以寄傲，审容膝之易安。园日涉以成趣，门虽设而常关。</p>
+          <p>策扶老以流憩，时矫首而遐观。云无心以出岫，鸟倦飞而知还。景翳翳以将入，抚孤松而盘桓。归去来兮，请息交以绝游。世与我而相违，复驾言兮焉求？悦亲戚之情话，乐琴书以消忧。</p>
+          <p>农人告余以春及，将有事于西畴。或命巾车，或棹孤舟。既窈窕以寻壑，亦崎岖而经丘。木欣欣以向荣，泉涓涓而始流。善万物之得时，感吾生之行休。已矣乎！寓形宇内复几时？曷不委心任去留？</p>
+          <p>胡为乎遑遑欲何之？富贵非吾愿，帝乡不可期。怀良辰以孤往，或植杖而耘耔。登东皋以舒啸，临清流而赋诗。聊乘化以归尽，乐夫天命复奚疑！</p>
+        </div>
       </div>
-    </div>
-    <div class="coverage-card" aria-label="Lan Ting Ji Xu coverage">
-      <div><b>815</b><span>starter 覆盖字符</span></div>
-      <div><b>807</b><span>CJK 汉字</span></div>
-      <div><b>387</b><span>结构优化字</span></div>
-      <div><b>0</b><span>样张缺字</span></div>
+      <div class="paper-sheet" aria-label="Qian Chibi Fu reading sample">
+        <p class="paper-title">前赤壁赋</p>
+        <p class="paper-byline">苏轼 · 宋</p>
+        <div class="paper-body">
+          <p>壬戌之秋，七月既望，苏子与客泛舟游于赤壁之下。清风徐来，水波不兴。举酒属客，诵明月之诗，歌窈窕之章。少焉，月出于东山之上，徘徊于斗牛之间。白露横江，水光接天。纵一苇之所如，凌万顷之茫然。浩浩乎如冯虚御风，而不知其所止；飘飘乎如遗世独立，羽化而登仙。</p>
+          <p>于是饮酒乐甚，扣舷而歌之。歌曰：“桂棹兮兰桨，击空明兮溯流光。渺渺兮予怀，望美人兮天一方。”客有吹洞箫者，倚歌而和之，其声呜呜然，如怨如慕，如泣如诉；余音袅袅，不绝如缕。舞幽壑之潜蛟，泣孤舟之嫠妇。</p>
+          <p>苏子愀然，正襟危坐而问客曰：“何为其然也？”客曰：“月明星稀，乌鹊南飞，此非曹孟德之诗乎？西望夏口，东望武昌，山川相缪，郁乎苍苍，此非孟德之困于周郎者乎？方其破荆州，下江陵，顺流而东也，舳舻千里，旌旗蔽空，酾酒临江，横槊赋诗，固一世之雄也，而今安在哉？</p>
+          <p>况吾与子渔樵于江渚之上，侣鱼虾而友麋鹿，驾一叶之扁舟，举匏樽以相属。寄蜉蝣于天地，渺沧海之一粟。哀吾生之须臾，羡长江之无穷。挟飞仙以遨游，抱明月而长终。知不可乎骤得，托遗响于悲风。”</p>
+          <p>苏子曰：“客亦知夫水与月乎？逝者如斯，而未尝往也；盈虚者如彼，而卒莫消长也。盖将自其变者而观之，则天地曾不能以一瞬；自其不变者而观之，则物与我皆无尽也，而又何羡乎！</p>
+          <p>且夫天地之间，物各有主，苟非吾之所有，虽一毫而莫取。惟江上之清风，与山间之明月，耳得之而为声，目遇之而成色，取之无禁，用之不竭，是造物者之无尽藏也，而吾与子之所共适。”</p>
+          <p>客喜而笑，洗盏更酌。肴核既尽，杯盘狼籍。相与枕藉乎舟中，不知东方之既白。</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -553,9 +624,19 @@
     </div>
     <div class="parts-grid" aria-label="Luo component calibration">
       <div class="part-row">
+        <span class="part-name">Core</span>
+        <span class="part-sample">落文字书心清骨风纸印</span>
+        <p class="part-note">核心锚字先立住语法，再扩散到全字集</p>
+      </div>
+      <div class="part-row">
         <span class="part-name">Dots</span>
         <span class="part-sample">清润源落寒露霜霞滴淡</span>
         <p class="part-note">点画短促，有方向，不圆、不散</p>
+      </div>
+      <div class="part-row">
+        <span class="part-name">Slants</span>
+        <span class="part-sample">代黑点述游清流激湍淡</span>
+        <p class="part-note">斜笔有分量，短撇不发虚</p>
       </div>
       <div class="part-row">
         <span class="part-name">Hooks</span>
@@ -574,13 +655,13 @@
       </div>
       <div class="part-row">
         <span class="part-name">Frames</span>
-        <span class="part-sample">国回图园间阅品亭曾会</span>
-        <p class="part-note">框架稳但透气，内白清楚</p>
+        <span class="part-sample">国回图园日目用月田问</span>
+        <p class="part-note">框架稳但透气，转折有骨节</p>
       </div>
       <div class="part-row">
         <span class="part-name">Dense</span>
-        <span class="part-sample">藏露霜霞馈赢耀魔籍麟</span>
-        <p class="part-note">复杂字内部打开，小字号不糊</p>
+        <span class="part-sample">藏霞霜露馈赢耀魔籍麟</span>
+        <p class="part-note">复杂字内部打开，副笔不抢灰度</p>
       </div>
     </div>
   </section>
@@ -602,8 +683,9 @@
 }
 
 body {
-  font-family: <span class="k">"Luo"</span>, "Avenir Next", Inter,
-               "SF Pro Text", "Noto Sans CJK SC", sans-serif;
+  font-family: <span class="k">"Luo"</span>, Seravek, Candara, Optima,
+               "Iowan Old Style", Charter, Georgia,
+               "Avenir Next", "Noto Sans CJK SC", sans-serif;
 }</pre>
   </section>
 
@@ -617,11 +699,12 @@ body {
       </svg>
       <div>
         <p class="wm-name">Luo · 落文</p>
-        <p class="wm-sub">a CJK typeface for Kami</p>
+        <p class="wm-sub">a CJK typeface for paper and reading</p>
       </div>
     </div>
     <div class="colophon">
-      <div>Luo · a CJK typeface for Kami · <a href="https://github.com/tw93/luo" style="color:var(--brand);text-decoration:none;font-weight:500;">github.com/tw93/luo</a></div>
+      <div><a href="https://github.com/tw93/luo" style="color:var(--brand);text-decoration:none;font-weight:500;">GitHub</a>&nbsp;&nbsp;·&nbsp;&nbsp;Web specimen · <a href="proof/gb2312.html">GB2312 proof</a></div>
+      <div class="colophon-note">中文承载纸面，英数使用 fallback，Kami 提供纸面语境。</div>
     </div>
   </footer>
 

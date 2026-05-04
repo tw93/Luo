@@ -3,15 +3,20 @@ Luo font builder.
 
 Pipeline:
   1. Load the source TTF.
-  2. Subset to starter/site/seed characters.
+  2. Subset to starter/site/seed or explicit GB2312 expansion characters.
   3. Graduated stroke thickening (横细竖重, contour-scaled).
   4. Endpoint softening (硬切 -> 软切).
-  5. Hook refinement (钩根减重, 钩身缩短, 钩尖减轻).
-  6. Complexity-aware horizontal narrowing + vertical scaling.
-  7. Component-aware refinement (6 categories).
-  8. CJK punctuation + space + spacing.
-  9. Rewrite name table -> Luo.
- 10. Write Luo-Regular.otf/.ttf/.woff2 into dist/.
+  5. Complexity-aware horizontal narrowing + vertical scaling.
+  6. Component-aware refinement (7 categories).
+  7. Heart-character reshape (心字底/旁).
+  8. Dot contour direction (xiaokai dot rotation + compression).
+  9. Targeted turn refinement (priority frames/endpoints/multi-horiz).
+ 10. Dense dot-cluster protection (墨).
+ 11. Hook refinement on whitelist (refine_hooks_final).
+ 12. Walk-radical final containment (透/道/遇/述/远).
+ 13. CJK punctuation + space + spacing.
+ 14. Rewrite name table -> Luo.
+ 15. Write Luo-Regular.otf/.ttf/.woff2 into dist/.
 
 Target glyph parameters:
   字宽: regular 94-98%, complex 92-95%, simple 96-100%
@@ -65,18 +70,23 @@ COMPLEXITY_SIMPLE_MAX = int(os.environ.get("LUO_COMPLEXITY_SIMPLE", "3"))
 COMPLEXITY_COMPLEX_MIN = int(os.environ.get("LUO_COMPLEXITY_COMPLEX", "8"))
 
 # --- Vertical scaling ---
-SCALE_Y = float(os.environ.get("LUO_SCALE_Y", "1.05"))
+SCALE_Y = float(os.environ.get("LUO_SCALE_Y", "1.00"))
 
 # --- Punctuation ---
-# Tsanger-style proportional CJK punctuation: keep the marks compact instead
-# of leaving fullwidth punctuation gaps in running text.
+# Contemporary print-style proportional CJK punctuation: keep the marks compact
+# instead of leaving fullwidth punctuation gaps in running text.
 PUNCT_WIDTH_RATIO = float(os.environ.get("LUO_PUNCT_WIDTH", "0.75"))
 
 # --- Boldening ---
 # Direction-aware: horizontal strokes get less delta, vertical strokes more,
 # producing the 横细竖重 feel without uniform fattening.
-BOLDEN_H = float(os.environ.get("LUO_BOLDEN_H", "5"))   # 横画留白，避免长文发闷
-BOLDEN_V = float(os.environ.get("LUO_BOLDEN_V", "13"))  # 竖画有分量，但不压黑
+BOLDEN_H = float(os.environ.get("LUO_BOLDEN_H", "6"))   # 横画恢复分量，多骨
+BOLDEN_V = float(os.environ.get("LUO_BOLDEN_V", "14"))  # 竖画稳重，主笔有分量
+# Diagonal bonus: linear interpolation gives 撇/捺 about 10.5 at 45° — visually
+# too thin next to 15-unit verticals. Add a parabolic bonus that peaks at
+# horiz_ratio=0.5 so 撇/捺 carry more weight without disturbing pure
+# horizontals/verticals.
+BOLDEN_DIAG_BONUS = float(os.environ.get("LUO_BOLDEN_DIAG", "9.0"))
 # Legacy single-value override.
 BOLDEN_DELTA = os.environ.get("LUO_BOLDEN")
 # Graduated boldening: reduce delta as contour count rises.
@@ -85,16 +95,25 @@ BOLDEN_GRAD_FLOOR = float(os.environ.get("LUO_BOLDEN_GRAD_FLOOR", "0.85"))
 BOLDEN_GRAD_ONSET = int(os.environ.get("LUO_BOLDEN_GRAD_ONSET", "3"))
 
 # Endpoint softening (软切角): round sharp corners after boldening.
-SOFTEN_ANGLE = float(os.environ.get("LUO_SOFTEN_ANGLE", "130"))
-SOFTEN_BLEND = float(os.environ.get("LUO_SOFTEN_BLEND", "0.055"))
+SOFTEN_ANGLE = float(os.environ.get("LUO_SOFTEN_ANGLE", "120"))
+SOFTEN_BLEND = float(os.environ.get("LUO_SOFTEN_BLEND", "0.05"))
 SOFTEN_SEG_MAX = float(os.environ.get("LUO_SOFTEN_SEG_MAX", "80"))
+# Endpoint subtypes keep one Luo temperament without stamping every terminal
+# with the same soft-cut geometry.
+ENDPOINT_H_BLEND = float(os.environ.get("LUO_ENDPOINT_H_BLEND", "0.040"))
+ENDPOINT_V_BOTTOM_BLEND = float(os.environ.get("LUO_ENDPOINT_V_BOTTOM_BLEND", "0.045"))
+ENDPOINT_DIAG_BLEND = float(os.environ.get("LUO_ENDPOINT_DIAG_BLEND", "0.030"))
 
 # Space width: half-width space for tighter CJK typesetting.
 SPACE_WIDTH_RATIO = float(os.environ.get("LUO_SPACE_WIDTH", "0.50"))
 
 # Hook refinement (钩画): thinner root, shorter body, lighter tip.
-HOOK_ROOT_THIN = float(os.environ.get("LUO_HOOK_ROOT_THIN", "0.11"))
-HOOK_SHORTEN = float(os.environ.get("LUO_HOOK_SHORTEN", "0.18"))
+HOOK_ROOT_THIN = float(os.environ.get("LUO_HOOK_ROOT_THIN", "0.09"))
+HOOK_SHORTEN = float(os.environ.get("LUO_HOOK_SHORTEN", "0.14"))
+# Negative = end point extends outward. v0.1 used -0.02 because refine_hooks
+# also fires on stroke ends (撇尾/捺尾) that geometrically look like hooks;
+# extending outward keeps those ends natural. Positive values create a
+# "bird-beak" curl on every 撇尾/捺尾.
 HOOK_TIP_TAPER = float(os.environ.get("LUO_HOOK_TIP_TAPER", "-0.02"))
 
 # CJK spacing: keep 1em advances by default for predictable reading text.
@@ -106,12 +125,36 @@ SPACING_CAP = float(os.environ.get("LUO_SPACING_CAP", "1.00"))
 # --- Dot contour refinement (Pass A) ---
 DOT_AREA_PCT = float(os.environ.get("LUO_DOT_AREA_PCT", "5.0"))
 DOT_MAX_POINTS = int(os.environ.get("LUO_DOT_MAX_POINTS", "20"))
-DOT_COMPRESS = float(os.environ.get("LUO_DOT_COMPRESS", "0.76"))
-DOT_ROTATE_DEG = float(os.environ.get("LUO_DOT_ROTATE_DEG", "8.0"))
+# Directional shaping: less compression along the long axis (keep length),
+# more compression along the short axis (carve out width). Together with the
+# rotation, this gives xiaokai dots a wedge feel rather than a round droplet.
+DOT_LONG_AXIS = float(os.environ.get("LUO_DOT_LONG_AXIS", "0.92"))
+DOT_LONG_AXIS_SOFT = float(os.environ.get("LUO_DOT_LONG_AXIS_SOFT", "1.00"))
+DOT_SHORT_AXIS = float(os.environ.get("LUO_DOT_SHORT_AXIS", "0.55"))
+DOT_ROTATE_DEG = float(os.environ.get("LUO_DOT_ROTATE_DEG", "14.0"))
+# Adaptive carve: as source aspect rises toward the gate, lerp short-axis factor
+# toward 1.0 so elongated dots (岭/信/令 style) are not over-carved into slashes.
+DOT_RELAX_PIVOT = float(os.environ.get("LUO_DOT_RELAX_PIVOT", "1.0"))
+DOT_RELAX_GATE  = float(os.environ.get("LUO_DOT_RELAX_GATE",  "1.8"))
+# Dot-aware bolden cap: stop small dot-like contours from gaining very
+# different horizontal expansion in dense vs open glyph contexts.
+DOT_BOLDEN_X_CAP_FACTOR = float(os.environ.get("LUO_DOT_BOLDEN_X_CAP_FACTOR", "1.15"))
+DOT_BOLDEN_ASPECT_GATE = 2.2
 
 # --- Second hook pass (Pass B) ---
 HOOK_FINAL_SHORTEN = float(os.environ.get("LUO_HOOK_FINAL_SHORTEN", "0.14"))
 HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.18"))
+HOOK_FINAL_TAIL_CONTAIN = float(os.environ.get("LUO_HOOK_FINAL_TAIL_CONTAIN", "0.06"))
+
+# --- Targeted turn refinement (Pass C, whitelist only) ---
+TURN_FINAL_ANGLE_MAX = 105.0
+TURN_FINAL_DISPLACE = float(os.environ.get("LUO_TURN_FINAL_DISPLACE", "1.2"))
+TURN_FINAL_INNER = float(os.environ.get("LUO_TURN_FINAL_INNER", "0.96"))
+TURN_FINAL_SEG_MIN = 15.0
+TURN_FINAL_SEG_MAX = 90.0
+TURN_FINAL_FRAME_DISPLACE = float(os.environ.get("LUO_TURN_FINAL_FRAME_DISPLACE", "1.6"))
+TURN_FINAL_FRAME_INNER = float(os.environ.get("LUO_TURN_FINAL_FRAME_INNER", "0.955"))
+TURN_FINAL_FRAME_SEG_MAX = float(os.environ.get("LUO_TURN_FINAL_FRAME_SEG_MAX", "140"))
 
 # --- Bone turn refinement (Pass C) ---
 BONE_TURN_ANGLE_MAX = float(os.environ.get("LUO_BONE_TURN_ANGLE_MAX", "120"))
@@ -123,15 +166,52 @@ BONE_TURN_INNER_REDUCE = float(os.environ.get("LUO_BONE_TURN_INNER_REDUCE", "0.9
 # --- Stroke taper refinement (Pass D) ---
 TAPER_ARC_PCT = float(os.environ.get("LUO_TAPER_ARC_PCT", "0.15"))
 TAPER_INWARD = float(os.environ.get("LUO_TAPER_INWARD", "0.055"))
-TAPER_MIN_CONTOUR_PTS = int(os.environ.get("LUO_TAPER_MIN_CONTOUR_PTS", "12"))
+TAPER_MIN_CONTOUR_PTS = int(os.environ.get("LUO_TAPER_MIN_CONTOUR_PTS", "24"))
 
 # --- Heart character refinement (Pass E) ---
-HEART_DOT_COMPRESS = float(os.environ.get("LUO_HEART_DOT_COMPRESS", "0.76"))
-HEART_DOT_ANGLE = float(os.environ.get("LUO_HEART_DOT_ANGLE", "10.0"))
+# LXGW 心 strokes already have direction (-35°/-57°/+62° for the four dots);
+# Contemporary kaishu-inspired print fonts keep a similar directional logic.
+# Don't re-shape these dots with aggressive long/short axis warping — that
+# flattens c2 (299->150) and turns c3 into a needle (175->86). Use gentle
+# uniform shrink + small tilt instead.
+HEART_DOT_LONG_AXIS = float(os.environ.get("LUO_HEART_DOT_LONG_AXIS", "0.95"))
+HEART_DOT_SHORT_AXIS = float(os.environ.get("LUO_HEART_DOT_SHORT_AXIS", "0.85"))
+HEART_DOT_ANGLE = float(os.environ.get("LUO_HEART_DOT_ANGLE", "5.0"))
 HEART_HOOK_SHORTEN = float(os.environ.get("LUO_HEART_HOOK_SHORTEN", "0.10"))
 HEART_DOT_SPACING = float(os.environ.get("LUO_HEART_DOT_SPACING", "1.06"))
+HEART_STANDALONE_DOT_LONG_AXIS = float(os.environ.get("LUO_HEART_STANDALONE_DOT_LONG_AXIS", "0.88"))
+HEART_STANDALONE_DOT_SHORT_AXIS = float(os.environ.get("LUO_HEART_STANDALONE_DOT_SHORT_AXIS", "0.90"))
+HEART_STANDALONE_DOT_SPACING = float(os.environ.get("LUO_HEART_STANDALONE_DOT_SPACING", "1.02"))
+HEART_STANDALONE_HOOK_SHORTEN = float(os.environ.get("LUO_HEART_STANDALONE_HOOK_SHORTEN", "0.14"))
+HEART_STANDALONE_HOOK_TAIL_CONTAIN = float(os.environ.get("LUO_HEART_STANDALONE_HOOK_TAIL_CONTAIN", "0.05"))
+HEART_STANDALONE_RAISE_EM = float(os.environ.get("LUO_HEART_STANDALONE_RAISE_EM", "0.040"))
+HEART_STANDALONE_LEFT_DOT_OUTSET = float(os.environ.get("LUO_HEART_STANDALONE_LEFT_DOT_OUTSET", "0.035"))
+HEART_STANDALONE_RIGHT_DOT_INSET = float(os.environ.get("LUO_HEART_STANDALONE_RIGHT_DOT_INSET", "0.030"))
+HEART_STANDALONE_RIGHT_DOT_LONG_SCALE = float(os.environ.get("LUO_HEART_STANDALONE_RIGHT_DOT_LONG_SCALE", "0.920"))
+HEART_STANDALONE_RIGHT_DOT_RAISE_EM = float(os.environ.get("LUO_HEART_STANDALONE_RIGHT_DOT_RAISE_EM", "0.020"))
+HEART_STANDALONE_HOOK_SHIFT_X_EM = float(os.environ.get("LUO_HEART_STANDALONE_HOOK_SHIFT_X_EM", "-0.020"))
+HEART_STANDALONE_HOOK_STEM_THICKEN = float(os.environ.get("LUO_HEART_STANDALONE_HOOK_STEM_THICKEN", "0.035"))
+
+# Final display-anchor refinements. These are deliberately tiny, character-
+# specific touches for the homepage display words; they should not become
+# another global style pass.
+ANCHOR_LUO_TOP_EXPAND = float(os.environ.get("LUO_ANCHOR_LUO_TOP_EXPAND", "1.025"))
+ANCHOR_LUO_BOTTOM_CONTRACT = float(os.environ.get("LUO_ANCHOR_LUO_BOTTOM_CONTRACT", "0.955"))
+ANCHOR_BI_TOP_SCALE_X = float(os.environ.get("LUO_ANCHOR_BI_TOP_SCALE_X", "0.940"))
+ANCHOR_BI_TOP_SCALE_Y = float(os.environ.get("LUO_ANCHOR_BI_TOP_SCALE_Y", "0.975"))
+ANCHOR_JIAN_BOTTOM_RAISE_EM = float(os.environ.get("LUO_ANCHOR_JIAN_BOTTOM_RAISE_EM", "0.035"))
+ANCHOR_JIAN_BOTTOM_CONTAIN = float(os.environ.get("LUO_ANCHOR_JIAN_BOTTOM_CONTAIN", "0.018"))
+ANCHOR_JIAN_RIGHT_TAIL_CONTAIN = float(os.environ.get("LUO_ANCHOR_JIAN_RIGHT_TAIL_CONTAIN", "0.035"))
 
 BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "starter")
+BUILD_CHAR_MODES = (
+    "seed",
+    "site",
+    "starter",
+    "full",
+    "gb2312-level1",
+    "gb2312-full",
+)
 
 FAMILY = os.environ.get("LUO_FAMILY", "Luo")
 SUBFAMILY = os.environ.get("LUO_SUBFAMILY", "Regular")
@@ -139,7 +219,7 @@ OUTPUT_PREFIX = os.environ.get("LUO_OUTPUT_PREFIX", "Luo-Regular")
 VERSION = "0.3.0"
 
 COPYRIGHT = (
-    "Luo, a CJK typeface for Kami. "
+    "Luo, a CJK typeface for paper and reading. "
     "Portions copyright Lxgw. SIL OFL 1.1."
 )
 LICENSE_TEXT = (
@@ -189,6 +269,29 @@ def _is_cjk_punctuation_glyph(name: str, cmap: dict[int, str]) -> bool:
     return False
 
 
+def _contour_bounds(coords, start: int, end: int) -> tuple[int, int, int, int, int]:
+    xs = [coords[i][0] for i in range(start, end + 1)]
+    ys = [coords[i][1] for i in range(start, end + 1)]
+    return min(xs), min(ys), max(xs), max(ys), end - start + 1
+
+
+def _is_dot_like_contour(coords, start: int, end: int, total_area: float) -> bool:
+    if total_area <= 0:
+        return False
+    x_min, y_min, x_max, y_max, n_pts = _contour_bounds(coords, start, end)
+    if n_pts < 12 or n_pts > DOT_MAX_POINTS:
+        return False
+    c_w = x_max - x_min
+    c_h = y_max - y_min
+    if c_w <= 0 or c_h <= 0:
+        return False
+    aspect = max(c_w, c_h) / min(c_w, c_h)
+    if aspect > DOT_BOLDEN_ASPECT_GATE:
+        return False
+    pct = c_w * c_h / total_area * 100
+    return pct < DOT_AREA_PCT
+
+
 def bolden_glyphs(font: TTFont, bolden_h: float, bolden_v: float) -> None:
     """
     Direction-aware stroke thickening with graduated complexity scaling.
@@ -210,12 +313,15 @@ def bolden_glyphs(font: TTFont, bolden_h: float, bolden_v: float) -> None:
 
     scale_hist: dict[str, int] = {}
     count = 0
+    dot_bolden_contours = 0
+    dot_bolden_points = 0
     for name in font.getGlyphOrder():
         glyph = glyf[name]
         if glyph.numberOfContours <= 0:
             continue
 
-        if _is_cjk_glyph(name, cmap):
+        is_cjk = _is_cjk_glyph(name, cmap)
+        if is_cjk:
             scale = _bolden_scale(glyph)
         else:
             scale = 1.0
@@ -233,15 +339,20 @@ def bolden_glyphs(font: TTFont, bolden_h: float, bolden_v: float) -> None:
         ys = [c[1] for c in coords]
         old_cx = sum(xs) / len(xs)
         old_cy = sum(ys) / len(ys)
+        total_area = (max(xs) - min(xs)) * (max(ys) - min(ys))
 
         new_coords = list(coords)
         start = 0
         for end in ends:
             n = end - start + 1
+            dot_like = is_cjk and _is_dot_like_contour(coords, start, end, total_area)
+            if dot_like:
+                dot_bolden_contours += 1
             for j in range(n):
                 idx = start + j
                 px, py = coords[start + (j - 1) % n]
                 nx_pt, ny_pt = coords[start + (j + 1) % n]
+                x, y = coords[idx]
                 tx, ty = nx_pt - px, ny_pt - py
                 length = math.hypot(tx, ty)
                 if length < 1e-6:
@@ -249,11 +360,33 @@ def bolden_glyphs(font: TTFont, bolden_h: float, bolden_v: float) -> None:
                 norm_x = -ty / length
                 norm_y = tx / length
                 horiz_ratio = abs(tx) / length
-                delta = local_h * horiz_ratio + local_v * (1.0 - horiz_ratio)
-                x, y = coords[idx]
+                base = local_h * horiz_ratio + local_v * (1.0 - horiz_ratio)
+                # Diagonal lift: sqrt-broadened parabola so shallow 撇
+                # (horiz_ratio≈0.85-0.95, e.g. the bottom 撇 of 斤/新) still
+                # gets a meaningful bonus. Pure h/v (r=1 or 0) → 0.
+                diag_lift = math.sqrt(4.0 * horiz_ratio * (1.0 - horiz_ratio))
+                # Corner gating: at 横折/竖折 corners, the prev→next secant
+                # accidentally looks like a 45° diagonal, so naive bonus
+                # bulges the joint outward (visible: 仰 卬 右上角, 骰 殳 右上角
+                # too thick). Suppress bonus at sharp corners by scaling with
+                # cos(angle between incoming and outgoing edges).
+                v_in_len = math.hypot(x - px, y - py)
+                v_out_len = math.hypot(nx_pt - x, ny_pt - y)
+                smoothness = 1.0
+                if v_in_len > 1e-6 and v_out_len > 1e-6:
+                    cos_corner = ((x - px) * (nx_pt - x) + (y - py) * (ny_pt - y)) / (v_in_len * v_out_len)
+                    smoothness = max(0.0, cos_corner)
+                delta = base + BOLDEN_DIAG_BONUS * diag_lift * smoothness
+                move_x = delta * norm_x
+                move_y = delta * norm_y
+                if dot_like:
+                    x_cap = local_h * DOT_BOLDEN_X_CAP_FACTOR
+                    if abs(move_x) > x_cap and abs(move_x) > 1e-6:
+                        move_x = math.copysign(x_cap, move_x)
+                        dot_bolden_points += 1
                 new_coords[idx] = (
-                    int(round(x + delta * norm_x)),
-                    int(round(y + delta * norm_y)),
+                    int(round(x + move_x)),
+                    int(round(y + move_y)),
                 )
             start = end + 1
 
@@ -274,6 +407,10 @@ def bolden_glyphs(font: TTFont, bolden_h: float, bolden_v: float) -> None:
     dist = " | ".join(f"×{k}: {v}" for k, v in sorted(scale_hist.items(), reverse=True))
     print(f"[luo] boldened {count} glyphs (h={bolden_h}, v={bolden_v}, graduated)")
     print(f"[luo]   scale distribution: {dist}")
+    print(
+        f"[luo]   dot-aware bolden cap: {dot_bolden_contours} contours, "
+        f"{dot_bolden_points} points (x_cap={DOT_BOLDEN_X_CAP_FACTOR}×h)"
+    )
 
 
 def _glyph_complexity(glyph) -> str:
@@ -321,6 +458,7 @@ def soften_endpoints(font: TTFont) -> None:
     threshold_rad = math.radians(SOFTEN_ANGLE)
     softened_points = 0
     softened_glyphs = 0
+    subtype_counts = {"h": 0, "v_bottom": 0, "diag": 0, "default": 0}
 
     for name in font.getGlyphOrder():
         glyph = glyf[name]
@@ -335,9 +473,25 @@ def soften_endpoints(font: TTFont) -> None:
         new_coords = list(coords)
         glyph_touched = False
 
+        all_xs = [c[0] for c in coords]
+        all_ys = [c[1] for c in coords]
+        glyph_area = (max(all_xs) - min(all_xs)) * (max(all_ys) - min(all_ys)) if coords else 0
+
         start = 0
         for end in ends:
             n = end - start + 1
+
+            # Skip dot-like small contours: keep their original sharpness so
+            # Pass A / heart can shape them directionally. Without this skip,
+            # soften+taper turn xiaokai dots into round droplets.
+            if n < 20 and glyph_area > 0:
+                c_xs = [coords[i][0] for i in range(start, end + 1)]
+                c_ys = [coords[i][1] for i in range(start, end + 1)]
+                c_area = (max(c_xs) - min(c_xs)) * (max(c_ys) - min(c_ys))
+                if c_area / glyph_area < 0.05:
+                    start = end + 1
+                    continue
+
             for j in range(n):
                 idx = start + j
                 if not (flags[idx] & 1):
@@ -368,15 +522,30 @@ def soften_endpoints(font: TTFont) -> None:
                 if angle >= threshold_rad:
                     continue
 
-                sharpness = 1.0 - angle / threshold_rad
-                blend = SOFTEN_BLEND * sharpness
-
                 mid_x = (px + nx_pt) / 2.0
                 mid_y = (py + ny_pt) / 2.0
+                tip_x = cx - mid_x
+                tip_y = cy - mid_y
+
+                subtype = "default"
+                subtype_blend = SOFTEN_BLEND
+                if abs(tip_x) > abs(tip_y) * 1.35:
+                    subtype = "h"
+                    subtype_blend = ENDPOINT_H_BLEND
+                elif tip_y < 0 and abs(tip_y) > abs(tip_x) * 1.20:
+                    subtype = "v_bottom"
+                    subtype_blend = ENDPOINT_V_BOTTOM_BLEND
+                elif abs(tip_x) > 1e-6 and abs(tip_y) > 1e-6:
+                    subtype = "diag"
+                    subtype_blend = ENDPOINT_DIAG_BLEND
+
+                sharpness = 1.0 - angle / threshold_rad
+                blend = subtype_blend * sharpness
                 new_x = cx + blend * (mid_x - cx)
                 new_y = cy + blend * (mid_y - cy)
                 new_coords[idx] = (int(round(new_x)), int(round(new_y)))
                 softened_points += 1
+                subtype_counts[subtype] += 1
                 glyph_touched = True
 
             start = end + 1
@@ -390,7 +559,9 @@ def soften_endpoints(font: TTFont) -> None:
     print(
         f"[luo] softened {softened_points} endpoints across "
         f"{softened_glyphs} glyphs (angle<{SOFTEN_ANGLE}°, "
-        f"blend={SOFTEN_BLEND}, seg_max={SOFTEN_SEG_MAX})"
+        f"blend={SOFTEN_BLEND}, h={ENDPOINT_H_BLEND}, "
+        f"v_bottom={ENDPOINT_V_BOTTOM_BLEND}, diag={ENDPOINT_DIAG_BLEND}, "
+        f"seg_max={SOFTEN_SEG_MAX}, subtypes={subtype_counts})"
     )
 
 
@@ -430,7 +601,11 @@ def refine_hooks(font: TTFont) -> None:
         start = 0
         for end in ends:
             n = end - start + 1
-            if n < 5:
+            # Skip low-point-count contours: they're rectangles or simple
+            # stroke structures (small frames, internal short strokes), not
+            # hooks. Real hooks live inside main contours (n=60+) which
+            # still get processed.
+            if n < 12:
                 start = end + 1
                 continue
 
@@ -443,7 +618,6 @@ def refine_hooks(font: TTFont) -> None:
                 p0 = coords[i_prev]
                 p1 = coords[idx]
                 p2 = coords[i_next]
-                p3 = coords[i_next2]
 
                 d_in = (p1[0] - p0[0], p1[1] - p0[1])
                 d_out = (p2[0] - p1[0], p2[1] - p1[1])
@@ -586,7 +760,7 @@ CHAR_CATEGORIES: dict[str, str] = {
         "础礼祈祝"
         "使信修做倦值促仰件住体余作但保候代你"
         "接收放打把抱承技持招择担拉"
-        "快怀悟悲悼情惠想感慢慨性息"
+        "悟悲悼惠想感慢慨性息"
         "测浪温游汉法深浅洪"
         "码磨确"
         "验骑骋"
@@ -656,9 +830,32 @@ ENCLOSED_INNER_CONTRACT = 0.97
 DENSE_TOP_REDUCE = 0.97
 WIDE_SPLIT_LEFT_NARROW = 0.98
 WALK_INNER_CONTRACT = 0.98
-DENSE_COMPLEX_INNER = 0.975
-MULTI_HORIZ_SECONDARY = 0.97
+DENSE_COMPLEX_INNER = 0.970
+DENSE_COMPLEX_INNER_EXTRA = float(os.environ.get("LUO_DENSE_COMPLEX_INNER_EXTRA", "0.945"))
+DENSE_TOP_REDUCE_EXTRA = float(os.environ.get("LUO_DENSE_TOP_REDUCE_EXTRA", "0.955"))
+MULTI_HORIZ_SECONDARY = 0.965
 TOP_BOTTOM_UPPER_CONTRACT = 0.98
+
+# Final walk-radical containment. The category pass above opens the enclosed
+# body; this pass only reins in the lowest, widest 辶 contour on a short
+# whitelist so 透/道/遇 stop reading as bottom-heavy.
+WALK_FINAL_CHARS = "透道遇述远"
+WALK_FINAL_X_CONTAIN = float(os.environ.get("LUO_WALK_FINAL_X_CONTAIN", "0.955"))
+WALK_FINAL_BOTTOM_RAISE_EM = float(os.environ.get("LUO_WALK_FINAL_BOTTOM_RAISE_EM", "0.028"))
+WALK_FINAL_TAIL_CONTAIN = float(os.environ.get("LUO_WALK_FINAL_TAIL_CONTAIN", "0.055"))
+WALK_BODY_TARGET_TOP = float(os.environ.get("LUO_WALK_BODY_TARGET_TOP", "0.840"))
+WALK_BODY_TOP_RAISE_MAX = float(os.environ.get("LUO_WALK_BODY_TOP_RAISE_MAX", "0.045"))
+WALK_BODY_X_CONTAIN = float(os.environ.get("LUO_WALK_BODY_X_CONTAIN", "0.985"))
+WALK_FINAL_SETTLE_EM = float(os.environ.get("LUO_WALK_FINAL_SETTLE_EM", "0.024"))
+
+# 黑部点群 needs protection from generic xiaokai-dot shaping. In 墨, those dots
+# sit inside a dense stacked glyph; keep thickness and only shorten their long
+# axis slightly so they remain compact without becoming slash-like.
+BLACK_DOT_CLUSTER_CHARS = "墨"
+BLACK_DOT_CLUSTER_LONG_AXIS = float(os.environ.get("LUO_BLACK_DOT_CLUSTER_LONG_AXIS", "0.90"))
+BLACK_DOT_CLUSTER_SHORT_AXIS = float(os.environ.get("LUO_BLACK_DOT_CLUSTER_SHORT_AXIS", "1.00"))
+
+EXTRA_DENSE_CHARS = "落藏霞霜露馈赢耀魔籍麟题额锦续群贤禊觞湍幽怀"
 
 
 def _build_reverse_cmap(font: TTFont) -> dict[str, int]:
@@ -701,7 +898,7 @@ def _refine_enclosed(glyph, glyf) -> None:
     glyph.recalcBounds(glyf)
 
 
-def _refine_dense_top(glyph, glyf) -> None:
+def _refine_dense_top(glyph, glyf, char: str = "") -> None:
     coords = glyph.coordinates
     n = len(coords)
     if n == 0:
@@ -714,11 +911,12 @@ def _refine_dense_top(glyph, glyf) -> None:
     xs = [coords[i][0] for i in range(n)]
     cx = (min(xs) + max(xs)) / 2.0
     top_threshold = y_min + y_range * 0.6
+    reduce = DENSE_TOP_REDUCE_EXTRA if char in EXTRA_DENSE_CHARS else DENSE_TOP_REDUCE
     for i in range(n):
         x, y = coords[i]
         if y > top_threshold:
             t = (y - top_threshold) / (y_max - top_threshold) if y_max > top_threshold else 0
-            factor = 1.0 - (1.0 - DENSE_TOP_REDUCE) * t
+            factor = 1.0 - (1.0 - reduce) * t
             coords[i] = (int(round(cx + (x - cx) * factor)), y)
     glyph.recalcBounds(glyf)
 
@@ -746,7 +944,7 @@ def _refine_top_bottom(glyph, glyf) -> None:
     glyph.recalcBounds(glyf)
 
 
-def _refine_dense_complex(glyph, glyf) -> None:
+def _refine_dense_complex(glyph, glyf, char: str = "") -> None:
     if glyph.numberOfContours < 2:
         return
     coords = glyph.coordinates
@@ -764,11 +962,12 @@ def _refine_dense_complex(glyph, glyf) -> None:
     all_ys = [coords[i][1] for i in range(len(coords))]
     cx = (min(all_xs) + max(all_xs)) / 2.0
     cy = (min(all_ys) + max(all_ys)) / 2.0
+    factor = DENSE_COMPLEX_INNER_EXTRA if char in EXTRA_DENSE_CHARS else DENSE_COMPLEX_INNER
     for _, s, e in contours[1:]:
         for i in range(s, e + 1):
             x, y = coords[i]
-            new_x = cx + (x - cx) * DENSE_COMPLEX_INNER
-            new_y = cy + (y - cy) * DENSE_COMPLEX_INNER
+            new_x = cx + (x - cx) * factor
+            new_y = cy + (y - cy) * factor
             coords[i] = (int(round(new_x)), int(round(new_y)))
     glyph.recalcBounds(glyf)
 
@@ -840,6 +1039,127 @@ def _refine_walk_enclosed(glyph, glyf) -> None:
     glyph.recalcBounds(glyf)
 
 
+def _refine_walk_final_glyph(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    if glyph.numberOfContours < 2 or len(coords) == 0:
+        return False
+
+    all_xs = [coords[i][0] for i in range(len(coords))]
+    all_ys = [coords[i][1] for i in range(len(coords))]
+    glyph_x_min, glyph_x_max = min(all_xs), max(all_xs)
+    glyph_y_min, glyph_y_max = min(all_ys), max(all_ys)
+    glyph_w = glyph_x_max - glyph_x_min
+    glyph_h = glyph_y_max - glyph_y_min
+    if glyph_w <= 0 or glyph_h <= 0:
+        return False
+
+    contours = []
+    start = 0
+    for end in glyph.endPtsOfContours:
+        x_min, y_min, x_max, y_max, n_pts = _contour_bounds(coords, start, end)
+        w = x_max - x_min
+        h = y_max - y_min
+        if (
+            n_pts >= 24
+            and w > glyph_w * 0.70
+            and y_min <= glyph_y_min + glyph_h * 0.10
+            and y_max <= glyph_y_min + glyph_h * 0.72
+        ):
+            contours.append((y_min, -w, start, end, x_min, y_min, x_max, y_max))
+        start = end + 1
+
+    if not contours:
+        return False
+
+    _, _, start, end, x_min, y_min, x_max, y_max = sorted(contours)[0]
+    cx = (glyph_x_min + glyph_x_max) / 2.0
+    c_cx = (x_min + x_max) / 2.0
+    c_h = y_max - y_min
+    if c_h <= 0:
+        return False
+
+    touched = False
+    walk_start, walk_end = start, end
+    body_indices = [
+        i
+        for i in range(len(coords))
+        if i < walk_start or i > walk_end
+    ]
+    body_raise = 0.0
+    body_y_min = body_y_max = 0
+    if body_indices:
+        body_ys = [coords[i][1] for i in body_indices]
+        body_y_min = min(body_ys)
+        body_y_max = max(body_ys)
+        target_top = WALK_BODY_TARGET_TOP * upm
+        body_raise = max(0.0, min(WALK_BODY_TOP_RAISE_MAX * upm, target_top - body_y_max))
+
+    if body_raise > 0:
+        body_h = max(1.0, body_y_max - body_y_min)
+        for i in body_indices:
+            x, y = coords[i]
+            t = max(0.0, min(1.0, (y - body_y_min) / body_h))
+            new_x = cx + (x - cx) * (1.0 - (1.0 - WALK_BODY_X_CONTAIN) * t)
+            new_y = y + body_raise * t
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+            touched = True
+
+    raise_y = WALK_FINAL_BOTTOM_RAISE_EM * upm
+    bottom_cut = y_min + c_h * 0.42
+    right_span = max(1.0, x_max - c_cx)
+
+    for i in range(walk_start, walk_end + 1):
+        x, y = coords[i]
+        bottom_t = 0.0
+        if y < bottom_cut:
+            bottom_t = (bottom_cut - y) / max(1.0, bottom_cut - y_min)
+            bottom_t = max(0.0, min(1.0, bottom_t))
+
+        x_factor = 1.0 - (1.0 - WALK_FINAL_X_CONTAIN) * (0.35 + 0.65 * bottom_t)
+        new_x = cx + (x - cx) * x_factor
+        if x > c_cx and bottom_t > 0:
+            right_t = max(0.0, min(1.0, (x - c_cx) / right_span))
+            new_x -= (x - c_cx) * WALK_FINAL_TAIL_CONTAIN * right_t * bottom_t
+        new_y = y + raise_y * bottom_t
+
+        if int(round(new_x)) != x or int(round(new_y)) != y:
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+            touched = True
+
+    if touched:
+        settle_y = int(round(WALK_FINAL_SETTLE_EM * upm))
+        if settle_y:
+            for i in range(len(coords)):
+                x, y = coords[i]
+                coords[i] = (x, y - settle_y)
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def refine_walk_final(font: TTFont) -> None:
+    glyf = font["glyf"]
+    cmap = font.getBestCmap() or {}
+    upm = font["head"].unitsPerEm
+
+    touched = []
+    for char in WALK_FINAL_CHARS:
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if _refine_walk_final_glyph(glyph, glyf, upm):
+            touched.append(char)
+
+    if touched:
+        print(
+            f"[luo] final-contained walk radicals: {''.join(touched)} "
+            f"(x={WALK_FINAL_X_CONTAIN}, raise={WALK_FINAL_BOTTOM_RAISE_EM}em, "
+            f"tail={WALK_FINAL_TAIL_CONTAIN}, body_top={WALK_BODY_TARGET_TOP}em, "
+            f"body_raise={WALK_BODY_TOP_RAISE_MAX}em, body_x={WALK_BODY_X_CONTAIN}, "
+            f"settle={WALK_FINAL_SETTLE_EM}em)"
+        )
+
+
 def refine_by_category(font: TTFont) -> None:
     glyf = font["glyf"]
     rcmap = _build_reverse_cmap(font)
@@ -858,13 +1178,13 @@ def refine_by_category(font: TTFont) -> None:
         if cat == "enclosed":
             _refine_enclosed(glyph, glyf)
         elif cat == "dense_top":
-            _refine_dense_top(glyph, glyf)
+            _refine_dense_top(glyph, glyf, char)
         elif cat == "wide_split":
             _refine_wide_split(glyph, glyf)
         elif cat == "walk_enclosed":
             _refine_walk_enclosed(glyph, glyf)
         elif cat == "dense_complex":
-            _refine_dense_complex(glyph, glyf)
+            _refine_dense_complex(glyph, glyf, char)
         elif cat == "multi_horiz":
             _refine_multi_horiz(glyph, glyf)
         elif cat == "top_bottom":
@@ -876,6 +1196,133 @@ def refine_by_category(font: TTFont) -> None:
         print(f"[luo] refined {total} glyphs by category ({detail})")
 
 
+def _contour_info(glyph, coords) -> list[dict[str, float | int]]:
+    contours = []
+    start = 0
+    for ci, end in enumerate(glyph.endPtsOfContours):
+        xs = [coords[i][0] for i in range(start, end + 1)]
+        ys = [coords[i][1] for i in range(start, end + 1)]
+        w = max(xs) - min(xs)
+        h = max(ys) - min(ys)
+        contours.append({
+            "idx": ci,
+            "start": start,
+            "end": end,
+            "cx": sum(xs) / len(xs),
+            "cy": sum(ys) / len(ys),
+            "xmin": min(xs),
+            "xmax": max(xs),
+            "ymin": min(ys),
+            "ymax": max(ys),
+            "area": w * h,
+        })
+        start = end + 1
+    return contours
+
+
+def _refine_anchor_luo(glyph, glyf) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    y_range = y_max - y_min
+    if y_range <= 0:
+        return
+    cx = (x_min + x_max) / 2.0
+    top_start = y_min + y_range * 0.62
+    bottom_end = y_min + y_range * 0.34
+    for i in range(len(coords)):
+        x, y = coords[i]
+        new_x = x
+        if y > top_start and y_max > top_start:
+            t = (y - top_start) / (y_max - top_start)
+            factor = 1.0 + (ANCHOR_LUO_TOP_EXPAND - 1.0) * t
+            new_x = cx + (x - cx) * factor
+        elif y < bottom_end and bottom_end > y_min:
+            t = (bottom_end - y) / (bottom_end - y_min)
+            factor = 1.0 - (1.0 - ANCHOR_LUO_BOTTOM_CONTRACT) * t
+            new_x = cx + (x - cx) * factor
+        coords[i] = (int(round(new_x)), y)
+    glyph.recalcBounds(glyf)
+
+
+def _refine_anchor_bi(glyph, glyf) -> None:
+    coords = glyph.coordinates
+    if glyph.numberOfContours < 2 or len(coords) == 0:
+        return
+    ys = [coords[i][1] for i in range(len(coords))]
+    y_min, y_max = min(ys), max(ys)
+    y_range = y_max - y_min
+    if y_range <= 0:
+        return
+    top_cut = y_min + y_range * 0.58
+    for c in _contour_info(glyph, coords):
+        if c["cy"] <= top_cut:
+            continue
+        cx = float(c["cx"])
+        cy = float(c["cy"])
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            new_x = cx + (x - cx) * ANCHOR_BI_TOP_SCALE_X
+            new_y = cy + (y - cy) * ANCHOR_BI_TOP_SCALE_Y
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+    glyph.recalcBounds(glyf)
+
+
+def _refine_anchor_jian(glyph, glyf, upm: int) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    y_range = y_max - y_min
+    if y_range <= 0:
+        return
+    cx = (x_min + x_max) / 2.0
+    bottom_cut = y_min + y_range * 0.32
+    raise_y = ANCHOR_JIAN_BOTTOM_RAISE_EM * upm
+    for i in range(len(coords)):
+        x, y = coords[i]
+        if y >= bottom_cut or bottom_cut <= y_min:
+            continue
+        t = (bottom_cut - y) / (bottom_cut - y_min)
+        new_x = cx + (x - cx) * (1.0 - ANCHOR_JIAN_BOTTOM_CONTAIN * t)
+        if x > cx:
+            new_x -= (x - cx) * ANCHOR_JIAN_RIGHT_TAIL_CONTAIN * t
+        new_y = y + raise_y * t
+        coords[i] = (int(round(new_x)), int(round(new_y)))
+    glyph.recalcBounds(glyf)
+
+
+def refine_display_anchor_chars(font: TTFont) -> None:
+    """Final tiny adjustments for large display anchor glyphs."""
+    glyf = font["glyf"]
+    cmap = font.getBestCmap() or {}
+    upm = font["head"].unitsPerEm
+    refiners = {
+        "落": lambda glyph: _refine_anchor_luo(glyph, glyf),
+        "笔": lambda glyph: _refine_anchor_bi(glyph, glyf),
+        "见": lambda glyph: _refine_anchor_jian(glyph, glyf, upm),
+    }
+    touched = []
+    for char, refiner in refiners.items():
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        refiner(glyph)
+        touched.append(char)
+    if touched:
+        print(f"[luo] refined display anchors: {''.join(touched)}")
+
+
 # --- Pass A: Dot contour refinement ---
 
 HEART_CHARS = (
@@ -883,10 +1330,41 @@ HEART_CHARS = (
     "忠忽怠恨恐恭忙忆忍忘"
 )
 
+# 忄-radical, 灬-bottom and 黑部点群 chars: skip generic dot pass entirely.
+# 忄 flanking dots break under 14° rotation; dense dot clusters get over-rotated.
+DOT_SKIP_CHARS = (
+    "快情怀性恼愉悄惯惜慢忆慎慨悟悬"
+    "然照熊燃焦煮热"
+    "墨"
+    "每"
+)
+
+# 氵/讠 chars: use soft channel (rotation preserved for consistency, short-axis eased).
+# v0.5.3 skipped these entirely, losing angle normalization; v0.5.4 restores it softly.
+DOT_SOFT_CHARS = (
+    "江没注治法油况活洪派济浅清润淡深温流游源湍满滴潮激"  # 氵 radicals
+    "计认议记许论设证识词试话诞该详语说请诸读调谢"  # 讠 radicals
+    "述"  # standalone top dot: keep length, normalize angle only
+)
+DOT_SHORT_AXIS_SOFT = 0.95  # SOFT: near-identity short axis; normalize angle, don't carve
+
 HOOK_FINAL_CHARS = (
     "字书亭序家设计排版印旅妙馈成式透远道遇永可事将到"
-    "心清落读说规则使用方族校"
+    "心清落读说规则使用方族校走明分手子该受收战支改或"
+    "待持动阶了己信仰他指水打你已林期句月接第刷孤色划"
+    "保学号传开纸记行张才体义必代织叫服前证求骨利角种"
+    "等话克飞弦快载调感语乐九听院制就气马副联发特继只"
+    "光也住值我科同线带争志何她农先们级花儿引刺强初"
+    "于时见列向写请别认包完系周以元腾终存"
 )
+
+TURN_FINAL_CHARS = "".join(dict.fromkeys(
+    "落纸风骨短版排印集章源雅舒服规则"
+    "国回图园日目用月田间问阅品亭曾会"
+    "章言书骨兰量重墨春青善美黄宇宙寒暑律吕"
+))
+
+TURN_FINAL_FRAME_CHARS = "国回图园日目用月田间问阅品"
 
 
 def _build_cmap(font: TTFont) -> dict[int, str]:
@@ -915,8 +1393,9 @@ def refine_dot_contours(font: TTFont) -> None:
         char = chr(cp)
         if not (0x3400 <= cp <= 0x9FFF):
             continue
-        if char in HEART_CHARS:
+        if char in HEART_CHARS or char in DOT_SKIP_CHARS:
             continue
+        use_soft = char in DOT_SOFT_CHARS
 
         glyph = glyf[gname]
         if glyph.numberOfContours < 2:
@@ -941,6 +1420,13 @@ def refine_dot_contours(font: TTFont) -> None:
             if n_pts > DOT_MAX_POINTS:
                 start = end + 1
                 continue
+            # Real xiaokai dots in LXGW are 14-18-point smooth curves.
+            # Contours with n < 12 are almost always simple stroke structures
+            # (rectangle caps, internal small frames in 用/腾/所/幽/地, etc.)
+            # — directional shaping twists them into irregular quads.
+            if n_pts < 12:
+                start = end + 1
+                continue
 
             c_xs = [coords[i][0] for i in range(start, end + 1)]
             c_ys = [coords[i][1] for i in range(start, end + 1)]
@@ -951,7 +1437,11 @@ def refine_dot_contours(font: TTFont) -> None:
                 continue
 
             aspect = max(c_w, c_h) / min(c_w, c_h)
-            if aspect > 4.0:
+            # Real xiaokai dots (after bolden + scale) have aspect up to ~3.
+            # Pure rectangles (4-pt contours) are filtered above. What's left
+            # are long curves (e.g. 卧钩 in 心 with aspect 4+) which we still
+            # want to keep orthogonal.
+            if aspect > 1.8:
                 start = end + 1
                 continue
 
@@ -975,16 +1465,49 @@ def refine_dot_contours(font: TTFont) -> None:
             elif top_dots:
                 rot *= 0.5
 
+            # Find the long axis by picking the two farthest contour points.
+            long_axis_len_sq = 0.0
+            long_ax = 1.0
+            long_ay = 0.0
+            for a in range(n_pts):
+                xa, ya = c_xs[a], c_ys[a]
+                for b in range(a + 1, n_pts):
+                    dxv = c_xs[b] - xa
+                    dyv = c_ys[b] - ya
+                    d2 = dxv * dxv + dyv * dyv
+                    if d2 > long_axis_len_sq:
+                        long_axis_len_sq = d2
+                        long_ax, long_ay = dxv, dyv
+            long_len = math.hypot(long_ax, long_ay)
+            if long_len < 1e-6:
+                start = end + 1
+                continue
+            long_ax /= long_len
+            long_ay /= long_len
+
+            # Lerp short-axis carve factor toward 1.0 for elongated source dots.
+            long_axis_factor = DOT_LONG_AXIS_SOFT if use_soft else DOT_LONG_AXIS
+            base_short = DOT_SHORT_AXIS_SOFT if use_soft else DOT_SHORT_AXIS
+            relax_t = max(0.0, min(1.0, (aspect - DOT_RELAX_PIVOT) / (DOT_RELAX_GATE - DOT_RELAX_PIVOT)))
+            short_axis_factor = base_short + (1.0 - base_short) * relax_t
+
             local_rad = math.radians(rot)
             local_cos = math.cos(local_rad)
             local_sin = math.sin(local_rad)
 
             for i in range(start, end + 1):
                 x, y = coords[i]
-                dx = (x - cx) * DOT_COMPRESS
-                dy = (y - cy) * DOT_COMPRESS
-                rx = dx * local_cos - dy * local_sin
-                ry = dx * local_sin + dy * local_cos
+                dx = x - cx
+                dy = y - cy
+                # Project onto long axis; keep length, carve width.
+                proj_long = dx * long_ax + dy * long_ay
+                proj_short = -dx * long_ay + dy * long_ax
+                proj_long *= long_axis_factor
+                proj_short *= short_axis_factor
+                shaped_dx = proj_long * long_ax - proj_short * long_ay
+                shaped_dy = proj_long * long_ay + proj_short * long_ax
+                rx = shaped_dx * local_cos - shaped_dy * local_sin
+                ry = shaped_dx * local_sin + shaped_dy * local_cos
                 coords[i] = (int(round(cx + rx)), int(round(cy + ry)))
 
             dot_count += 1
@@ -997,8 +1520,107 @@ def refine_dot_contours(font: TTFont) -> None:
 
     print(
         f"[luo] refined {dot_count} dot contours across {glyph_count} glyphs "
-        f"(compress={DOT_COMPRESS}, rotate={DOT_ROTATE_DEG}°)"
+        f"(long={DOT_LONG_AXIS}, soft_long={DOT_LONG_AXIS_SOFT}, "
+        f"short={DOT_SHORT_AXIS}, rotate={DOT_ROTATE_DEG}°)"
     )
+
+
+def refine_black_dot_cluster(font: TTFont) -> None:
+    """Protect 黑部点群 from becoming uneven slash-like dots."""
+    glyf = font["glyf"]
+    cmap = font.getBestCmap() or {}
+
+    dot_count = 0
+    touched_chars = []
+
+    for char in BLACK_DOT_CLUSTER_CHARS:
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+
+        coords = glyph.coordinates
+        all_xs = [coords[i][0] for i in range(len(coords))]
+        all_ys = [coords[i][1] for i in range(len(coords))]
+        glyph_y_min, glyph_y_max = min(all_ys), max(all_ys)
+        glyph_h = glyph_y_max - glyph_y_min
+        total_area = (max(all_xs) - min(all_xs)) * glyph_h
+        if glyph_h <= 0 or total_area <= 0:
+            continue
+
+        touched = False
+        start = 0
+        for end in glyph.endPtsOfContours:
+            n_pts = end - start + 1
+            if n_pts < 12 or n_pts > DOT_MAX_POINTS:
+                start = end + 1
+                continue
+
+            x_min, y_min, x_max, y_max, _ = _contour_bounds(coords, start, end)
+            c_w = x_max - x_min
+            c_h = y_max - y_min
+            if c_w <= 0 or c_h <= 0:
+                start = end + 1
+                continue
+
+            c_cy = (y_min + y_max) / 2.0
+            y_rel = (c_cy - glyph_y_min) / glyph_h
+            area_pct = c_w * c_h / total_area * 100.0
+            if not (0.20 <= y_rel <= 0.50 and area_pct <= DOT_AREA_PCT * 1.8):
+                start = end + 1
+                continue
+
+            pts = [coords[i] for i in range(start, end + 1)]
+            cx = sum(p[0] for p in pts) / n_pts
+            cy = sum(p[1] for p in pts) / n_pts
+
+            long_axis_len_sq = 0.0
+            long_ax = 1.0
+            long_ay = 0.0
+            for a in range(n_pts):
+                xa, ya = pts[a]
+                for b in range(a + 1, n_pts):
+                    dx = pts[b][0] - xa
+                    dy = pts[b][1] - ya
+                    d2 = dx * dx + dy * dy
+                    if d2 > long_axis_len_sq:
+                        long_axis_len_sq = d2
+                        long_ax, long_ay = dx, dy
+            long_len = math.hypot(long_ax, long_ay)
+            if long_len < 1e-6:
+                start = end + 1
+                continue
+            long_ax /= long_len
+            long_ay /= long_len
+
+            for i in range(start, end + 1):
+                x, y = coords[i]
+                dx = x - cx
+                dy = y - cy
+                proj_long = dx * long_ax + dy * long_ay
+                proj_short = -dx * long_ay + dy * long_ax
+                proj_long *= BLACK_DOT_CLUSTER_LONG_AXIS
+                proj_short *= BLACK_DOT_CLUSTER_SHORT_AXIS
+                new_x = cx + proj_long * long_ax - proj_short * long_ay
+                new_y = cy + proj_long * long_ay + proj_short * long_ax
+                coords[i] = (int(round(new_x)), int(round(new_y)))
+
+            dot_count += 1
+            touched = True
+            start = end + 1
+
+        if touched:
+            glyph.recalcBounds(glyf)
+            touched_chars.append(char)
+
+    if touched_chars:
+        print(
+            f"[luo] refined black-dot clusters: {''.join(touched_chars)} "
+            f"({dot_count} contours, long={BLACK_DOT_CLUSTER_LONG_AXIS}, "
+            f"short={BLACK_DOT_CLUSTER_SHORT_AXIS})"
+        )
 
 
 # --- Pass B: Second hook refinement ---
@@ -1009,6 +1631,7 @@ def refine_hooks_final(font: TTFont) -> None:
     rcmap = _build_reverse_cmap(font)
 
     hook_count = 0
+    tail_count = 0
     glyph_count = 0
 
     for gname in font.getGlyphOrder():
@@ -1031,7 +1654,11 @@ def refine_hooks_final(font: TTFont) -> None:
         start = 0
         for end in ends:
             n = end - start + 1
-            if n < 5:
+            # Skip low-point-count contours: they're rectangles or simple
+            # stroke structures (small frames, internal short strokes), not
+            # hooks. Real hooks live inside main contours (n=60+) which
+            # still get processed.
+            if n < 12:
                 start = end + 1
                 continue
 
@@ -1074,6 +1701,8 @@ def refine_hooks_final(font: TTFont) -> None:
                 axis_y = p2[1] - p1[1]
                 axis_len = math.hypot(axis_x, axis_y)
                 if axis_len > 1e-6:
+                    axis_ux = axis_x / axis_len
+                    axis_uy = axis_y / axis_len
                     perp_x = -axis_y / axis_len
                     perp_y = axis_x / axis_len
                     for tip_idx in (i_next, i_next2):
@@ -1083,6 +1712,14 @@ def refine_hooks_final(font: TTFont) -> None:
                             int(round(pt[0] - HOOK_FINAL_TIP_SHARPEN * proj * perp_x)),
                             int(round(pt[1] - HOOK_FINAL_TIP_SHARPEN * proj * perp_y)),
                         )
+                    tip = new_coords[i_next2]
+                    axial = (tip[0] - p1[0]) * axis_ux + (tip[1] - p1[1]) * axis_uy
+                    if axial > 0:
+                        new_coords[i_next2] = (
+                            int(round(tip[0] - HOOK_FINAL_TAIL_CONTAIN * axial * axis_ux)),
+                            int(round(tip[1] - HOOK_FINAL_TAIL_CONTAIN * axial * axis_uy)),
+                        )
+                        tail_count += 1
 
                 hook_count += 1
                 touched = True
@@ -1097,11 +1734,131 @@ def refine_hooks_final(font: TTFont) -> None:
 
     print(
         f"[luo] final-refined {hook_count} hooks across {glyph_count} glyphs "
-        f"(shorten={HOOK_FINAL_SHORTEN}, sharpen={HOOK_FINAL_TIP_SHARPEN})"
+        f"(shorten={HOOK_FINAL_SHORTEN}, sharpen={HOOK_FINAL_TIP_SHARPEN}, "
+        f"tail={HOOK_FINAL_TAIL_CONTAIN}, contained={tail_count})"
     )
 
 
-# --- Pass C: Bone turn refinement ---
+# --- Pass C: Targeted turn refinement ---
+
+def refine_turns_final(font: TTFont) -> None:
+    """Add a small bone-node touch on priority endpoint/frame/multi-horiz chars."""
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+
+    threshold_rad = math.radians(TURN_FINAL_ANGLE_MAX)
+    turn_count = 0
+    frame_turn_count = 0
+    glyph_count = 0
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if not cp:
+            continue
+        char = chr(cp)
+        if char not in TURN_FINAL_CHARS:
+            continue
+        is_frame_turn = char in TURN_FINAL_FRAME_CHARS
+        seg_max = TURN_FINAL_FRAME_SEG_MAX if is_frame_turn else TURN_FINAL_SEG_MAX
+        displace = TURN_FINAL_FRAME_DISPLACE if is_frame_turn else TURN_FINAL_DISPLACE
+        inner = TURN_FINAL_FRAME_INNER if is_frame_turn else TURN_FINAL_INNER
+
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+
+        coords = glyph.coordinates
+        flags = glyph.flags
+        ends = glyph.endPtsOfContours
+        all_xs = [coords[i][0] for i in range(len(coords))]
+        all_ys = [coords[i][1] for i in range(len(coords))]
+        total_area = (max(all_xs) - min(all_xs)) * (max(all_ys) - min(all_ys))
+        new_coords = list(coords)
+        touched = False
+
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            if n < 12 or _is_dot_like_contour(coords, start, end, total_area):
+                start = end + 1
+                continue
+
+            for j in range(n):
+                idx = start + j
+                if not (flags[idx] & 1):
+                    continue
+
+                i_prev = start + (j - 1) % n
+                i_next = start + (j + 1) % n
+
+                cx, cy = coords[idx]
+                px, py = coords[i_prev]
+                nx_pt, ny_pt = coords[i_next]
+
+                dx_in, dy_in = px - cx, py - cy
+                dx_out, dy_out = nx_pt - cx, ny_pt - cy
+
+                len_in = math.hypot(dx_in, dy_in)
+                len_out = math.hypot(dx_out, dy_out)
+                if len_in < TURN_FINAL_SEG_MIN or len_out < TURN_FINAL_SEG_MIN:
+                    continue
+                if len_in > seg_max or len_out > seg_max:
+                    continue
+
+                dot = max(-1.0, min(1.0,
+                    (dx_in * dx_out + dy_in * dy_out) / (len_in * len_out)))
+                angle = math.acos(dot)
+                if angle >= threshold_rad:
+                    continue
+
+                v_in_x, v_in_y = dx_in / len_in, dy_in / len_in
+                v_out_x, v_out_y = dx_out / len_out, dy_out / len_out
+                bis_x = -(v_in_x + v_out_x)
+                bis_y = -(v_in_y + v_out_y)
+                bis_len = math.hypot(bis_x, bis_y)
+                if bis_len < 1e-6:
+                    continue
+
+                bis_x /= bis_len
+                bis_y /= bis_len
+
+                new_coords[idx] = (
+                    int(round(cx + displace * bis_x)),
+                    int(round(cy + displace * bis_y)),
+                )
+
+                cross = dx_in * dy_out - dy_in * dx_out
+                inner_idx = i_next if cross > 0 else i_prev
+                ix, iy = new_coords[inner_idx]
+                apex_x, apex_y = new_coords[idx]
+                new_coords[inner_idx] = (
+                    int(round(apex_x + inner * (ix - apex_x))),
+                    int(round(apex_y + inner * (iy - apex_y))),
+                )
+
+                turn_count += 1
+                if is_frame_turn:
+                    frame_turn_count += 1
+                touched = True
+
+            start = end + 1
+
+        if touched:
+            for i, c in enumerate(new_coords):
+                coords[i] = c
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+
+    print(
+        f"[luo] final-refined {turn_count} turns across {glyph_count} glyphs "
+        f"(angle<{TURN_FINAL_ANGLE_MAX}°, displace={TURN_FINAL_DISPLACE}, "
+        f"inner={TURN_FINAL_INNER}, frame_displace={TURN_FINAL_FRAME_DISPLACE}, "
+        f"frame_inner={TURN_FINAL_FRAME_INNER}, frame_seg_max={TURN_FINAL_FRAME_SEG_MAX}, "
+        f"frame_turns={frame_turn_count})"
+    )
+
+
+# --- Dead-code Pass C: Bone turn refinement ---
 
 def refine_bone_turns(font: TTFont) -> None:
     """Add bone-node quality at sharp direction changes."""
@@ -1320,6 +2077,7 @@ def refine_heart_chars(font: TTFont) -> None:
     """Reshape heart-bottom dots and reclining hook for xiaokai feel."""
     glyf = font["glyf"]
     rcmap = _build_reverse_cmap(font)
+    upm = font["head"].unitsPerEm
 
     dot_count = 0
     hook_count = 0
@@ -1366,6 +2124,11 @@ def refine_heart_chars(font: TTFont) -> None:
             start = end + 1
 
         is_standalone = char == "心"
+        dot_long_axis = HEART_STANDALONE_DOT_LONG_AXIS if is_standalone else HEART_DOT_LONG_AXIS
+        dot_short_axis = HEART_STANDALONE_DOT_SHORT_AXIS if is_standalone else HEART_DOT_SHORT_AXIS
+        dot_spacing = HEART_STANDALONE_DOT_SPACING if is_standalone else HEART_DOT_SPACING
+        hook_shorten = HEART_STANDALONE_HOOK_SHORTEN if is_standalone else HEART_HOOK_SHORTEN
+        hook_tail_contain = HEART_STANDALONE_HOOK_TAIL_CONTAIN if is_standalone else 0.0
 
         if is_standalone:
             bottom_contours = contour_info
@@ -1401,15 +2164,50 @@ def refine_heart_chars(font: TTFont) -> None:
             cos_r = math.cos(rad)
             sin_r = math.sin(rad)
 
-            offset_x = (dc_cx - glyph_cx) * (HEART_DOT_SPACING - 1.0)
+            offset_x = (dc_cx - glyph_cx) * (dot_spacing - 1.0)
+            is_left_standalone_dot = is_standalone and di == 0
+            is_right_standalone_dot = is_standalone and di == len(dot_contours) - 1
+            if is_left_standalone_dot:
+                offset_x += (dc_cx - glyph_cx) * HEART_STANDALONE_LEFT_DOT_OUTSET
+            elif is_right_standalone_dot:
+                offset_x -= (dc_cx - glyph_cx) * HEART_STANDALONE_RIGHT_DOT_INSET
+
+            d_xs = [coords[i][0] for i in range(s, e + 1)]
+            d_ys = [coords[i][1] for i in range(s, e + 1)]
+            long_axis_len_sq = 0.0
+            long_ax = 1.0
+            long_ay = 0.0
+            for a in range(n_pts):
+                xa, ya = d_xs[a], d_ys[a]
+                for b in range(a + 1, n_pts):
+                    dxv = d_xs[b] - xa
+                    dyv = d_ys[b] - ya
+                    d2 = dxv * dxv + dyv * dyv
+                    if d2 > long_axis_len_sq:
+                        long_axis_len_sq = d2
+                        long_ax, long_ay = dxv, dyv
+            long_len = math.hypot(long_ax, long_ay)
+            if long_len < 1e-6:
+                continue
+            long_ax /= long_len
+            long_ay /= long_len
 
             for i in range(s, e + 1):
                 x, y = coords[i]
-                dx = (x - dc_cx) * HEART_DOT_COMPRESS
-                dy = (y - dc_cy) * HEART_DOT_COMPRESS
-                rx = dx * cos_r - dy * sin_r
-                ry = dx * sin_r + dy * cos_r
-                coords[i] = (int(round(dc_cx + rx + offset_x)), int(round(dc_cy + ry)))
+                dx = x - dc_cx
+                dy = y - dc_cy
+                proj_long = dx * long_ax + dy * long_ay
+                proj_short = -dx * long_ay + dy * long_ax
+                if is_right_standalone_dot:
+                    proj_long *= HEART_STANDALONE_RIGHT_DOT_LONG_SCALE
+                proj_long *= dot_long_axis
+                proj_short *= dot_short_axis
+                shaped_dx = proj_long * long_ax - proj_short * long_ay
+                shaped_dy = proj_long * long_ay + proj_short * long_ax
+                rx = shaped_dx * cos_r - shaped_dy * sin_r
+                ry = shaped_dx * sin_r + shaped_dy * cos_r
+                extra_y = HEART_STANDALONE_RIGHT_DOT_RAISE_EM * upm if is_right_standalone_dot else 0
+                coords[i] = (int(round(dc_cx + rx + offset_x)), int(round(dc_cy + ry + extra_y)))
 
             dot_count += 1
             touched = True
@@ -1417,6 +2215,7 @@ def refine_heart_chars(font: TTFont) -> None:
         hc = hook_contour
         hs, he = hc["start"], hc["end"]
         h_xs = [coords[i][0] for i in range(hs, he + 1)]
+        h_ys = [coords[i][1] for i in range(hs, he + 1)]
         h_xmin = min(h_xs)
         h_xmax = max(h_xs)
         h_xrange = h_xmax - h_xmin
@@ -1426,9 +2225,42 @@ def refine_heart_chars(font: TTFont) -> None:
                 x, y = coords[i]
                 if x < cutoff:
                     t = 1.0 - (x - h_xmin) / (cutoff - h_xmin) if cutoff > h_xmin else 0
-                    pull = HEART_HOOK_SHORTEN * t
+                    pull = hook_shorten * t
                     coords[i] = (int(round(x + pull * (h_xmax - x))), y)
+                elif hook_tail_contain > 0 and x > h_xmax - h_xrange * 0.22:
+                    tail_start = h_xmax - h_xrange * 0.22
+                    t = (x - tail_start) / (h_xmax - tail_start) if h_xmax > tail_start else 0
+                    pull = hook_tail_contain * t
+                    coords[i] = (int(round(x - pull * (x - h_xmin))), y)
+            if is_standalone and HEART_STANDALONE_HOOK_STEM_THICKEN > 0:
+                h_ymin = min(h_ys)
+                h_ymax = max(h_ys)
+                h_yrange = h_ymax - h_ymin
+                h_cx = (h_xmin + h_xmax) / 2.0
+                tail_start = h_xmax - h_xrange * 0.22
+                stem_y0 = h_ymin + h_yrange * 0.30 if h_yrange > 0 else h_ymin
+                for i in range(hs, he + 1):
+                    x, y = coords[i]
+                    if y <= stem_y0 or x >= tail_start or h_ymax <= stem_y0:
+                        continue
+                    t = (y - stem_y0) / (h_ymax - stem_y0)
+                    factor = 1.0 + HEART_STANDALONE_HOOK_STEM_THICKEN * t
+                    coords[i] = (int(round(h_cx + (x - h_cx) * factor)), y)
             hook_count += 1
+            touched = True
+
+        if is_standalone and HEART_STANDALONE_HOOK_SHIFT_X_EM != 0:
+            shift_x = int(round(HEART_STANDALONE_HOOK_SHIFT_X_EM * upm))
+            for i in range(hs, he + 1):
+                x, y = coords[i]
+                coords[i] = (x + shift_x, y)
+            touched = True
+
+        if is_standalone and HEART_STANDALONE_RAISE_EM != 0:
+            raise_y = int(round(HEART_STANDALONE_RAISE_EM * upm))
+            for i in range(len(coords)):
+                x, y = coords[i]
+                coords[i] = (x, y + raise_y)
             touched = True
 
         if touched:
@@ -1438,8 +2270,20 @@ def refine_heart_chars(font: TTFont) -> None:
     print(
         f"[luo] refined {dot_count} heart dots + {hook_count} hooks "
         f"across {glyph_count} glyphs "
-        f"(compress={HEART_DOT_COMPRESS}, angle={HEART_DOT_ANGLE}°, "
-        f"spacing={HEART_DOT_SPACING}, hook={HEART_HOOK_SHORTEN})"
+        f"(long={HEART_DOT_LONG_AXIS}, short={HEART_DOT_SHORT_AXIS}, "
+        f"angle={HEART_DOT_ANGLE}°, spacing={HEART_DOT_SPACING}, "
+        f"hook={HEART_HOOK_SHORTEN}; standalone_long={HEART_STANDALONE_DOT_LONG_AXIS}, "
+        f"standalone_short={HEART_STANDALONE_DOT_SHORT_AXIS}, "
+        f"standalone_spacing={HEART_STANDALONE_DOT_SPACING}, "
+        f"standalone_hook={HEART_STANDALONE_HOOK_SHORTEN}, "
+        f"standalone_tail={HEART_STANDALONE_HOOK_TAIL_CONTAIN}, "
+        f"standalone_raise={HEART_STANDALONE_RAISE_EM}, "
+        f"standalone_left_outset={HEART_STANDALONE_LEFT_DOT_OUTSET}, "
+        f"standalone_right_inset={HEART_STANDALONE_RIGHT_DOT_INSET}, "
+        f"standalone_right_long={HEART_STANDALONE_RIGHT_DOT_LONG_SCALE}, "
+        f"standalone_right_raise={HEART_STANDALONE_RIGHT_DOT_RAISE_EM}, "
+        f"standalone_hook_shift={HEART_STANDALONE_HOOK_SHIFT_X_EM}, "
+        f"standalone_stem={HEART_STANDALONE_HOOK_STEM_THICKEN})"
     )
 
 
@@ -1649,12 +2493,14 @@ COMMON_STARTER_CHARS = """
 """
 
 PRIORITY_GROUPS: dict[str, str] = {
+    "core_anchors": "落文字书心清骨风纸印国回月雨霜藏魔赢道远家亭序集章兰永天玄黄",
     "point_marks": "清润源落读说语社视意念终寒露霜霞",
     "hooks": "字书亭序家设计排版印旅妙馈成式透远道遇",
     "endpoints": "落纸风骨短版排印集章源雅舒服规则",
     "multi_horiz": "章言书骨兰量重墨春青善美黄宇宙寒暑律吕",
-    "frames": "国回图园日目田间阅品亭曾会",
+    "frames": "国回图园日目用月田间问阅品亭曾会",
     "dense_complex": "落藏霞霜露馈赢耀魔读题额锦继续源族章集端筋群贤禊觞湍幽怀籍麟",
+    "heart_checks": "心必思意念想感悲惠慨悟志怀愿恩愁惊慎忠忽怠忍",
     "homepage_display": "以文为名字落纸取法卫夫人见风骨纸上得来终觉浅字里行间答案魏晋书风入笔形气韵端正不媚不失内筋温润发冷板结排版纸面耐读文字文气炫技装饰大字小字秩序落笔见心横轻竖重圆尖软争声色第一行安静陪读天地玄黄宇宙洪荒重心灰度稳定长文阅读旧笔意新纸面",
     "text_controls": "耐长使用方式首页样张部件校准展示标题开源打包想法交给得上人愿点奇生所好换息世事香天地玄黄洪荒月盈昃辰宿来往秋收冬藏闰余成岁云腾致雨结金丽水玉出永和年春稽山阴修毕至少咸茂林竹流激映带曲畅叙情常用字田字格覆盖优化待补打印输出验证",
 }
@@ -1676,6 +2522,37 @@ def chars_from_files(paths: tuple[Path, ...]) -> str:
     return "".join(dict.fromkeys("".join(chunks)))
 
 
+def is_gb2312_cjk(ch: str) -> bool:
+    cp = ord(ch)
+    return 0x3400 <= cp <= 0x4DBF or 0x4E00 <= cp <= 0x9FFF
+
+
+def gb2312_chars() -> tuple[str, str, str]:
+    """Return GB2312 level-1, level-2, and combined CJK characters."""
+    level1: list[str] = []
+    level2: list[str] = []
+    for high in range(0xB0, 0xD8):
+        for low in range(0xA1, 0xFF):
+            try:
+                ch = bytes((high, low)).decode("gb2312")
+            except UnicodeDecodeError:
+                continue
+            if len(ch) == 1 and is_gb2312_cjk(ch):
+                level1.append(ch)
+    for high in range(0xD8, 0xF8):
+        for low in range(0xA1, 0xFF):
+            try:
+                ch = bytes((high, low)).decode("gb2312")
+            except UnicodeDecodeError:
+                continue
+            if len(ch) == 1 and is_gb2312_cjk(ch):
+                level2.append(ch)
+    all_chars = "".join(dict.fromkeys(level1 + level2))
+    if len(all_chars) != 6763:
+        sys.exit(f"[luo] expected 6763 GB2312 chars, got {len(all_chars)}")
+    return "".join(level1), "".join(level2), all_chars
+
+
 def site_chars() -> str:
     chars = "".join(dict.fromkeys(SEED_CHARS + chars_from_files((ROOT / "index.html",))))
     print(f"[luo] collected {len(chars)} CJK chars from index.html")
@@ -1693,6 +2570,20 @@ def starter_chars() -> str:
         )
     )
     print(f"[luo] collected {len(chars)} CJK chars for starter subset")
+    return chars
+
+
+def gb2312_level1_chars() -> str:
+    gb_level1, _, _ = gb2312_chars()
+    chars = "".join(dict.fromkeys(starter_chars() + gb_level1))
+    print(f"[luo] collected {len(chars)} CJK chars for GB2312 level-1 subset")
+    return chars
+
+
+def gb2312_full_chars() -> str:
+    _, _, gb_chars = gb2312_chars()
+    chars = "".join(dict.fromkeys(starter_chars() + gb_chars))
+    print(f"[luo] collected {len(chars)} CJK chars for GB2312 full subset")
     return chars
 
 
@@ -1807,12 +2698,21 @@ def main() -> None:
         requested_chars = starter_chars()
         subset_to_seed(font, requested_chars)
         required_chars = chars_from_files(STARTER_FILES)
+    elif BUILD_CHARS == "gb2312-level1":
+        requested_chars = gb2312_level1_chars()
+        subset_to_seed(font, requested_chars)
+        required_chars = requested_chars
+    elif BUILD_CHARS == "gb2312-full":
+        requested_chars = gb2312_full_chars()
+        subset_to_seed(font, requested_chars)
+        required_chars = requested_chars
     elif BUILD_CHARS == "full":
         print(f"[luo] keeping all {len(font.getGlyphOrder())} glyphs")
         requested_chars = starter_chars()
         required_chars = chars_from_files(STARTER_FILES)
     else:
-        sys.exit("[luo] LUO_BUILD_CHARS must be 'seed', 'site', 'starter', or 'full'")
+        modes = ", ".join(repr(mode) for mode in BUILD_CHAR_MODES)
+        sys.exit(f"[luo] LUO_BUILD_CHARS must be one of: {modes}")
 
     # Boldening: direction-aware or legacy single-value
     if BOLDEN_DELTA is not None:
@@ -1822,7 +2722,12 @@ def main() -> None:
         bolden_glyphs(font, BOLDEN_H, BOLDEN_V)
 
     soften_endpoints(font)
-    refine_hooks(font)
+    # refine_hooks (initial) removed: its 60-130° angle + long-in/short-out
+    # detection cannot distinguish 顿点 (LXGW stroke head/tail thickness) from
+    # real hooks. Visible artifacts: 木字旁 vertical top sprouts a triangle,
+    # 金 人字头 protrusion gets exaggerated, 横画 ends grow barbs. Genuine hook
+    # tightening for 31 hand-curated chars happens later in refine_hooks_final.
+    # Function kept as dead code at line ~426 for future per-character reuse.
 
     # Narrowing: legacy single-value or complexity-aware
     if NARROW_X is not None:
@@ -1832,11 +2737,17 @@ def main() -> None:
         narrow_and_scale(font, NARROW_SIMPLE, NARROW_REGULAR, NARROW_COMPLEX, SCALE_Y)
 
     refine_by_category(font)
-    refine_dot_contours(font)
-    refine_hooks_final(font)
-    refine_bone_turns(font)
-    refine_stroke_taper(font)
     refine_heart_chars(font)
+    refine_dot_contours(font)
+    refine_turns_final(font)
+    refine_black_dot_cluster(font)
+    refine_hooks_final(font)
+    refine_walk_final(font)
+    refine_display_anchor_chars(font)
+    # refine_stroke_taper / refine_bone_turns removed: geometric heuristics
+    # cannot distinguish 骨节 (e.g. 日 corners, should bulge) from 末端
+    # (e.g. hook tips, should stay clean) — same local geometry, opposite
+    # calligraphic intent. Functions kept for future character-level reuse.
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
     adjust_cjk_spacing(font)

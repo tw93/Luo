@@ -2,9 +2,11 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-.claude/
+.vercel/
+.claude/settings.local.json
+CLAUDE.local.md
+AGENTS.override.md
 .DS_Store
-AGENTS.md
 
 # base fonts (large, not committed)
 source/*.ttf

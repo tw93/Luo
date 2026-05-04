@@ -437,16 +437,11 @@ def render_char_cells(
     gb_level1: str,
     gb_level2: str,
     covered_chars: set[str],
-    optimized_chars: set[str],
 ) -> str:
     cells: list[str] = []
     for level, chars in (("1", gb_level1), ("2", gb_level2)):
         for index, ch in enumerate(chars, start=1):
-            status = "missing"
-            if ch in optimized_chars:
-                status = "optimized"
-            elif ch in covered_chars:
-                status = "covered"
+            status = "covered" if ch in covered_chars else "missing"
             code = f"U+{ord(ch):04X}"
             cells.append(
                 '<span class="char-cell '
@@ -458,14 +453,10 @@ def render_char_cells(
     return "\n".join(cells)
 
 
-def render_preview_cells(chars: str, covered_chars: set[str], optimized_chars: set[str]) -> str:
+def render_preview_cells(chars: str, covered_chars: set[str]) -> str:
     cells: list[str] = []
     for ch in chars:
-        status = "missing"
-        if ch in optimized_chars:
-            status = "optimized"
-        elif ch in covered_chars:
-            status = "covered"
+        status = "covered" if ch in covered_chars else "missing"
         cells.append(
             f'<span class="cell {status}"><b>{html_escape(ch)}</b></span>'
         )
@@ -482,15 +473,12 @@ def render_html(
     gb_chars = gb_level1 + gb_level2
     gb_total = len(gb_chars)
     covered_chars = set(str(luo["covered_chars"]))
-    optimized_chars = set(str(luo["optimized_chars"]))
-    cells = render_char_cells(gb_level1, gb_level2, covered_chars, optimized_chars)
+    cells = render_char_cells(gb_level1, gb_level2, covered_chars)
     font_css = font_face_css(records, include_records=False)
     generated = html_escape(report["generated_at"])
     covered_count = int(luo["covered_count"])
-    optimized_count = int(luo["optimized_count"])
     missing_count = int(luo["missing_count"])
     coverage_rate = percent(covered_count / gb_total)
-    optimized_rate = percent(optimized_count / gb_total)
 
     return f"""<!doctype html>
 <html lang="zh-CN">
@@ -509,11 +497,14 @@ def render_html(
       --line: #dedbd0;
       --line-strong: #c6c1b3;
       --blue: #1B365D;
+      --accent: #1B365D;
       --green: #2f6b50;
       --warm: #8c5b2f;
       --red: #9b3f33;
-      --latin: "Avenir Next", Inter, "SF Pro Text", sans-serif;
-      --luo: "LuoAudit", "Noto Sans CJK SC", sans-serif;
+      --latin: Seravek, Candara, Optima, "Avenir Next", "SF Pro Text", sans-serif;
+      --audit-fallback: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --audit-text: "LuoAudit", Seravek, Candara, Optima, "Noto Sans CJK SC", sans-serif;
+      --luo: "LuoAudit", var(--audit-fallback);
       --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
     }}
     * {{ box-sizing: border-box; }}
@@ -521,24 +512,61 @@ def render_html(
       margin: 0;
       background: var(--paper);
       color: var(--ink);
-      font-family: var(--luo);
+      font-family: var(--audit-text);
       line-height: 1.55;
       letter-spacing: 0;
       -webkit-font-smoothing: antialiased;
     }}
-    main {{ max-width: 1480px; margin: 0 auto; padding: 32px 38px 72px; }}
+    main {{ max-width: 1480px; margin: 0 auto; padding: 36px 42px 72px; }}
     header {{ margin-bottom: 12px; }}
+    .page-nav {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 0 0 30px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }}
+    .crumb {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-family: var(--audit-text);
+      font-size: 13px;
+    }}
+    .crumb a {{
+      color: var(--ink);
+      font-weight: 600;
+      text-decoration: none;
+    }}
+    .crumb a:hover {{ color: var(--accent); }}
+    .crumb strong {{ color: var(--accent); font-weight: 500; }}
+    .proof-nav-links {{
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--audit-text);
+      font-size: 13px;
+    }}
+    .proof-nav-links a {{
+      color: var(--muted);
+      text-decoration: none;
+    }}
+    .proof-nav-links a:hover {{ color: var(--accent); }}
     h1 {{ margin: 0; font-size: 56px; font-weight: 500; line-height: 1.04; color: var(--ink); }}
     .status-line {{
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 16px;
+      gap: 10px 18px;
       margin: 10px 0 0;
       color: var(--muted);
-      font: 13px var(--latin);
+      font-family: var(--audit-text);
+      font-size: 13px;
     }}
     .status-line b {{ color: var(--ink); font-weight: 600; }}
-    .count-line {{ margin: 8px 0 0; color: var(--muted); font: 12px var(--latin); }}
+    .count-line {{ margin: 8px 0 0; color: var(--muted); font-family: var(--audit-text); font-size: 12px; }}
     .toolbar {{
       position: sticky;
       top: 0;
@@ -557,44 +585,50 @@ def render_html(
       background: var(--panel);
       color: var(--ink);
       padding: 0 12px;
-      font: 14px var(--latin);
+      font-family: var(--audit-text);
+      font-size: 14px;
       border-radius: 4px;
     }}
     .segmented {{ display: flex; gap: 4px; background: transparent; }}
     .segmented button {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--muted);
       min-height: 38px;
       padding: 0 12px;
-      font: 13px var(--latin);
+      font-family: var(--audit-text);
+      font-size: 13px;
+      line-height: 1;
       cursor: pointer;
       border-radius: 4px;
     }}
     .segmented button::before {{
       content: "";
-      display: inline-block;
+      display: block;
+      flex: 0 0 8px;
       width: 8px;
       height: 8px;
-      margin-right: 6px;
       border: 1px solid var(--line-strong);
       background: #fffdf8;
-      vertical-align: 1px;
+      box-sizing: border-box;
+      transform: translateY(.02em);
     }}
-    .segmented button[data-filter="optimized"]::before {{ border: 2px solid var(--ink); }}
-    .segmented button[data-filter="covered"]::before {{ border: 2px solid var(--muted); }}
+    .segmented button[data-filter="covered"]::before {{ border: 2px solid var(--ink); }}
     .segmented button[data-filter="missing"]::before {{ background: #efebe0; }}
-    .segmented button[data-filter="all"]::before,
-    .segmented button[data-filter="level1"]::before,
-    .segmented button[data-filter="level2"]::before {{ display: none; }}
+    .segmented button[data-filter="all"]::before {{ display: none; }}
     .segmented button.active {{ background: var(--ink); border-color: var(--ink); color: #fff; }}
     .char-grid {{
-      --cell-size: 50px;
+      --cell-size: 62px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(var(--cell-size), 1fr));
-      gap: 1px;
-      background: var(--line);
-      margin-top: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(var(--cell-size), var(--cell-size)));
+      gap: 7px;
+      align-items: start;
+      justify-content: start;
+      margin-top: 14px;
     }}
     .char-cell {{
       position: relative;
@@ -603,11 +637,13 @@ def render_html(
       align-items: center;
       justify-content: center;
       min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 2px;
       contain: layout paint style;
       content-visibility: auto;
       contain-intrinsic-size: var(--cell-size) var(--cell-size);
-      font-family: var(--luo);
-      font-size: calc(var(--cell-size) * .62);
+      font-family: var(--audit-fallback);
+      font-size: calc(var(--cell-size) * .54);
       line-height: 1;
       color: var(--ink);
       background-color: #fffdf8;
@@ -616,34 +652,43 @@ def render_html(
         linear-gradient(to bottom, transparent calc(50% - .5px), rgba(20,20,19,.13) calc(50% - .5px), rgba(20,20,19,.13) calc(50% + .5px), transparent calc(50% + .5px));
     }}
     .char-cell b {{ font-weight: 400; }}
-    .char-cell.optimized {{ outline: 2px solid var(--ink); outline-offset: -2px; }}
-    .char-cell.covered {{ outline: 1px solid var(--muted); outline-offset: -1px; }}
+    .char-cell.covered {{ border-color: var(--ink); font-family: var(--luo); }}
+    .char-cell.missing {{ font-family: var(--audit-fallback); }}
     .char-cell.missing b {{ opacity: .32; }}
     .char-cell.missing {{ background-color: #efebe0; }}
     .char-cell.hidden {{ display: none; }}
-    .char-grid[data-filter="optimized"] .char-cell:not(.optimized),
-    .char-grid[data-filter="covered"] .char-cell:not(.optimized):not(.covered),
+    .char-grid[data-filter="covered"] .char-cell:not(.covered),
     .char-grid[data-filter="missing"] .char-cell:not(.missing),
-    .char-grid[data-filter="level1"] .char-cell:not([data-level="1"]),
-    .char-grid[data-filter="level2"] .char-cell:not([data-level="2"]),
     .char-grid.is-searching .char-cell.search-hidden {{
       display: none;
     }}
     .audit-meta {{ margin-top: 18px; color: var(--muted); font: 11px var(--latin); }}
     @media (max-width: 980px) {{
       main {{ padding: 28px 18px 64px; }}
+      .page-nav {{ align-items: flex-start; flex-direction: column; gap: 10px; }}
+      .proof-nav-links {{ flex-wrap: wrap; gap: 10px; }}
       .toolbar {{ grid-template-columns: 1fr; }}
+      .char-grid {{ --cell-size: 54px; gap: 6px; }}
     }}
   </style>
 </head>
 <body>
 <main>
+  <nav class="page-nav" aria-label="page navigation">
+    <div class="crumb">
+      <a href="../index.html">Luo 落文</a>
+      <span>/</span>
+      <strong>常用字校准</strong>
+    </div>
+    <div class="proof-nav-links">
+      <a href="../index.html#calibration">官网字样</a>
+    </div>
+  </nav>
   <header>
     <h1>常用字校准</h1>
     <p class="status-line">
       <span><b>{gb_total}</b> GB2312</span>
       <span><b>{covered_count}</b> 已覆盖, {coverage_rate}</span>
-      <span><b>{optimized_count}</b> 已优化, {optimized_rate}</span>
       <span><b>{missing_count}</b> 待补字</span>
     </p>
   </header>
@@ -652,11 +697,8 @@ def render_html(
     <input id="charSearch" type="search" placeholder="搜索汉字或 Unicode, 例如 落 / 843D" autocomplete="off">
     <div class="segmented" role="group" aria-label="character filters">
       <button type="button" class="active" data-filter="all">全部</button>
-      <button type="button" data-filter="optimized">已优化</button>
       <button type="button" data-filter="covered">已覆盖</button>
       <button type="button" data-filter="missing">待补字</button>
-      <button type="button" data-filter="level1">一级字</button>
-      <button type="button" data-filter="level2">二级字</button>
     </div>
   </div>
   <p class="count-line" id="visibleCount">显示 {gb_total} / {gb_total} 字，当前缺字 {missing_count} 个。</p>
@@ -674,19 +716,13 @@ def render_html(
   const buttons = Array.from(document.querySelectorAll('[data-filter]'));
   const filterCounts = {{
     all: {gb_total},
-    optimized: {optimized_count},
     covered: {covered_count},
-    missing: {missing_count},
-    level1: {len(gb_level1)},
-    level2: {len(gb_level2)}
+    missing: {missing_count}
   }};
   let activeFilter = 'all';
 
   function matchesFilter(cell) {{
     if (activeFilter === 'all') return true;
-    if (activeFilter === 'level1') return cell.dataset.level === '1';
-    if (activeFilter === 'level2') return cell.dataset.level === '2';
-    if (activeFilter === 'covered') return cell.dataset.status !== 'missing';
     return cell.dataset.status === activeFilter;
   }}
 
@@ -735,13 +771,11 @@ def render_preview_html(
 ) -> str:
     gb_total = int(luo["gb2312_count"])
     covered_count = int(luo["covered_count"])
-    optimized_count = int(luo["optimized_count"])
     missing_count = int(luo["missing_count"])
     covered_chars = set(str(luo["covered_chars"]))
-    optimized_chars = set(str(luo["optimized_chars"]))
     font_css = font_face_css(records, include_records=False)
     preview_chars = gb_level1[:1155]
-    cells = render_preview_cells(preview_chars, covered_chars, optimized_chars)
+    cells = render_preview_cells(preview_chars, covered_chars)
     generated = html_escape(report["generated_at"])
 
     return f"""<!doctype html>
@@ -767,21 +801,21 @@ def render_preview_html(
     p {{ margin: 0; color: #68665f; font-size: 7.5pt; }}
     .top {{ border-bottom: .8pt solid #c6c1b3; padding-bottom: 9pt; }}
     .lede {{ width: 130mm; margin-top: 5pt; font-size: 9pt; color: #504e49; }}
-    .meta {{ position: absolute; right: 11mm; top: 11mm; text-align: right; font: 7pt "Avenir Next", sans-serif; color: #68665f; }}
+    .meta {{ position: absolute; right: 11mm; top: 11mm; text-align: right; font: 7pt Seravek, Candara, Optima, "Avenir Next", sans-serif; color: #68665f; }}
     .calibration {{ margin-top: 10pt; }}
-    .grid {{ font-size: 0; line-height: 0; border-left: .45pt solid #dedbd0; border-top: .45pt solid #dedbd0; }}
+    .grid {{ font-size: 0; line-height: 0; }}
     .cell {{
       display: inline-block;
       position: relative;
-      width: 16pt;
-      height: 16pt;
-      line-height: 16pt;
+      width: 17pt;
+      height: 17pt;
+      line-height: 17pt;
       text-align: center;
       vertical-align: top;
-      border-right: .45pt solid #dedbd0;
-      border-bottom: .45pt solid #dedbd0;
+      border: .45pt solid #dedbd0;
+      margin: 0 .8pt .8pt 0;
       background: #fffdf8;
-      font-size: 10.8pt;
+      font-size: 10.2pt;
       color: #151513;
     }}
     .cell::before, .cell::after {{
@@ -792,17 +826,16 @@ def render_preview_html(
     .cell::before {{ left: 50%; top: 0; width: .35pt; height: 100%; }}
     .cell::after {{ top: 50%; left: 0; height: .35pt; width: 100%; }}
     .cell b {{ position: relative; z-index: 1; font-weight: 400; }}
-    .cell.optimized {{ outline: 1pt solid #151513; outline-offset: -1pt; }}
-    .cell.covered {{ outline: .8pt solid #68665f; outline-offset: -.8pt; }}
+    .cell.covered {{ border-color: #151513; }}
     .cell.missing {{ background: #efebe0; color: rgba(21, 21, 19, .34); }}
-    .legend {{ margin-top: 6pt; color: #68665f; font: 7pt "Avenir Next", sans-serif; }}
+    .legend {{ margin-top: 6pt; color: #68665f; font: 7pt Seravek, Candara, Optima, "Avenir Next", sans-serif; }}
     .legend span {{ margin-right: 9pt; }}
   </style>
 </head>
 <body>
   <div class="top">
     <h1>常用字校准</h1>
-    <p class="lede">GB2312 {gb_total} 字，已覆盖 {covered_count}，已优化 {optimized_count}，待补 {missing_count}。交互页：proof/gb2312.html。</p>
+    <p class="lede">GB2312 {gb_total} 字，已覆盖 {covered_count}，待补 {missing_count}。交互页：proof/gb2312.html。</p>
     <div class="meta">Generated<br>{generated}</div>
   </div>
   <section class="calibration">
@@ -810,7 +843,7 @@ def render_preview_html(
     <div class="grid">
 {cells}
     </div>
-    <p class="legend"><span>黑框: 已优化</span><span>灰框: 已覆盖</span><span>浅底: 待补</span></p>
+    <p class="legend"><span>深框: 已覆盖</span><span>浅底: 待补</span></p>
   </section>
 </body>
 </html>
