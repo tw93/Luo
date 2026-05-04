@@ -8,6 +8,10 @@
   <a href="https://github.com/tw93/luo/releases/latest"><img src="https://img.shields.io/github/release/tw93/luo?style=flat-square" alt="Release"></a>
 </p>
 
+<p align="center">
+  <img src="assets/images/specimen.png" alt="Luo 落文网页样张截图">
+</p>
+
 ---
 
 ## 这套字
