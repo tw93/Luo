@@ -70,6 +70,6 @@ Luo Regular intentionally covers CJK characters, CJK punctuation, and fullwidth 
 
 ## 授权与鸣谢
 
-Luo 采用 [SIL Open Font License 1.1](https://openfontlicense.org) 授权，可以自由使用、分享、嵌入和改造；衍生字体也需要继续使用 SIL OFL 授权。落文基于 [LXGW WenKai Screen](https://github.com/lxgw/LxgwWenKai-Screen) 构建，感谢 [LXGW / 落霞孤鹜](https://github.com/lxgw) 的开源字体工作。
+Luo 采用 [SIL Open Font License 1.1](https://openfontlicense.org) 授权，可以自由使用、分享、嵌入和改造；衍生字体也需要继续使用 SIL OFL 授权。落文基于 [LXGW WenKai](https://github.com/lxgw/LxgwWenKai) 底层构建。
 
 详细授权见 [OFL.txt](OFL.txt)。
