@@ -1,0 +1,17 @@
+.git
+.claude
+.venv
+.vercel
+.DS_Store
+**/.DS_Store
+
+source/*.ttf
+scripts/__pycache__/
+
+proof/*.json
+proof/*.txt
+proof/*.pdf
+proof/*.png
+proof/*-preview.html
+
+assets/images/luo.png

@@ -22,3 +22,4 @@ proof/*.txt
 proof/*.pdf
 proof/*.png
 proof/*-preview.html
+.vercel
