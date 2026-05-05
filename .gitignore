@@ -7,6 +7,7 @@ venv/
 CLAUDE.local.md
 AGENTS.override.md
 .DS_Store
+local/
 
 # base fonts (large, not committed)
 source/*.ttf
@@ -27,12 +28,18 @@ proof/similarity_images/
 # proof/gb2312.html is a 7000-line generated coverage page; we no longer
 # commit the rendered HTML, vercel regenerates it via vercel.json buildCommand.
 proof/gb2312.html
-# the similarity report JSON IS small and useful to commit as a hard gate
-!proof/similarity_report.json
+# the public source similarity report is small and useful to commit as a
+# baseline gate (regression detection across builds)
+!proof/similarity_lxgw.json
 
 # local identity experiments
 dist/Luo-Test.*
 scripts/compare_similarity.py
+
+# local QA tools that depend on a private reference font; useful on disk
+# but not part of the public pipeline
+scripts/private_site_study.py
+scripts/v04_regression.py
 
 # local cover experiments
 assets/images/specimen.svg

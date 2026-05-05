@@ -31,7 +31,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # weasyprint is only needed for local print-proof; CI skips it.
-          python -m pip install "fonttools[woff]>=4.50.0" "brotli>=1.1.0"
+          # Pillow is needed by scripts/compare_to.py (similarity gate).
+          python -m pip install "fonttools[woff]>=4.50.0" "brotli>=1.1.0" "Pillow>=10.0"
 
       - name: Fetch source font
         run: python scripts/fetch_base_font.py
@@ -50,6 +51,21 @@ jobs:
         env:
           LUO_BUILD_CHARS: ${{ matrix.build_mode }}
         run: python scripts/ci_health_check.py
+
+      # Source similarity is advisory: private references are unavailable on
+      # CI runners, so the script runs in source-only single-target mode here.
+      # Local devs can opt into private reports with LUO_PRIVATE_KAI_REF on
+      # their own machine.
+      - name: Source similarity (advisory)
+        env:
+          LUO_BUILD_CHARS: ${{ matrix.build_mode }}
+        run: |
+          # Re-build starter for the 30-char anchor compare; gb2312-level1 has
+          # the same anchors so we only need to compare in starter mode.
+          if [ "$LUO_BUILD_CHARS" = "starter" ]; then
+            python scripts/compare_to.py --target source --no-images || true
+            cat proof/similarity_lxgw.json | python -c "import json,sys; r=json.load(sys.stdin); print(f'lxgw raw mean = {r[\"avg_raster_iou\"]}, centered mean = {r[\"avg_bbox_centered_iou\"]}')"
+          fi
 
       - name: Upload built font
         uses: actions/upload-artifact@v4
