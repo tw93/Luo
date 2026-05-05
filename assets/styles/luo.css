@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Luo";
-  src: url("../../dist/Luo-Regular.woff2?v=0.3.0-f723931f") format("woff2");
+  src: url("../../dist/Luo-Regular.woff2?v=0.4.6-1729a240") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -62,7 +62,7 @@ body {
   font-synthesis: none;
   font-size: 15px;
   line-height: 1.58;
-  letter-spacing: 0;
+  letter-spacing: 0.4px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
