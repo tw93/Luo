@@ -4,8 +4,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.7488,
-  "avg_bbox_centered_iou": 0.708,
+  "avg_raster_iou": 0.7579,
+  "avg_bbox_centered_iou": 0.7159,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -19,6 +19,7 @@
     "风",
     "纸",
     "印",
+    "国",
     "回",
     "月",
     "雨",
@@ -51,8 +52,8 @@
     {
       "char": "文",
       "codepoint": "U+6587",
-      "raster_iou": 0.7704,
-      "bbox_centered_iou": 0.6942,
+      "raster_iou": 0.7744,
+      "bbox_centered_iou": 0.6863,
       "gate": 0.6,
       "pass": false
     },
@@ -123,24 +124,24 @@
     {
       "char": "国",
       "codepoint": "U+56FD",
-      "raster_iou": 0.5648,
-      "bbox_centered_iou": 0.5385,
+      "raster_iou": 0.6829,
+      "bbox_centered_iou": 0.6333,
       "gate": 0.6,
-      "pass": true
+      "pass": false
     },
     {
       "char": "回",
       "codepoint": "U+56DE",
-      "raster_iou": 0.63,
-      "bbox_centered_iou": 0.6106,
+      "raster_iou": 0.7197,
+      "bbox_centered_iou": 0.6966,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "月",
       "codepoint": "U+6708",
-      "raster_iou": 0.7093,
-      "bbox_centered_iou": 0.6919,
+      "raster_iou": 0.7677,
+      "bbox_centered_iou": 0.7539,
       "gate": 0.6,
       "pass": false
     },

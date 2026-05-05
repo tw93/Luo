@@ -1800,15 +1800,29 @@ def _identity_core_diag_tension(glyph, glyf, upm: int) -> int:
 
 
 def _refine_identity_core_v2_glyph(char: str, glyph, glyf, upm: int) -> dict[str, int]:
+    """Run the core_v2 refinements, but skip whatever the upstream FRAME /
+    FRAME_RISK / LAYER_RISK / DIAG passes already did for this glyph.
+
+    Without this guard, frame chars in `日目月` get three counter expansions
+    stacked (FRAME + FRAME_RISK + CORE) and the outer stems read as too thin;
+    `兰集` get two layer-counter expansions; `文` gets two diagonal tensions.
+    Each unique-purpose core sub-pass (frame_posture stem, layer_gap, the
+    diag-specific top/tail containment) still runs.
+    """
     stats = {"counter": 0, "secondary": 0, "layer": 0, "frame": 0, "diag": 0}
     if char in IDENTITY_CORE_FRAME_CHARS:
         stats["frame"] += _identity_core_frame_posture(glyph, glyf)
-        stats["counter"] += _identity_core_open_counters(glyph, glyf)
+        # FRAME / FRAME_RISK already opened this glyph's counter via the
+        # IDENTITY_FRAME / IDENTITY_RISK_FRAME counter-expand parameters.
+        if char not in IDENTITY_FRAME_CHARS and char not in IDENTITY_FRAME_RISK_CHARS:
+            stats["counter"] += _identity_core_open_counters(glyph, glyf)
     if char in IDENTITY_CORE_LAYER_CHARS:
         stats["layer"] += _identity_core_layer_gap(glyph, glyf, upm)
-        stats["counter"] += _identity_core_open_counters(glyph, glyf)
-        stats["secondary"] += _identity_core_lighten_secondary(glyph, glyf)
-    if char in IDENTITY_CORE_DIAG_CHARS:
+        if char not in IDENTITY_LAYER_RISK_CHARS:
+            stats["counter"] += _identity_core_open_counters(glyph, glyf)
+        if char not in IDENTITY_LAYER_RISK_CHARS:
+            stats["secondary"] += _identity_core_lighten_secondary(glyph, glyf)
+    if char in IDENTITY_CORE_DIAG_CHARS and char not in IDENTITY_DIAG_CHARS:
         stats["diag"] += _identity_core_diag_tension(glyph, glyf, upm)
     return stats
 
@@ -2048,10 +2062,16 @@ def refine_identity_chars(font: TTFont, requested_chars: str = "") -> None:
         _refine_identity_all_glyph(glyph, glyf, upm)
         if char in IDENTITY_POSTURE_CHARS:
             _refine_identity_posture(glyph, glyf, upm)
-        if char in IDENTITY_FRAME_CHARS:
-            _refine_identity_frame(glyph, glyf, upm)
+        # FRAME and FRAME_RISK both open inset counters; they were meant to
+        # be alternative treatments, not stacked. 日/目/月 sit in both lists,
+        # so without this guard the inner counter gets expanded ~12% (1.05
+        # × 1.065) and the outer frame stems read as too thin in body text.
+        # FRAME_RISK is the dedicated stronger version for high-overlap
+        # chars, so let it own those glyphs.
         if char in IDENTITY_FRAME_RISK_CHARS:
             _refine_identity_frame_risk(glyph, glyf)
+        elif char in IDENTITY_FRAME_CHARS:
+            _refine_identity_frame(glyph, glyf, upm)
         if char in IDENTITY_MULTI_HORIZ_CHARS:
             _refine_identity_multi_horiz(glyph, glyf)
         if char in IDENTITY_LAYER_RISK_CHARS:
