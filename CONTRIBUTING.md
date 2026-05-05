@@ -13,7 +13,7 @@ python3 scripts/build.py
 make release-check
 ```
 
-源字体 `source/LXGWWenKaiScreen-Regular.ttf` 不提交到仓库，由 `scripts/fetch_base_font.py` 下载。默认构建 `starter` 字符集，并检查公开页面缺字；如果缺字，构建会失败。
+源字体 `source/LXGWWenKaiScreen-Regular.ttf` 不提交到仓库，由 `scripts/fetch_base_font.py` 下载固定版本的 LXGW WenKai Screen，并校验 SHA256。默认构建 `starter` 字符集，并检查公开页面缺字；如果缺字，构建会失败。
 
 输出字体：
 

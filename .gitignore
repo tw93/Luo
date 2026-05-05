@@ -22,6 +22,11 @@ proof/*.txt
 proof/*.pdf
 proof/*.png
 proof/*-preview.html
+proof/similarity_*.html
 
-# local scratch assets
-assets/images/luo.png
+# local identity experiments
+dist/Luo-Test.*
+scripts/compare_similarity.py
+
+# local cover experiments
+assets/images/specimen.svg

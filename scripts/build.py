@@ -203,6 +203,69 @@ ANCHOR_JIAN_BOTTOM_RAISE_EM = float(os.environ.get("LUO_ANCHOR_JIAN_BOTTOM_RAISE
 ANCHOR_JIAN_BOTTOM_CONTAIN = float(os.environ.get("LUO_ANCHOR_JIAN_BOTTOM_CONTAIN", "0.018"))
 ANCHOR_JIAN_RIGHT_TAIL_CONTAIN = float(os.environ.get("LUO_ANCHOR_JIAN_RIGHT_TAIL_CONTAIN", "0.035"))
 
+# Source-separation pass. Earlier passes make Luo cleaner and more print-ready,
+# but many simple starter glyphs still share the source outline posture. This
+# white-list pass changes structure language instead of global weight: slightly
+# taller top/bottom rhythm, stronger secondary-horizontal hierarchy, larger
+# frame counters, and more tension in diagonal glyphs.
+IDENTITY_HIGH_RISK_CHARS = (
+    "去壁辞前来序藏永赤兮纸湍落墨赋归雨笔激风游黑流霜代"
+    "字印书兰章月魔家清点淡亭文集回骨国黄天玄"
+)
+IDENTITY_POSTURE_CHARS = "章天兰书文集字回骨月玄亭清家点国黄印"
+IDENTITY_FRAME_CHARS = "国回图园日目月"
+IDENTITY_MULTI_HORIZ_CHARS = "章兰书集骨黄点"
+IDENTITY_DIAG_CHARS = "文天玄"
+# Counter opening helps these frame glyphs separate from the source without
+# making the frame body heavier. 用/田/由/曲/电/自/直 are deliberately left on
+# guardrails only for now: counter opening made them look closer to the source.
+IDENTITY_FRAME_RISK_CHARS = "目日月且"
+IDENTITY_LAYER_RISK_CHARS = "昔音喜甚基真备审省革其"
+IDENTITY_POSTURE_TOP_RAISE_EM = float(os.environ.get("LUO_IDENTITY_TOP_RAISE_EM", "0.026"))
+IDENTITY_POSTURE_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_IDENTITY_BOTTOM_SETTLE_EM", "0.010"))
+IDENTITY_POSTURE_UPPER_X_CONTAIN = float(os.environ.get("LUO_IDENTITY_UPPER_X_CONTAIN", "0.980"))
+IDENTITY_POSTURE_LOWER_X_EXPAND = float(os.environ.get("LUO_IDENTITY_LOWER_X_EXPAND", "1.012"))
+IDENTITY_FRAME_COUNTER_EXPAND_X = float(os.environ.get("LUO_IDENTITY_FRAME_COUNTER_EXPAND_X", "1.050"))
+IDENTITY_FRAME_COUNTER_EXPAND_Y = float(os.environ.get("LUO_IDENTITY_FRAME_COUNTER_EXPAND_Y", "1.025"))
+IDENTITY_MULTI_MID_CONTAIN = float(os.environ.get("LUO_IDENTITY_MULTI_MID_CONTAIN", "0.935"))
+IDENTITY_MULTI_BOTTOM_EXPAND = float(os.environ.get("LUO_IDENTITY_MULTI_BOTTOM_EXPAND", "1.018"))
+IDENTITY_DIAG_EDGE_EXPAND = float(os.environ.get("LUO_IDENTITY_DIAG_EDGE_EXPAND", "0.030"))
+IDENTITY_RISK_FRAME_COUNTER_EXPAND_X = float(os.environ.get("LUO_IDENTITY_RISK_FRAME_COUNTER_EXPAND_X", "1.065"))
+IDENTITY_RISK_FRAME_COUNTER_EXPAND_Y = float(os.environ.get("LUO_IDENTITY_RISK_FRAME_COUNTER_EXPAND_Y", "1.040"))
+IDENTITY_LAYER_COUNTER_EXPAND_X = float(os.environ.get("LUO_IDENTITY_LAYER_COUNTER_EXPAND_X", "1.040"))
+IDENTITY_LAYER_COUNTER_EXPAND_Y = float(os.environ.get("LUO_IDENTITY_LAYER_COUNTER_EXPAND_Y", "1.022"))
+IDENTITY_LAYER_SECONDARY_SCALE = float(os.environ.get("LUO_IDENTITY_LAYER_SECONDARY_SCALE", "0.986"))
+IDENTITY_LAYER_TOP_RAISE_EM = float(os.environ.get("LUO_IDENTITY_LAYER_TOP_RAISE_EM", "0.006"))
+IDENTITY_LAYER_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_IDENTITY_LAYER_BOTTOM_SETTLE_EM", "0.004"))
+IDENTITY_LAYER_TOP_CONTAIN = float(os.environ.get("LUO_IDENTITY_LAYER_TOP_CONTAIN", "0.992"))
+IDENTITY_SOURCE_SHIFT_X_EM = float(os.environ.get("LUO_IDENTITY_SOURCE_SHIFT_X_EM", "0.000"))
+IDENTITY_SOURCE_SHIFT_Y_EM = float(os.environ.get("LUO_IDENTITY_SOURCE_SHIFT_Y_EM", "0.000"))
+IDENTITY_ALL_TOP_RAISE_EM = float(os.environ.get("LUO_IDENTITY_ALL_TOP_RAISE_EM", "0.010"))
+IDENTITY_ALL_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_IDENTITY_ALL_BOTTOM_SETTLE_EM", "0.003"))
+IDENTITY_ALL_TOP_CONTAIN = float(os.environ.get("LUO_IDENTITY_ALL_TOP_CONTAIN", "0.992"))
+IDENTITY_ALL_BOTTOM_EXPAND = float(os.environ.get("LUO_IDENTITY_ALL_BOTTOM_EXPAND", "1.004"))
+IDENTITY_ALL_WAIST_CONTAIN = float(os.environ.get("LUO_IDENTITY_ALL_WAIST_CONTAIN", "0.994"))
+IDENTITY_ALL_COUNTER_EXPAND_X = float(os.environ.get("LUO_IDENTITY_ALL_COUNTER_EXPAND_X", "1.012"))
+IDENTITY_ALL_COUNTER_EXPAND_Y = float(os.environ.get("LUO_IDENTITY_ALL_COUNTER_EXPAND_Y", "1.008"))
+IDENTITY_ALL_COMPONENT_SHIFT_EM = float(os.environ.get("LUO_IDENTITY_ALL_COMPONENT_SHIFT_EM", "0.002"))
+IDENTITY_ALL_COMPONENT_Y_EM = float(os.environ.get("LUO_IDENTITY_ALL_COMPONENT_Y_EM", "0.001"))
+IDENTITY_ALL_EDGE_TENSION_EM = float(os.environ.get("LUO_IDENTITY_ALL_EDGE_TENSION_EM", "0.001"))
+IDENTITY_SIMPLE_FACE_X = float(os.environ.get("LUO_IDENTITY_SIMPLE_FACE_X", "1.008"))
+IDENTITY_SIMPLE_FACE_Y = float(os.environ.get("LUO_IDENTITY_SIMPLE_FACE_Y", "1.006"))
+IDENTITY_REGULAR_FACE_X = float(os.environ.get("LUO_IDENTITY_REGULAR_FACE_X", "1.004"))
+IDENTITY_REGULAR_FACE_Y = float(os.environ.get("LUO_IDENTITY_REGULAR_FACE_Y", "1.004"))
+IDENTITY_COMPLEX_FACE_X = float(os.environ.get("LUO_IDENTITY_COMPLEX_FACE_X", "1.002"))
+IDENTITY_COMPLEX_FACE_Y = float(os.environ.get("LUO_IDENTITY_COMPLEX_FACE_Y", "1.002"))
+IDENTITY_SIMPLE_H_LAYER_X = float(os.environ.get("LUO_IDENTITY_SIMPLE_H_LAYER_X", "0.990"))
+IDENTITY_ALL_H_LAYER_X = float(os.environ.get("LUO_IDENTITY_ALL_H_LAYER_X", "0.994"))
+IDENTITY_ALL_H_LAYER_ROTATE_DEG = float(os.environ.get("LUO_IDENTITY_ALL_H_LAYER_ROTATE_DEG", "0.25"))
+IDENTITY_ALL_V_STEM_X = float(os.environ.get("LUO_IDENTITY_ALL_V_STEM_X", "0.994"))
+IDENTITY_ALL_V_STEM_Y = float(os.environ.get("LUO_IDENTITY_ALL_V_STEM_Y", "1.004"))
+IDENTITY_ALL_DIAG_EXPAND = float(os.environ.get("LUO_IDENTITY_ALL_DIAG_EXPAND", "1.004"))
+IDENTITY_ALL_SECONDARY_SCALE = float(os.environ.get("LUO_IDENTITY_ALL_SECONDARY_SCALE", "0.994"))
+IDENTITY_ALL_SIDE_COMPONENT_X_EM = float(os.environ.get("LUO_IDENTITY_ALL_SIDE_COMPONENT_X_EM", "0.001"))
+IDENTITY_ALL_SIDE_COMPONENT_Y_EM = float(os.environ.get("LUO_IDENTITY_ALL_SIDE_COMPONENT_Y_EM", "0.000"))
+
 BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "starter")
 BUILD_CHAR_MODES = (
     "seed",
@@ -1208,6 +1271,7 @@ def _contour_info(glyph, coords) -> list[dict[str, float | int]]:
             "idx": ci,
             "start": start,
             "end": end,
+            "n": end - start + 1,
             "cx": sum(xs) / len(xs),
             "cy": sum(ys) / len(ys),
             "xmin": min(xs),
@@ -1321,6 +1385,583 @@ def refine_display_anchor_chars(font: TTFont) -> None:
         touched.append(char)
     if touched:
         print(f"[luo] refined display anchors: {''.join(touched)}")
+
+
+def _refine_identity_posture(glyph, glyf, upm: int) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    x_range = x_max - x_min
+    y_range = y_max - y_min
+    if x_range <= 0 or y_range <= 0:
+        return
+
+    cx = (x_min + x_max) / 2.0
+    top_start = y_min + y_range * 0.58
+    bottom_end = y_min + y_range * 0.22
+    top_raise = IDENTITY_POSTURE_TOP_RAISE_EM * upm
+    bottom_settle = IDENTITY_POSTURE_BOTTOM_SETTLE_EM * upm
+
+    for i in range(len(coords)):
+        x, y = coords[i]
+        new_x = float(x)
+        new_y = float(y)
+
+        if y > top_start and y_max > top_start:
+            t = (y - top_start) / (y_max - top_start)
+            factor = 1.0 - (1.0 - IDENTITY_POSTURE_UPPER_X_CONTAIN) * t
+            new_x = cx + (new_x - cx) * factor
+            new_y += top_raise * t
+        elif y < bottom_end and bottom_end > y_min:
+            t = (bottom_end - y) / (bottom_end - y_min)
+            factor = 1.0 + (IDENTITY_POSTURE_LOWER_X_EXPAND - 1.0) * t
+            new_x = cx + (new_x - cx) * factor
+            new_y -= bottom_settle * t
+
+        coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_frame(glyph, glyf, upm: int) -> None:
+    if glyph.numberOfContours < 2:
+        return
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    all_xs = [coords[i][0] for i in range(len(coords))]
+    all_ys = [coords[i][1] for i in range(len(coords))]
+    glyph_x_min, glyph_x_max = min(all_xs), max(all_xs)
+    glyph_y_min, glyph_y_max = min(all_ys), max(all_ys)
+    glyph_w = glyph_x_max - glyph_x_min
+    glyph_h = glyph_y_max - glyph_y_min
+    if glyph_w <= 0 or glyph_h <= 0:
+        return
+
+    contours = _contour_info(glyph, coords)
+    if not contours:
+        return
+    max_area = max(float(c["area"]) for c in contours)
+    if max_area <= 0:
+        return
+
+    for c in contours:
+        area = float(c["area"])
+        x_min = float(c["xmin"])
+        x_max = float(c["xmax"])
+        y_min = float(c["ymin"])
+        y_max = float(c["ymax"])
+        # Counter contours in frame glyphs sit inside the outer frame and are
+        # much smaller. Expand those counters from their own center to create a
+        # Luo-specific print counter instead of tracing the source frame.
+        inset = (
+            x_min > glyph_x_min + glyph_w * 0.08
+            and x_max < glyph_x_max - glyph_w * 0.08
+            and y_min > glyph_y_min + glyph_h * 0.08
+            and y_max < glyph_y_max - glyph_h * 0.08
+        )
+        if not inset or area > max_area * 0.62:
+            continue
+
+        cx = float(c["cx"])
+        cy = float(c["cy"])
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            new_x = cx + (x - cx) * IDENTITY_FRAME_COUNTER_EXPAND_X
+            new_y = cy + (y - cy) * IDENTITY_FRAME_COUNTER_EXPAND_Y
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_frame_risk(glyph, glyf) -> None:
+    """Open counters in high-overlap frame glyphs without changing the frame."""
+    if glyph.numberOfContours < 2:
+        return
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    all_xs = [coords[i][0] for i in range(len(coords))]
+    all_ys = [coords[i][1] for i in range(len(coords))]
+    glyph_x_min, glyph_x_max = min(all_xs), max(all_xs)
+    glyph_y_min, glyph_y_max = min(all_ys), max(all_ys)
+    glyph_w = glyph_x_max - glyph_x_min
+    glyph_h = glyph_y_max - glyph_y_min
+    if glyph_w <= 0 or glyph_h <= 0:
+        return
+
+    contours = _contour_info(glyph, coords)
+    if not contours:
+        return
+    max_area = max(float(c["area"]) for c in contours)
+    if max_area <= 0:
+        return
+
+    for c in contours:
+        area = float(c["area"])
+        c_xmin = float(c["xmin"])
+        c_xmax = float(c["xmax"])
+        c_ymin = float(c["ymin"])
+        c_ymax = float(c["ymax"])
+        c_w = max(1.0, c_xmax - c_xmin)
+        c_h = max(1.0, c_ymax - c_ymin)
+        inset = (
+            c_xmin > glyph_x_min + glyph_w * 0.07
+            and c_xmax < glyph_x_max - glyph_w * 0.07
+            and c_ymin > glyph_y_min + glyph_h * 0.05
+            and c_ymax < glyph_y_max - glyph_h * 0.05
+            and area < max_area * 0.46
+        )
+        if not inset:
+            continue
+
+        # Avoid making tiny ticks or accidental dots into oversized holes.
+        if c_w < glyph_w * 0.11 or c_h < glyph_h * 0.07:
+            continue
+
+        cx = float(c["cx"])
+        cy = float(c["cy"])
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            new_x = cx + (x - cx) * IDENTITY_RISK_FRAME_COUNTER_EXPAND_X
+            new_y = cy + (y - cy) * IDENTITY_RISK_FRAME_COUNTER_EXPAND_Y
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_multi_horiz(glyph, glyf) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    y_range = y_max - y_min
+    if y_range <= 0:
+        return
+
+    cx = (x_min + x_max) / 2.0
+    cy = (y_min + y_max) / 2.0
+    bottom_cut = y_min + y_range * 0.28
+
+    for i in range(len(coords)):
+        x, y = coords[i]
+        dist_mid = 1.0 - min(1.0, abs(y - cy) / max(1.0, y_range * 0.38))
+        new_x = float(x)
+        if dist_mid > 0:
+            factor = 1.0 - (1.0 - IDENTITY_MULTI_MID_CONTAIN) * dist_mid
+            new_x = cx + (new_x - cx) * factor
+        if y < bottom_cut and bottom_cut > y_min:
+            t = (bottom_cut - y) / (bottom_cut - y_min)
+            factor = 1.0 + (IDENTITY_MULTI_BOTTOM_EXPAND - 1.0) * t
+            new_x = cx + (new_x - cx) * factor
+        coords[i] = (int(round(new_x)), y)
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_layer_risk(glyph, glyf, upm: int) -> None:
+    """Separate high-overlap top/bottom glyphs through counters and hierarchy."""
+    if glyph.numberOfContours < 2:
+        return
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    all_xs = [coords[i][0] for i in range(len(coords))]
+    all_ys = [coords[i][1] for i in range(len(coords))]
+    glyph_x_min, glyph_x_max = min(all_xs), max(all_xs)
+    glyph_y_min, glyph_y_max = min(all_ys), max(all_ys)
+    glyph_w = glyph_x_max - glyph_x_min
+    glyph_h = glyph_y_max - glyph_y_min
+    if glyph_w <= 0 or glyph_h <= 0:
+        return
+
+    cx = (glyph_x_min + glyph_x_max) / 2.0
+    cy = (glyph_y_min + glyph_y_max) / 2.0
+    top_raise = IDENTITY_LAYER_TOP_RAISE_EM * upm
+    bottom_settle = IDENTITY_LAYER_BOTTOM_SETTLE_EM * upm
+
+    contours = _contour_info(glyph, coords)
+    if not contours:
+        return
+    max_area = max(float(c["area"]) for c in contours)
+    if max_area <= 0:
+        return
+
+    for c in contours:
+        area = float(c["area"])
+        c_xmin = float(c["xmin"])
+        c_xmax = float(c["xmax"])
+        c_ymin = float(c["ymin"])
+        c_ymax = float(c["ymax"])
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+        c_w = max(1.0, c_xmax - c_xmin)
+        c_h = max(1.0, c_ymax - c_ymin)
+        aspect = c_w / c_h
+        inset = (
+            c_xmin > glyph_x_min + glyph_w * 0.07
+            and c_xmax < glyph_x_max - glyph_w * 0.07
+            and c_ymin > glyph_y_min + glyph_h * 0.04
+            and c_ymax < glyph_y_max - glyph_h * 0.04
+            and area < max_area * 0.38
+        )
+        secondary = (
+            area < max_area * 0.24
+            and c_w > glyph_w * 0.16
+            and c_h > glyph_h * 0.05
+        )
+        top_layer = ccy > cy + glyph_h * 0.14 and c_h < glyph_h * 0.58
+        bottom_layer = ccy < cy - glyph_h * 0.20 and c_h < glyph_h * 0.50
+        horizontal_gap = aspect > 1.85 and c_h < glyph_h * 0.18
+
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            new_x = float(x)
+            new_y = float(y)
+
+            if inset:
+                new_x = ccx + (new_x - ccx) * IDENTITY_LAYER_COUNTER_EXPAND_X
+                new_y = ccy + (new_y - ccy) * IDENTITY_LAYER_COUNTER_EXPAND_Y
+            elif secondary:
+                scale = IDENTITY_LAYER_SECONDARY_SCALE
+                if horizontal_gap:
+                    scale = min(scale, 0.980)
+                new_x = ccx + (new_x - ccx) * scale
+                new_y = ccy + (new_y - ccy) * scale
+
+            if top_layer:
+                new_x = cx + (new_x - cx) * IDENTITY_LAYER_TOP_CONTAIN
+                new_y += top_raise
+            elif bottom_layer:
+                new_y -= bottom_settle
+
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_diagonal(glyph, glyf, upm: int) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    x_range = x_max - x_min
+    y_range = y_max - y_min
+    if x_range <= 0 or y_range <= 0:
+        return
+
+    cx = (x_min + x_max) / 2.0
+    cy = (y_min + y_max) / 2.0
+    max_shift = IDENTITY_DIAG_EDGE_EXPAND * upm
+
+    for i in range(len(coords)):
+        x, y = coords[i]
+        edge_t = min(1.0, abs(x - cx) / max(1.0, x_range * 0.50))
+        vertical_t = min(1.0, abs(y - cy) / max(1.0, y_range * 0.50))
+        tension = edge_t * vertical_t
+        new_x = x + math.copysign(max_shift * tension, x - cx if x != cx else 1)
+        new_y = cy + (y - cy) * (1.0 + 0.010 * vertical_t)
+        coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_all_glyph(glyph, glyf, upm: int) -> None:
+    """Apply subtle Luo-specific structure language to every covered CJK glyph.
+
+    This is intentionally not a whole-glyph move. It changes internal rhythm:
+    upper strokes sit a little higher and narrower, lower strokes settle and
+    open, middle layers breathe, counters open, and small components separate
+    from the main body. The goal is to make covered glyphs stop inheriting the
+    source outline posture while keeping the quiet print texture.
+    """
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    xs = [coords[i][0] for i in range(len(coords))]
+    ys = [coords[i][1] for i in range(len(coords))]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    x_range = x_max - x_min
+    y_range = y_max - y_min
+    if x_range <= 0 or y_range <= 0:
+        return
+
+    cx = (x_min + x_max) / 2.0
+    cy = (y_min + y_max) / 2.0
+    if glyph.numberOfContours <= COMPLEXITY_SIMPLE_MAX:
+        face_x = IDENTITY_SIMPLE_FACE_X
+        face_y = IDENTITY_SIMPLE_FACE_Y
+    elif glyph.numberOfContours >= COMPLEXITY_COMPLEX_MIN:
+        face_x = IDENTITY_COMPLEX_FACE_X
+        face_y = IDENTITY_COMPLEX_FACE_Y
+    else:
+        face_x = IDENTITY_REGULAR_FACE_X
+        face_y = IDENTITY_REGULAR_FACE_Y
+
+    if face_x != 1.0 or face_y != 1.0:
+        for i in range(len(coords)):
+            x, y = coords[i]
+            new_x = cx + (x - cx) * face_x
+            new_y = cy + (y - cy) * face_y
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+        xs = [coords[i][0] for i in range(len(coords))]
+        ys = [coords[i][1] for i in range(len(coords))]
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        if x_range <= 0 or y_range <= 0:
+            return
+        cx = (x_min + x_max) / 2.0
+        cy = (y_min + y_max) / 2.0
+
+    top_start = y_min + y_range * 0.58
+    bottom_end = y_min + y_range * 0.24
+    top_raise = IDENTITY_ALL_TOP_RAISE_EM * upm
+    bottom_settle = IDENTITY_ALL_BOTTOM_SETTLE_EM * upm
+    edge_shift = IDENTITY_ALL_EDGE_TENSION_EM * upm
+
+    for i in range(len(coords)):
+        x, y = coords[i]
+        new_x = float(x)
+        new_y = float(y)
+        yn = (y - y_min) / y_range
+        x_edge = min(1.0, abs(x - cx) / max(1.0, x_range * 0.5))
+
+        # A slight middle containment gives long horizontal stacks a Luo waist
+        # without narrowing the whole glyph advance.
+        waist = max(0.0, 1.0 - abs(yn - 0.50) / 0.28)
+        if waist > 0:
+            factor = 1.0 - (1.0 - IDENTITY_ALL_WAIST_CONTAIN) * waist
+            new_x = cx + (new_x - cx) * factor
+
+        if y > top_start and y_max > top_start:
+            t = (y - top_start) / (y_max - top_start)
+            factor = 1.0 - (1.0 - IDENTITY_ALL_TOP_CONTAIN) * t
+            new_x = cx + (new_x - cx) * factor
+            new_y += top_raise * t
+        elif y < bottom_end and bottom_end > y_min:
+            t = (bottom_end - y) / (bottom_end - y_min)
+            factor = 1.0 + (IDENTITY_ALL_BOTTOM_EXPAND - 1.0) * t
+            new_x = cx + (new_x - cx) * factor
+            new_y -= bottom_settle * t
+
+        # Edge tension is symmetric and tiny; it changes terminal direction
+        # distribution without making the glyph slant.
+        tension = math.sin((yn - 0.5) * math.pi) * x_edge
+        if tension:
+            new_x += math.copysign(abs(tension) * edge_shift, x - cx if x != cx else 1)
+
+        coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    contours = _contour_info(glyph, coords)
+    if contours:
+        max_area = max(float(c["area"]) for c in contours)
+        glyph_w = x_range
+        glyph_h = y_range
+        component_dx = IDENTITY_ALL_COMPONENT_SHIFT_EM * upm
+        component_dy = IDENTITY_ALL_COMPONENT_Y_EM * upm
+        side_component_dx = IDENTITY_ALL_SIDE_COMPONENT_X_EM * upm
+        side_component_dy = IDENTITY_ALL_SIDE_COMPONENT_Y_EM * upm
+        simple_glyph = glyph.numberOfContours <= COMPLEXITY_SIMPLE_MAX
+        h_layer_x = IDENTITY_SIMPLE_H_LAYER_X if simple_glyph else IDENTITY_ALL_H_LAYER_X
+        h_angle = math.radians(IDENTITY_ALL_H_LAYER_ROTATE_DEG)
+        cos_h = math.cos(h_angle)
+        sin_h = math.sin(h_angle)
+        for c in contours:
+            area = float(c["area"])
+            if area <= 0:
+                continue
+            c_xmin = float(c["xmin"])
+            c_xmax = float(c["xmax"])
+            c_ymin = float(c["ymin"])
+            c_ymax = float(c["ymax"])
+            ccx = float(c["cx"])
+            ccy = float(c["cy"])
+            c_w = max(1.0, c_xmax - c_xmin)
+            c_h = max(1.0, c_ymax - c_ymin)
+            aspect = c_w / c_h
+            n_pts = int(c["n"])
+            dot_like = (
+                n_pts <= DOT_MAX_POINTS
+                and c_w < glyph_w * 0.32
+                and c_h < glyph_h * 0.32
+                and area < glyph_w * glyph_h * 0.055
+            )
+            horizontal_layer = (
+                not dot_like
+                and aspect > 2.0
+                and c_h < glyph_h * 0.24
+            )
+            vertical_stem = (
+                not dot_like
+                and aspect < 0.55
+                and c_w < glyph_w * 0.24
+            )
+            diagonal_piece = (
+                not dot_like
+                and not horizontal_layer
+                and not vertical_stem
+                and 0.55 <= aspect <= 1.90
+                and area < max_area * 0.50
+            )
+            side_strength = min(1.0, abs(ccx - cx) / max(1.0, glyph_w * 0.30))
+            side_component = (
+                glyph.numberOfContours >= 2
+                and not dot_like
+                and side_strength > 0.22
+                and c_w < glyph_w * 0.72
+                and area < max_area * 1.02
+            )
+
+            inset = (
+                glyph.numberOfContours >= 2
+                and c_xmin > x_min + glyph_w * 0.08
+                and c_xmax < x_max - glyph_w * 0.08
+                and c_ymin > y_min + glyph_h * 0.08
+                and c_ymax < y_max - glyph_h * 0.08
+                and area < max_area * 0.70
+            )
+            small_component = (
+                glyph.numberOfContours >= 3
+                and area < max_area * 0.22
+                and area > max_area * 0.010
+            )
+
+            for i in range(int(c["start"]), int(c["end"]) + 1):
+                x, y = coords[i]
+                new_x = float(x)
+                new_y = float(y)
+                local_x = new_x - ccx
+                local_y = new_y - ccy
+                if horizontal_layer:
+                    local_x *= h_layer_x
+                    rot_x = local_x * cos_h - local_y * sin_h
+                    rot_y = local_x * sin_h + local_y * cos_h
+                    new_x = ccx + rot_x
+                    new_y = ccy + rot_y
+                elif vertical_stem:
+                    new_x = ccx + local_x * IDENTITY_ALL_V_STEM_X
+                    new_y = ccy + local_y * IDENTITY_ALL_V_STEM_Y
+                elif diagonal_piece:
+                    new_x = ccx + local_x * IDENTITY_ALL_DIAG_EXPAND
+                    new_y = ccy + local_y * IDENTITY_ALL_DIAG_EXPAND
+                if inset:
+                    new_x = ccx + (new_x - ccx) * IDENTITY_ALL_COUNTER_EXPAND_X
+                    new_y = ccy + (new_y - ccy) * IDENTITY_ALL_COUNTER_EXPAND_Y
+                if small_component:
+                    new_x = ccx + (new_x - ccx) * IDENTITY_ALL_SECONDARY_SCALE
+                    new_y = ccy + (new_y - ccy) * IDENTITY_ALL_SECONDARY_SCALE
+                    side = 1.0 if ccx >= cx else -1.0
+                    vertical = 1.0 if ccy >= cy else -1.0
+                    new_x += component_dx * side
+                    new_y += component_dy * vertical
+                if side_component:
+                    side = 1.0 if ccx >= cx else -1.0
+                    vertical = 1.0 if ccy >= cy else -1.0
+                    new_x += side_component_dx * side * side_strength
+                    new_y += side_component_dy * vertical * side_strength
+                coords[i] = (int(round(new_x)), int(round(new_y)))
+
+    glyph.recalcBounds(glyf)
+
+
+def _refine_identity_source_separation(glyph, glyf, upm: int) -> None:
+    coords = glyph.coordinates
+    if len(coords) == 0:
+        return
+
+    dx = int(round(IDENTITY_SOURCE_SHIFT_X_EM * upm))
+    dy = int(round(IDENTITY_SOURCE_SHIFT_Y_EM * upm))
+    if dx == 0 and dy == 0:
+        return
+
+    for i in range(len(coords)):
+        x, y = coords[i]
+        coords[i] = (x + dx, y + dy)
+
+    glyph.recalcBounds(glyf)
+
+
+def _identity_target_chars(requested_chars: str = "") -> str:
+    chunks = [IDENTITY_HIGH_RISK_CHARS, PRIORITY_CHARS]
+    chunks.append(chars_from_files(STARTER_FILES))
+    chunks.append(requested_chars)
+    return "".join(dict.fromkeys("".join(chunks)))
+
+
+def refine_identity_chars(font: TTFont, requested_chars: str = "") -> None:
+    """Pull high-overlap starter anchors away from the source outline."""
+    glyf = font["glyf"]
+    cmap = font.getBestCmap() or {}
+    upm = font["head"].unitsPerEm
+    touched = []
+    target_chars = _identity_target_chars(requested_chars)
+
+    for char in target_chars:
+        cp = ord(char)
+        if not (0x3400 <= cp <= 0x4DBF or 0x4E00 <= cp <= 0x9FFF):
+            continue
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+
+        _refine_identity_all_glyph(glyph, glyf, upm)
+        if char in IDENTITY_POSTURE_CHARS:
+            _refine_identity_posture(glyph, glyf, upm)
+        if char in IDENTITY_FRAME_CHARS:
+            _refine_identity_frame(glyph, glyf, upm)
+        if char in IDENTITY_FRAME_RISK_CHARS:
+            _refine_identity_frame_risk(glyph, glyf)
+        if char in IDENTITY_MULTI_HORIZ_CHARS:
+            _refine_identity_multi_horiz(glyph, glyf)
+        if char in IDENTITY_LAYER_RISK_CHARS:
+            _refine_identity_layer_risk(glyph, glyf, upm)
+        if char in IDENTITY_DIAG_CHARS:
+            _refine_identity_diagonal(glyph, glyf, upm)
+        _refine_identity_source_separation(glyph, glyf, upm)
+        touched.append(char)
+
+    if touched:
+        print(
+            f"[luo] refined identity anchors: {len(touched)} glyphs "
+            f"(top={IDENTITY_POSTURE_TOP_RAISE_EM}em, "
+            f"bottom={IDENTITY_POSTURE_BOTTOM_SETTLE_EM}em, "
+            f"frame_counter={IDENTITY_FRAME_COUNTER_EXPAND_X}×/"
+            f"{IDENTITY_FRAME_COUNTER_EXPAND_Y}×, "
+            f"multi_mid={IDENTITY_MULTI_MID_CONTAIN}, "
+            f"risk_frame={IDENTITY_RISK_FRAME_COUNTER_EXPAND_X}×/"
+            f"{IDENTITY_RISK_FRAME_COUNTER_EXPAND_Y}×, "
+            f"risk_layer={IDENTITY_LAYER_COUNTER_EXPAND_X}×/"
+            f"{IDENTITY_LAYER_COUNTER_EXPAND_Y}×, "
+            f"all_top={IDENTITY_ALL_TOP_RAISE_EM}em, "
+            f"all_waist={IDENTITY_ALL_WAIST_CONTAIN}, "
+            f"face={IDENTITY_SIMPLE_FACE_X}×/{IDENTITY_REGULAR_FACE_X}×/"
+            f"{IDENTITY_COMPLEX_FACE_X}×, "
+            f"source_shift={IDENTITY_SOURCE_SHIFT_X_EM}em/"
+            f"{IDENTITY_SOURCE_SHIFT_Y_EM}em)"
+        )
 
 
 # --- Pass A: Dot contour refinement ---
@@ -2744,6 +3385,7 @@ def main() -> None:
     refine_hooks_final(font)
     refine_walk_final(font)
     refine_display_anchor_chars(font)
+    refine_identity_chars(font, requested_chars)
     # refine_stroke_taper / refine_bone_turns removed: geometric heuristics
     # cannot distinguish 骨节 (e.g. 日 corners, should bulge) from 末端
     # (e.g. hook tips, should stay clean) — same local geometry, opposite

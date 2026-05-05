@@ -27,10 +27,11 @@ Source font: `source/LXGWWenKaiScreen-Regular.ttf`
 7. Dot contour direction (xiaokai dot rotation + adaptive compression)
 8. Targeted turn refinement (priority endpoints / frames / multi-horiz only)
 9. Hook refinement on whitelist only (refine_hooks_final)
-10. CJK punctuation proportional width (0.75em)
-11. Space half-width (50%)
-12. CJK spacing stays 1em by default for reading rhythm
-13. Name table rewrite, output
+10. Identity/source-separation refinement for site-priority glyphs
+11. CJK punctuation proportional width (0.75em)
+12. Space half-width (50%)
+13. CJK spacing stays 1em by default for reading rhythm
+14. Name table rewrite, output
 
 ## Design Direction (v0.3 final)
 
@@ -38,6 +39,7 @@ Target: modern print-ready title font with Wei Furen bone structure.
 
 - Wei-Jin xiaokai-style clear bone 50%, open skeleton from contemporary expanded kaishu-inspired print type 40%, modern font engineering stability 10%
 - More bone than the source font, more restrained than copying any existing font outlines
+- Site-priority glyphs must not merely be “the source font with more bone”; use the identity similarity report to find high-overlap glyphs, then solve with structure, counters, hierarchy, and terminals
 - Clean, upright, print-friendly, not calligraphic or handwritten
 - Hooks: short, precise, directional, contained, no dragging
 - Dots: short, directional xiaokai dots, not round, not slash-like
@@ -69,6 +71,7 @@ Luo is still a modern printable typeface, not stone inscription revival.
 2. Earlier passes can create non-linear divergence. If bolden has already stretched two similar dots differently, downstream dot shaping can narrow the gap but cannot fully erase it.
 3. A soft channel means normalize lightly, not reshape. `DOT_SHORT_AXIS_SOFT=0.95` is intentional: 氵/讠 dots get angle normalization with near-identity compression.
 4. Prefer generic parameter logic over char lists. Use lists only to skip a whole pass (`DOT_SKIP_CHARS`) or route to a truly different path (`HEART_CHARS`).
+5. Similarity gates are QA signals, not a license to cheat with whole-glyph shifts. Regular site-priority glyphs target source IoU <= 0.60; extremely simple glyphs may pass up to 0.75 because their legal design space is naturally smaller.
 
 ## Frozen Parameters
 
@@ -108,6 +111,46 @@ Do NOT change these without explicit approval. Reflects actual `scripts/build.py
 | DENSE_COMPLEX_INNER_EXTRA | 0.945 | Extra dense glyph internal white opening |
 | DENSE_TOP_REDUCE_EXTRA | 0.955 | Extra dense rain/cao top contraction |
 | MULTI_HORIZ_SECONDARY | 0.965 | Secondary horizontal layer lightening |
+| IDENTITY_POSTURE_TOP_RAISE_EM | 0.026 | Site-priority top posture lift |
+| IDENTITY_POSTURE_BOTTOM_SETTLE_EM | 0.010 | Site-priority bottom settling |
+| IDENTITY_FRAME_COUNTER_EXPAND_X | 1.050 | Frame counter horizontal opening |
+| IDENTITY_FRAME_COUNTER_EXPAND_Y | 1.025 | Frame counter vertical opening |
+| IDENTITY_MULTI_MID_CONTAIN | 0.935 | Multi-horizontal middle hierarchy |
+| IDENTITY_RISK_FRAME_COUNTER_EXPAND_X | 1.065 | Whitelist frame-risk counter x opening |
+| IDENTITY_RISK_FRAME_COUNTER_EXPAND_Y | 1.040 | Whitelist frame-risk counter y opening |
+| IDENTITY_LAYER_COUNTER_EXPAND_X | 1.040 | Whitelist layered-glyph counter x opening |
+| IDENTITY_LAYER_COUNTER_EXPAND_Y | 1.022 | Whitelist layered-glyph counter y opening |
+| IDENTITY_LAYER_SECONDARY_SCALE | 0.986 | Whitelist layered-glyph secondary stroke lightening |
+| IDENTITY_LAYER_TOP_RAISE_EM | 0.006 | Whitelist layered-glyph top separation |
+| IDENTITY_LAYER_BOTTOM_SETTLE_EM | 0.004 | Whitelist layered-glyph bottom settling |
+| IDENTITY_LAYER_TOP_CONTAIN | 0.992 | Whitelist layered-glyph top containment |
+| IDENTITY_ALL_TOP_RAISE_EM | 0.010 | Guardrail-only all-covered top rhythm lift |
+| IDENTITY_ALL_BOTTOM_SETTLE_EM | 0.003 | Guardrail-only all-covered bottom settling |
+| IDENTITY_ALL_TOP_CONTAIN | 0.992 | Guardrail-only upper stroke containment |
+| IDENTITY_ALL_BOTTOM_EXPAND | 1.004 | Guardrail-only lower stroke support |
+| IDENTITY_ALL_WAIST_CONTAIN | 0.994 | Guardrail-only middle-layer containment |
+| IDENTITY_ALL_COUNTER_EXPAND_X | 1.012 | Guardrail-only counter horizontal opening |
+| IDENTITY_ALL_COUNTER_EXPAND_Y | 1.008 | Guardrail-only counter vertical opening |
+| IDENTITY_ALL_COMPONENT_SHIFT_EM | 0.002 | Guardrail-only small component separation |
+| IDENTITY_ALL_COMPONENT_Y_EM | 0.001 | Guardrail-only small component vertical separation |
+| IDENTITY_ALL_EDGE_TENSION_EM | 0.001 | Tiny symmetric edge tension, no whole-glyph shift |
+| IDENTITY_SIMPLE_FACE_X | 1.008 | Guardrail-only simple glyph face expansion |
+| IDENTITY_SIMPLE_FACE_Y | 1.006 | Guardrail-only simple glyph vertical face expansion |
+| IDENTITY_REGULAR_FACE_X | 1.004 | Guardrail-only regular glyph face expansion |
+| IDENTITY_REGULAR_FACE_Y | 1.004 | Guardrail-only regular glyph vertical face expansion |
+| IDENTITY_COMPLEX_FACE_X | 1.002 | Guardrail-only complex glyph light face expansion |
+| IDENTITY_COMPLEX_FACE_Y | 1.002 | Guardrail-only complex glyph light vertical face expansion |
+| IDENTITY_SIMPLE_H_LAYER_X | 0.990 | Guardrail-only simple horizontal layer containment |
+| IDENTITY_ALL_H_LAYER_X | 0.994 | Guardrail-only horizontal layer containment |
+| IDENTITY_ALL_H_LAYER_ROTATE_DEG | 0.25 | Guardrail-only horizontal layer direction |
+| IDENTITY_ALL_V_STEM_X | 0.994 | Guardrail-only vertical stem containment |
+| IDENTITY_ALL_V_STEM_Y | 1.004 | Guardrail-only vertical stem extension |
+| IDENTITY_ALL_DIAG_EXPAND | 1.004 | Guardrail-only diagonal stroke tension |
+| IDENTITY_ALL_SECONDARY_SCALE | 0.994 | Guardrail-only secondary stroke lightening |
+| IDENTITY_ALL_SIDE_COMPONENT_X_EM | 0.001 | Guardrail-only side component separation |
+| IDENTITY_ALL_SIDE_COMPONENT_Y_EM | 0.000 | Guardrail-only side component vertical rhythm |
+| IDENTITY_SOURCE_SHIFT_X_EM | 0.000 | Local experiment only; keep off by default |
+| IDENTITY_SOURCE_SHIFT_Y_EM | 0.000 | Local experiment only; keep off by default |
 | SPACING_BASE | 1.00 | Keep CJK advances on 1em rhythm |
 | SPACING_STEP | 0.000 | No complexity-based advance widening |
 
@@ -123,12 +166,14 @@ Do NOT change these without explicit approval. Reflects actual `scripts/build.py
 - Disable frame-specific turn rollback last; if frames are hurt, first set frame turn params back to the base turn values.
 - Change `SPACING_STEP`; 1em CJK rhythm is a core reading feature.
 - Return to LXGW WenKai's loose casual feel.
+- Treat an IoU pass caused only by whole-glyph translation as sufficient identity work.
 - Copy any existing commercial font outlines.
 - Add stone texture, breakage, ink effects, flying white, or brush simulation.
 
 ## Verification
 
 - Font pipeline changes: run `python scripts/build.py` and inspect generated files under `dist/` and `proof/`.
+- Source-similarity changes: use a local ignored comparison script only when available. It should compare Luo against the source font with both raster IoU and bbox-centered IoU; high centered overlap still needs real structure work, not whole-glyph translation.
 - Parameter changes: compare representative dense, simple, dot-heavy, hook-heavy, and punctuation glyphs before handoff.
 - Style guide changes: keep `STYLE.md` aligned with the design direction in this file.
 - Documentation-only changes: check command and path accuracy.

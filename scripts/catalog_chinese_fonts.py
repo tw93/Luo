@@ -41,6 +41,7 @@ DEFAULT_PNG = PROOF_DIR / "gb2312-preview.png"
 LUO_FONT = ROOT / "dist" / "Luo-Regular.ttf"
 LUO_WEB_FONT = ROOT / "dist" / "Luo-Regular.woff2"
 OPTIMIZED_CHARS = PROOF_DIR / "optimized_chars.txt"
+ASSET_CACHE_QUERY = "v=20260504-structure1"
 
 FONT_SUFFIXES = (".ttf", ".otf", ".ttc", ".otc", ".woff", ".woff2")
 CJK_RANGES = (
@@ -376,10 +377,12 @@ def load_luo_state(gb_chars: str) -> dict[str, object]:
 
 def css_font_url(path: Path) -> str:
     try:
-        return "../" + path.resolve().relative_to(ROOT).as_posix()
+        url = "../" + path.resolve().relative_to(ROOT).as_posix()
     except ValueError:
-        pass
-    return path.resolve().as_uri()
+        url = path.resolve().as_uri()
+    if path.name == LUO_WEB_FONT.name:
+        return f"{url}?{ASSET_CACHE_QUERY}"
+    return url
 
 
 def css_format(path: str) -> str:
@@ -486,7 +489,7 @@ def render_html(
   <meta charset="utf-8">
   <title>Luo 常用字校准</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="../assets/styles/luo.css">
+  <link rel="stylesheet" href="../assets/styles/luo.css?{ASSET_CACHE_QUERY}">
   <style>
     {font_css}
     :root {{
@@ -783,7 +786,7 @@ def render_preview_html(
 <head>
   <meta charset="utf-8">
   <title>Luo 中文字体校准截图</title>
-  <link rel="stylesheet" href="../assets/styles/luo.css">
+  <link rel="stylesheet" href="../assets/styles/luo.css?{ASSET_CACHE_QUERY}">
   <style>
     {font_css}
     @page {{ size: A4 portrait; margin: 11mm; }}

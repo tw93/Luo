@@ -8,6 +8,10 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 
 工程上不再靠整体加粗、收窄或放大字面。新增 dot-aware bolden cap、白名单转折精修和 hook tail containment，同时只轻调复杂字内部白与多横副笔层级。
 
+去源字体相似度已经开始作为 v0.3 之后的硬检查项。比较脚本目前保持为本地忽略的实验工具，不随仓库提交；检查时需要同时看 raster IoU 和 bbox-centered IoU，官网优先普通字目标不超过 `0.60`，极简字可放宽到 `0.75`。默认 `IDENTITY_SOURCE_SHIFT_*` 已关闭，如果 centered overlap 仍然高，必须继续做结构语法重写。
+
+当前 `starter` 覆盖字只保留 guardrail 强度的 all-covered identity pass。一次强推参数曾把最高源字体 IoU 降到 `0.767`，但视觉明显跑偏，已经回滚。后续去源字体相似度不能靠全集硬参数推进，只能对白名单字分批做结构、内白、主副笔和端点语法重写。
+
 覆盖策略已经明确：v0.3 继续以 `starter` 子集收口，不在 final 阶段启动大范围扩字。v0.4 才进入扩字，先跑 `gb2312-level1`，一级常用字稳定后再跑 `gb2312-full`。
 
 ## 本轮最终精修
@@ -21,6 +25,8 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 - 端点软切拆成横端、竖底、撇捺端三个 subtype：`ENDPOINT_H_BLEND=0.040`、`ENDPOINT_V_BOTTOM_BLEND=0.045`、`ENDPOINT_DIAG_BLEND=0.030`，避免端点形状模板化。
 - 框形字转折使用 frame-only 参数：`TURN_FINAL_FRAME_DISPLACE=1.6`、`TURN_FINAL_FRAME_INNER=0.955`、`TURN_FINAL_FRAME_SEG_MAX=140`，只覆盖 `国回图园日目用月田间问阅品`。
 - extra dense 组局部开白：`DENSE_COMPLEX_INNER_EXTRA=0.945`、`DENSE_TOP_REDUCE_EXTRA=0.955`，只压副笔灰度，不整体缩字或加粗。
+- 全覆盖 identity pass 覆盖 `1115` 个已覆盖汉字，但默认值只作为护栏：`IDENTITY_ALL_TOP_RAISE_EM=0.010`、`IDENTITY_ALL_BOTTOM_SETTLE_EM=0.003`、`IDENTITY_ALL_WAIST_CONTAIN=0.994`、`IDENTITY_ALL_COUNTER_EXPAND_X/Y=1.012/1.008`、`IDENTITY_SIMPLE_FACE_X/Y=1.008/1.006`、`IDENTITY_REGULAR_FACE_X/Y=1.004/1.004`、`IDENTITY_COMPLEX_FACE_X/Y=1.002/1.002`、`IDENTITY_ALL_H_LAYER_X=0.994`、`IDENTITY_ALL_V_STEM_X/Y=0.994/1.004`、`IDENTITY_ALL_DIAG_EXPAND=1.004`。`IDENTITY_POSTURE_*` 只对白名单锚字生效，禁止再次全量套用。
+- 本地版新增第一批结构白名单：框形只处理 `目日月且` 的内部白；上下多层处理 `昔音喜甚基真备审省革其` 的 counter、层次和副笔。`用田由曲电自直` 试过 counter opening 后相似度和观感都没有稳定改善，暂时只保留 guardrail，不强推。
 
 ## 调参经验沉淀
 
@@ -30,6 +36,8 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 - char list 只用于整字跳过或完全不同处理逻辑；形态分布差异要靠 generic 参数处理。
 - 端点要有统一气质，但不能有统一形状；如果 subtype softening 出现尖刺或毛躁，第一回滚是退回单一 `SOFTEN_BLEND=0.05`。
 - 如果 frame-specific turn 误伤框形字，第一回滚是把 frame 参数退回 base turn 参数，保留 core anchors 和复杂字开白。
+- source-similarity gate 不能替代人工目测。普通字超过 `0.60` 时先看结构、内白、主副笔和端点差异；极简字超过 `0.75` 才算真正失败。
+- 第一批白名单的验收看整组趋势，不要求每个字立刻过 `0.60`。若某个结构组变丑或更贴源字，先退回该组，不能为了分数扩大到全覆盖参数。
 
 当前构建数据：
 
@@ -38,9 +46,10 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 - cmap：`1126`
 - CJK：`1116`
 - starter 请求字符：`1125`
-- 结构优化字：`397`
+- 结构优化字：`398`
 - 覆盖率：`100.0%`
-- GB2312 校准页：`1115 / 6763` 已覆盖，覆盖率 `16.5%`，`5648` 待补。
+- GB2312 校准页：`1114 / 6763` 已覆盖，覆盖率 `16.5%`，`5649` 待补。
+- 相似度报告：本地忽略的比较脚本会输出 `proof/similarity_report.json` 和 `proof/similarity_identity.html`，这些产物默认不提交。当前修复版以视觉回正为优先，`page_chars` 全集检查最高源字体 IoU `0.920`，官网高频可见字最高 `0.900`，说明后续仍要做白名单结构重写，但不能再用强全局参数硬压。
 
 ## 产物
 
