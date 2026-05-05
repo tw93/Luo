@@ -6,7 +6,7 @@
 <p align="center">
   <a href="https://luo.tw93.fun"><img src="https://img.shields.io/badge/preview-v0.3%20starter-14345f?style=flat-square" alt="Preview"></a>
   <a href="OFL.txt"><img src="https://img.shields.io/badge/license-SIL%20OFL%201.1-14345f?style=flat-square" alt="License"></a>
-  <a href="https://luo.tw93.fun/proof/gb2312.html"><img src="https://img.shields.io/badge/GB2312-1114%2F6763-6f6b60?style=flat-square" alt="GB2312 coverage"></a>
+  <a href="https://luo.tw93.fun/proof/gb2312.html"><img src="https://img.shields.io/badge/GB2312-1115%2F6763-6f6b60?style=flat-square" alt="GB2312 coverage"></a>
 </p>
 
 <p align="center">
@@ -40,9 +40,10 @@ v0.3 先把小范围字集做可信，让官网能看、样张能印、长文灰
 
 仓库会提交当前 starter 构建产物，可以直接下载试用：
 
-- [dist/Luo-Regular.otf](dist/Luo-Regular.otf)
 - [dist/Luo-Regular.ttf](dist/Luo-Regular.ttf)
 - [dist/Luo-Regular.woff2](dist/Luo-Regular.woff2)
+
+桌面安装用 `.ttf`，网页/打印走 `.woff2`。v0.3 暂不提供 `.otf`：之前的 `.otf` 只是 TrueType outline 套 OpenType sfnt，不是真正的 CFF 字体；如果未来需要 CFF 版本，会作为独立产物单独打包。
 
 网页里可以这样引入：
 

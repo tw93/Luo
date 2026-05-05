@@ -1,11 +1,18 @@
 @font-face {
   font-family: "Luo";
-  src: url("../../dist/Luo-Regular.woff2?v=20260504-structure1") format("woff2");
+  src: url("../../dist/Luo-Regular.woff2?v=0.3.0-acf5e9d8") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
   unicode-range: U+4E00-9FFF, U+3400-4DBF, U+3000-303F, U+FF00-FFEF;
 }
+
+/* ---------------------------------------------------------------------------
+   Luo design tokens
+   These are the only globals exported by luo.css. Pages compose their own
+   layout on top; previously this file shipped a `.luo-*` namespace that no
+   page actually used, so it was removed in v0.3 cleanup.
+   --------------------------------------------------------------------------- */
 
 :root {
   --parchment: #f5f4ed;
@@ -62,145 +69,4 @@ body {
 
 a {
   color: var(--brand);
-}
-
-.luo-page {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 88px 64px 120px;
-}
-
-.luo-kicker,
-.luo-label,
-.luo-meta {
-  font-family: var(--latin-ui);
-  color: var(--stone);
-  letter-spacing: 0.04em;
-}
-
-.luo-kicker {
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.luo-rule-top {
-  border-top: 1px solid var(--border-soft);
-}
-
-.luo-rule-bottom {
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.luo-section {
-  margin-bottom: 72px;
-}
-
-.luo-section-head {
-  margin-bottom: 24px;
-}
-
-.luo-section-num {
-  font-family: var(--latin-ui);
-  font-weight: 400;
-  font-size: 14px;
-  color: var(--brand);
-  letter-spacing: 0.04em;
-  margin: 0 0 6px;
-}
-
-.luo-section-title {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 34px;
-  line-height: 1.2;
-  color: var(--near-black);
-  margin: 0;
-}
-
-.luo-section-lede {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: 17px;
-  line-height: 1.55;
-  color: var(--olive);
-  margin: 12px 0 0;
-}
-
-.luo-glyph-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  gap: 1px;
-  background-color: var(--border-soft);
-  border: 1px solid var(--border-soft);
-  overflow: hidden;
-}
-
-.luo-tianzige {
-  position: relative;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--display);
-  font-size: 44px;
-  line-height: 1;
-  color: var(--near-black);
-  background-color: #fffdf8;
-  background-image:
-    linear-gradient(to right, transparent calc(50% - .5px), rgba(27,54,93,.22) calc(50% - .5px), rgba(27,54,93,.22) calc(50% + .5px), transparent calc(50% + .5px)),
-    linear-gradient(to bottom, transparent calc(50% - .5px), rgba(27,54,93,.22) calc(50% - .5px), rgba(27,54,93,.22) calc(50% + .5px), transparent calc(50% + .5px)),
-    linear-gradient(45deg, transparent calc(50% - .5px), rgba(27,54,93,.1) calc(50% - .5px), rgba(27,54,93,.1) calc(50% + .5px), transparent calc(50% + .5px)),
-    linear-gradient(-45deg, transparent calc(50% - .5px), rgba(27,54,93,.1) calc(50% - .5px), rgba(27,54,93,.1) calc(50% + .5px), transparent calc(50% + .5px));
-}
-
-.luo-stat-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--border);
-  background: var(--ivory);
-}
-
-.luo-stat-row div {
-  padding: 14px 16px;
-  border-right: 1px solid var(--border);
-}
-
-.luo-stat-row div:last-child {
-  border-right: 0;
-}
-
-.luo-stat-row b {
-  display: block;
-  font-family: var(--number);
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 1.2;
-  color: var(--brand);
-  margin-bottom: 4px;
-}
-
-.luo-stat-row span {
-  font-family: var(--latin-ui);
-  color: var(--stone);
-  font-size: 13px;
-}
-
-@media (max-width: 860px) {
-  .luo-page {
-    padding: 48px 24px 80px;
-  }
-
-  .luo-stat-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 520px) {
-  .luo-section-title {
-    font-size: 30px;
-  }
-
-  .luo-stat-row {
-    grid-template-columns: 1fr;
-  }
 }

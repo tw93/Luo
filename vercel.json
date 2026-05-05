@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": null,
-  "buildCommand": null,
+  "installCommand": "pip3 install --user 'fonttools[woff]>=4.50.0' 'brotli>=1.1.0'",
+  "buildCommand": "python3 scripts/catalog_chinese_fonts.py --no-preview",
   "outputDirectory": ".",
   "cleanUrls": false,
   "trailingSlash": false,

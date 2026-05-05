@@ -6,3 +6,4 @@
 - Treat `STYLE.md` as the shared Luo style abstraction and batch-glyph prompt.
 - Keep personal notes and machine-specific workflow in `CLAUDE.local.md`.
 - Before changing font parameters, inspect `scripts/build.py` and verify against representative glyphs.
+- For source-separation work, keep all-covered identity as a weak guardrail and use `identity_core_v2` only through frame/layer/diagonal whitelists.

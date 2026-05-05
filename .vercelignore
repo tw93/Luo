@@ -13,5 +13,7 @@ proof/*.txt
 proof/*.pdf
 proof/*.png
 proof/*-preview.html
+# similarity report ships with the repo; allow it through
+!proof/similarity_report.json
 
 assets/images/luo.png

@@ -12,26 +12,36 @@ LUO_BUILD_CHARS=gb2312-level1 python scripts/build.py  # v0.4-alpha expansion
 LUO_BUILD_CHARS=gb2312-full python scripts/build.py    # full GB2312 experiment
 ```
 
-Output: `dist/Luo-Regular.{otf,ttf,woff2}`
+Output: `dist/Luo-Regular.{ttf,woff2}` (v0.3 dropped the misleading `.otf` that was just a TrueType outline in an OpenType sfnt; a real CFF build would ship as a separate product)
+
+Side effects: `build.py` also patches four files with a cache-bust string derived from VERSION + woff2 sha8. Always commit these after a build that changes the font binary:
+- `assets/styles/luo.css`
+- `assets/styles/print.css`
+- `index.html`
+- `assets/asset_version.txt` (read by `scripts/catalog_chinese_fonts.py` for Vercel deploy; falls back to `"v0"` if absent)
 
 Source font: `source/LXGWWenKaiScreen-Regular.ttf`
 
-## Pipeline (order matters)
+## Pipeline (order matches main() in scripts/build.py)
 
 1. Subset to starter/site/seed characters, or explicit GB2312 expansion mode
 2. Graduated stroke thickening (BOLDEN_H=6, BOLDEN_V=14, contour-scaled, dot-aware cap)
-3. Endpoint softening (sharp corners to subtype soft-cuts)
+3. Endpoint softening (sharp corners to subtype soft-cuts: h / v_bottom / diag)
 4. Complexity-aware horizontal narrowing + vertical face-ratio scaling (SCALE_Y=1.00)
 5. Component-aware refinement (7 categories: enclosed, dense_top, wide_split, walk_enclosed, dense_complex, multi_horiz, top_bottom)
 6. Heart-character reshape (special case: 心字底/旁)
 7. Dot contour direction (xiaokai dot rotation + adaptive compression)
 8. Targeted turn refinement (priority endpoints / frames / multi-horiz only)
-9. Hook refinement on whitelist only (refine_hooks_final)
-10. Identity/source-separation refinement for site-priority glyphs
-11. CJK punctuation proportional width (0.75em)
-12. Space half-width (50%)
-13. CJK spacing stays 1em by default for reading rhythm
-14. Name table rewrite, output
+9. Dense dot-cluster protection (墨)
+10. Hook refinement on whitelist only (refine_hooks_final)
+11. Walk-radical final containment (透/道/遇/etc.)
+12. Display anchor refinement (落/笔/见)
+13. Identity refinement: HIGH_RISK + PRIORITY anchor glyphs + all-covered guardrails + identity_core_v2 whitelist
+14. CJK punctuation proportional width (0.75em)
+15. Space half-width (50%)
+16. CJK spacing stays 1em by default for reading rhythm
+17. Name table rewrite, write Luo-Regular.ttf and .woff2
+18. Patch asset-version cache-bust strings in luo.css/print.css/index.html (derived from VERSION + woff2 sha8)
 
 ## Design Direction (v0.3 final)
 
@@ -72,6 +82,7 @@ Luo is still a modern printable typeface, not stone inscription revival.
 3. A soft channel means normalize lightly, not reshape. `DOT_SHORT_AXIS_SOFT=0.95` is intentional: 氵/讠 dots get angle normalization with near-identity compression.
 4. Prefer generic parameter logic over char lists. Use lists only to skip a whole pass (`DOT_SKIP_CHARS`) or route to a truly different path (`HEART_CHARS`).
 5. Similarity gates are QA signals, not a license to cheat with whole-glyph shifts. Regular site-priority glyphs target source IoU <= 0.60; extremely simple glyphs may pass up to 0.75 because their legal design space is naturally smaller.
+6. Core source-separation must stay whitelist-based. `identity_core_v2` handles only frame, layered, and diagonal/long-slant groups; do not broaden it into another all-covered pass.
 
 ## Frozen Parameters
 
@@ -151,6 +162,15 @@ Do NOT change these without explicit approval. Reflects actual `scripts/build.py
 | IDENTITY_ALL_SIDE_COMPONENT_Y_EM | 0.000 | Guardrail-only side component vertical rhythm |
 | IDENTITY_SOURCE_SHIFT_X_EM | 0.000 | Local experiment only; keep off by default |
 | IDENTITY_SOURCE_SHIFT_Y_EM | 0.000 | Local experiment only; keep off by default |
+| IDENTITY_CORE_COUNTER_EXPAND_X | 1.055 | Core whitelist counter horizontal opening |
+| IDENTITY_CORE_COUNTER_EXPAND_Y | 1.035 | Core whitelist counter vertical opening |
+| IDENTITY_CORE_SECONDARY_SCALE | 0.960 | Core whitelist secondary stroke lightening |
+| IDENTITY_CORE_HORIZ_Y_SCALE | 0.925 | Core whitelist horizontal layer thinning |
+| IDENTITY_CORE_LAYER_GAP_EM | 0.010 | Core whitelist layered-glyph separation |
+| IDENTITY_CORE_FRAME_STEM_X | 0.988 | Core whitelist frame/stem containment |
+| IDENTITY_CORE_DIAG_EDGE_EM | 0.020 | Core whitelist diagonal tension |
+| IDENTITY_CORE_DIAG_TOP_CONTAIN | 0.990 | Core whitelist top containment for diagonal chars |
+| IDENTITY_CORE_DIAG_TAIL_CONTAIN | 0.012 | Core whitelist tail containment for diagonal chars |
 | SPACING_BASE | 1.00 | Keep CJK advances on 1em rhythm |
 | SPACING_STEP | 0.000 | No complexity-based advance widening |
 

@@ -17,7 +17,6 @@ make release-check
 
 输出字体：
 
-- `dist/Luo-Regular.otf`
 - `dist/Luo-Regular.ttf`
 - `dist/Luo-Regular.woff2`
 
@@ -41,15 +40,25 @@ LUO_BUILD_CHARS=full python3 scripts/build.py
 
 ## 校准页面
 
-`proof/gb2312.html` 是扩字检查页，只显示 `已覆盖` / `待补字` 两种状态；结构优化分类属于内部调参信息，不在字表页区分。
+`proof/gb2312.html` 是扩字检查页，只显示 `已覆盖` / `待补字` 两种状态；结构优化分类属于内部调参信息，不在字表页区分。该文件 ~7000 行、由 `scripts/catalog_chinese_fonts.py` 生成、不随仓库提交，本地需要先跑一次 `make font-audit`，部署到 vercel 时由 `vercel.json` 的 `buildCommand` 自动重生成。
 
 这些本地校准产物只用于发布前确认，不随仓库提交：
 
+- `proof/gb2312.html`（CI/部署生成，本地手动重生成）
 - `proof/*.pdf`
 - `proof/*.png`
-- `proof/*.json`
+- `proof/*.json`（`proof/similarity_report.json` 例外，作为去源字体相似度的硬门提交）
 - `proof/*.txt`
 - `proof/*-preview.html`
+- `proof/similarity_images/`
+
+## 去源字体相似度
+
+```bash
+python3 scripts/compare_to_source.py
+```
+
+跑核心锚字（与 `STYLE.md` 的 `core_anchors` 同步），输出 `proof/similarity_report.json`。规则在 STYLE.md 已写明：普通字 raster IoU 目标不超过 `0.60`，极简字（`一二三十中木` 等）放宽到 `0.75`。如果分数是靠整字平移降的，centered IoU 仍会高，必须继续做结构、内白、主副笔和端点差异。
 
 发布前至少跑：
 

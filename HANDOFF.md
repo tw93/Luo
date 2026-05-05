@@ -26,7 +26,8 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 - 框形字转折使用 frame-only 参数：`TURN_FINAL_FRAME_DISPLACE=1.6`、`TURN_FINAL_FRAME_INNER=0.955`、`TURN_FINAL_FRAME_SEG_MAX=140`，只覆盖 `国回图园日目用月田间问阅品`。
 - extra dense 组局部开白：`DENSE_COMPLEX_INNER_EXTRA=0.945`、`DENSE_TOP_REDUCE_EXTRA=0.955`，只压副笔灰度，不整体缩字或加粗。
 - 全覆盖 identity pass 覆盖 `1115` 个已覆盖汉字，但默认值只作为护栏：`IDENTITY_ALL_TOP_RAISE_EM=0.010`、`IDENTITY_ALL_BOTTOM_SETTLE_EM=0.003`、`IDENTITY_ALL_WAIST_CONTAIN=0.994`、`IDENTITY_ALL_COUNTER_EXPAND_X/Y=1.012/1.008`、`IDENTITY_SIMPLE_FACE_X/Y=1.008/1.006`、`IDENTITY_REGULAR_FACE_X/Y=1.004/1.004`、`IDENTITY_COMPLEX_FACE_X/Y=1.002/1.002`、`IDENTITY_ALL_H_LAYER_X=0.994`、`IDENTITY_ALL_V_STEM_X/Y=0.994/1.004`、`IDENTITY_ALL_DIAG_EXPAND=1.004`。`IDENTITY_POSTURE_*` 只对白名单锚字生效，禁止再次全量套用。
-- 本地版新增第一批结构白名单：框形只处理 `目日月且` 的内部白；上下多层处理 `昔音喜甚基真备审省革其` 的 counter、层次和副笔。`用田由曲电自直` 试过 counter opening 后相似度和观感都没有稳定改善，暂时只保留 guardrail，不强推。
+- 本地版新增 `identity_core_v2` 核心结构白名单，覆盖官网、README 和纸面试读高频字，但只对三类结构真正下手：框形 `国回日目用月` 开内白并稳外框；多层 `春暮壁前墨黑兰亭集序` 拉开层距、开 counter、减副横；撇捺/长斜 `文永之来去归兮辞` 增加外展张力和尾部收束。其他 core 字只经过 guardrail，不再顺手改。
+- 本轮 51 个核心样字对比：平均源字体 raster IoU 从 `0.807` 降到 `0.788`，`23` 个字下降，`0` 个字变得更像源字体；平均黑度从 `0.159` 降到 `0.158`。改善最明显的是 `国、兰、回、亭、日、集、月、暮、墨、壁、目、前、黑、用`。`赤、年` 试过结构硬改后没有稳定收益，已退回 guardrail。
 
 ## 调参经验沉淀
 
@@ -42,24 +43,23 @@ Luo 落文已经推进到 v0.3 final refinement。当前方向成立，保持清
 当前构建数据：
 
 - 版本：`0.3.0`
-- glyphs：`1140`
-- cmap：`1126`
-- CJK：`1116`
-- starter 请求字符：`1125`
-- 结构优化字：`398`
-- 覆盖率：`100.0%`
-- GB2312 校准页：`1114 / 6763` 已覆盖，覆盖率 `16.5%`，`5649` 待补。
-- 相似度报告：本地忽略的比较脚本会输出 `proof/similarity_report.json` 和 `proof/similarity_identity.html`，这些产物默认不提交。当前修复版以视觉回正为优先，`page_chars` 全集检查最高源字体 IoU `0.920`，官网高频可见字最高 `0.900`，说明后续仍要做白名单结构重写，但不能再用强全局参数硬压。
+- glyphs：`1140`（包含 .notdef 等控制 glyph）
+- cmap：`1126`（cmap 表里所有 codepoint，含 space、CJK 标点、全角符号）
+- CJK：`1116`（U+4E00-9FFF + U+3400-4DBF 范围内的汉字）
+- starter 请求字符：`1125`（去重后从 SEED + LANTING + COMMON_STARTER + PRIORITY + 页面文件收集）
+- 结构优化字：`398`（命中 CHAR_CATEGORIES 中某一类的汉字）
+- 覆盖率：`100.0%`（starter 请求字 vs cmap 覆盖）
+- GB2312 校准页：`1115 / 6763` 已覆盖，覆盖率 `16.5%`，`5648` 待补（`1115` = 真正能渲染的 GB2312 汉字数；和 `1116` 的差是落在 CJK 范围但不在 GB2312 内的字）。
+- 相似度报告：本地忽略的比较脚本会输出 `proof/similarity_report.json` 和 `proof/similarity_identity.html`，这些产物默认不提交。当前修复版以视觉质量优先；核心字已经开始降低源字体重叠，但简单字和未进入结构白名单的字仍可能偏高，后续只能继续按白名单分组做结构重写，不能再用强全局参数硬压。
 
 ## 产物
 
 已生成并验证的字体产物：
 
-- `dist/Luo-Regular.otf`
 - `dist/Luo-Regular.ttf`
 - `dist/Luo-Regular.woff2`
 
-注意：`Luo-Regular.otf` 当前是 TrueType outline 的 OpenType sfnt 兼容产物，和 `.ttf` 数据一致。这样做是为了满足分发清单，同时避免 CFF 转换带来新的轮廓风险。
+v0.3 起不再产出 `.otf`。之前的 `.otf` 只是 TrueType outline 套 OpenType sfnt，不是真正的 CFF 字体，会让识别器错误期待 PostScript 轮廓。如果未来需要真正的 CFF 版本，应该作为独立产物（cu2qu reverse + compreffor）打包发布，而不是顺手让 `.ttf` 改个后缀。
 
 公开样张：
 
@@ -113,7 +113,6 @@ magick -density 600 proof/a4.pdf -background white -alpha remove -alpha off proo
 
 字体表检查：
 
-- `dist/Luo-Regular.otf` 可被 `fontTools` 读取，版本 `0.3.0`
 - `dist/Luo-Regular.ttf` 可被 `fontTools` 读取，版本 `0.3.0`
 - `dist/Luo-Regular.woff2` 可被 `fontTools` 读取，版本 `0.3.0`
 - 横向 overhang 检查：`0`
@@ -252,7 +251,6 @@ v0.3 不做 `Luo Complete`、`Luo Latin` 或内置 ASCII glyph。未来如需内
 
 产物：
 
-- `dist/Luo-Regular.otf`
 - `dist/Luo-Regular.ttf`
 - `dist/Luo-Regular.woff2`
 
@@ -265,12 +263,12 @@ v0.3 不做 `Luo Complete`、`Luo Latin` 或内置 ASCII glyph。未来如需内
 
 ## 已知注意点
 
-- `dist/Luo-Regular.otf` 不是 CFF OTF，而是 TrueType outline 的 OpenType sfnt。不要在 release 文案里说成 CFF。
+- v0.3 起 `dist/` 只产出 `.ttf` 和 `.woff2`，不再产出名不副实的 `.otf`；如果旧机器残留 `dist/Luo-Regular.otf`，构建时会自动清除。
 - Playwright CLI 可用，但本机 Playwright Chromium 缓存缺失。这轮 PDF 用 `weasyprint` 生成。
 - 截图预览不要走 Playwright。当前按 Kami 方式用 `weasyprint` 生成 PDF，再用 `pdftoppm` 输出 PNG。
-- 项目目录已经从 `fumi` 改为 `/Users/tw93/www/luo`。
-- `.venv/bin/ttx` 仍指向旧路径 `/Users/tang/www/fumi`，所以表检查用 `python3 -m fontTools.ttx`。
+- `.venv/bin/ttx` 是旧虚拟环境的 shebang，可能指向不同的路径，所以表检查用 `python3 -m fontTools.ttx`。
 - 当前工作目录是 `/Users/tw93/www/luo`；路径说明以本仓库实际位置为准。
+- `scripts/catalog_chinese_fonts.py --include-local-fonts` 默认用 `LUO_FONT_SCAN_ROOT` 环境变量或仓库父目录作为扫描根；可以通过 `--root` 显式覆盖。
 
 ## v0.3 发布前 checklist
 
@@ -283,7 +281,7 @@ v0.3 不做 `Luo Complete`、`Luo Latin` 或内置 ASCII glyph。未来如需内
 - [ ] 跑 `.venv/bin/python -m fontTools.ttx -l dist/Luo-Regular.ttf`，确认表能读。
 - [ ] 跑一次 `hb-shape` 优先字组，确认无 `gid0`。
 - [ ] 确认 README 只保留必要授权和鸣谢，不在官网展开底盘字体历史。
-- [ ] 确认 release assets 包含 `otf`、`ttf`、`woff2`、`OFL.txt`。
+- [ ] 确认 release assets 包含 `ttf`、`woff2`、`OFL.txt`。
 
 ## 建议下一步
 

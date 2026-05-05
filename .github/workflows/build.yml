@@ -1,0 +1,62 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # starter is the v0.3 release subset with strict missing-char gate.
+        # gb2312-level1 is the v0.4-alpha smoke build; it just needs to finish
+        # and produce a readable font — visual quality is a separate manual gate.
+        build_mode: [starter, gb2312-level1]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # weasyprint is only needed for local print-proof; CI skips it.
+          python -m pip install "fonttools[woff]>=4.50.0" "brotli>=1.1.0"
+
+      - name: Fetch source font
+        run: python scripts/fetch_base_font.py
+
+      - name: Build font (${{ matrix.build_mode }})
+        env:
+          LUO_BUILD_CHARS: ${{ matrix.build_mode }}
+        run: python scripts/build.py
+
+      - name: Verify font tables
+        run: |
+          python -m fontTools.ttx -l dist/Luo-Regular.ttf
+          python -m fontTools.ttx -l dist/Luo-Regular.woff2
+
+      - name: Health check
+        env:
+          LUO_BUILD_CHARS: ${{ matrix.build_mode }}
+        run: python scripts/ci_health_check.py
+
+      - name: Upload built font
+        uses: actions/upload-artifact@v4
+        with:
+          name: luo-${{ matrix.build_mode }}
+          path: |
+            dist/Luo-Regular.ttf
+            dist/Luo-Regular.woff2
+          if-no-files-found: error
+          retention-days: 7

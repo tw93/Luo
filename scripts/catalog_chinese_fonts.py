@@ -1,8 +1,10 @@
 """
 Build GB2312 audit pages for Luo.
 
-The optional scanner can inspect local font files under /Users/tang/www, but
-the default build skips that step and writes:
+The optional scanner can inspect local font files under a user-provided root
+(set via --root or the LUO_FONT_SCAN_ROOT environment variable; defaults to
+the parent of this repository). By default the scanner is skipped and only
+the Luo proof pages are written:
   - proof/gb2312.json
   - proof/gb2312.html
   - proof/gb2312-preview.html
@@ -32,7 +34,7 @@ logging.getLogger("fontTools").setLevel(logging.ERROR)
 
 ROOT = Path(__file__).resolve().parent.parent
 PROOF_DIR = ROOT / "proof"
-DEFAULT_WWW_ROOT = Path("/Users/tang/www")
+DEFAULT_WWW_ROOT = Path(os.environ.get("LUO_FONT_SCAN_ROOT", str(ROOT.parent)))
 DEFAULT_JSON = PROOF_DIR / "gb2312.json"
 DEFAULT_HTML = PROOF_DIR / "gb2312.html"
 DEFAULT_PREVIEW_HTML = PROOF_DIR / "gb2312-preview.html"
@@ -41,7 +43,24 @@ DEFAULT_PNG = PROOF_DIR / "gb2312-preview.png"
 LUO_FONT = ROOT / "dist" / "Luo-Regular.ttf"
 LUO_WEB_FONT = ROOT / "dist" / "Luo-Regular.woff2"
 OPTIMIZED_CHARS = PROOF_DIR / "optimized_chars.txt"
-ASSET_CACHE_QUERY = "v=20260504-structure1"
+ASSET_VERSION_PATH = ROOT / "assets" / "asset_version.txt"
+
+
+def _read_asset_version() -> str:
+    """Read the cache-bust token written by scripts/build.py.
+
+    The token is `{VERSION}-{first8(sha256(woff2))}` after a real build, or a
+    plain `{VERSION}` fallback when the file is missing. Keeps this script in
+    sync with luo.css/print.css/index.html without manual bumping.
+    """
+    if ASSET_VERSION_PATH.exists():
+        text = ASSET_VERSION_PATH.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    return "v0"
+
+
+ASSET_CACHE_QUERY = f"v={_read_asset_version()}"
 
 FONT_SUFFIXES = (".ttf", ".otf", ".ttc", ".otc", ".woff", ".woff2")
 CJK_RANGES = (
@@ -66,7 +85,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build Luo GB2312 calibration pages."
     )
-    parser.add_argument("--root", type=Path, default=DEFAULT_WWW_ROOT)
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=DEFAULT_WWW_ROOT,
+        help=(
+            "Directory to scan for local fonts when --include-local-fonts is "
+            "set. Defaults to LUO_FONT_SCAN_ROOT env var or the parent of "
+            "this repository."
+        ),
+    )
     parser.add_argument("--json", type=Path, default=DEFAULT_JSON)
     parser.add_argument("--html", type=Path, default=DEFAULT_HTML)
     parser.add_argument("--preview-html", type=Path, default=DEFAULT_PREVIEW_HTML)

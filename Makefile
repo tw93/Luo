@@ -24,4 +24,11 @@ release-check: build font-audit print-proof
 all: build font-audit print-proof
 
 clean:
-	rm -f dist/Luo-Regular.otf dist/Luo-Regular.ttf dist/Luo-Regular.woff2 proof/*.pdf proof/*.png proof/*.json proof/*.txt proof/*-preview.html
+	# .otf removed in v0.3 cleanup; the rule still wipes any leftover from older builds.
+	# proof/similarity_report.json is the one tracked JSON in proof/ (used as the
+	# source-similarity gate), so it is excluded — finding by name keeps the rule
+	# explicit instead of relying on shell globbing.
+	rm -f dist/Luo-Regular.otf dist/Luo-Regular.ttf dist/Luo-Regular.woff2 \
+	      proof/*.pdf proof/*.png proof/*.txt proof/*-preview.html proof/gb2312.html
+	find proof -maxdepth 1 -name '*.json' ! -name 'similarity_report.json' -delete
+	rm -rf proof/similarity_images

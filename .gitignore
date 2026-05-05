@@ -23,6 +23,12 @@ proof/*.pdf
 proof/*.png
 proof/*-preview.html
 proof/similarity_*.html
+proof/similarity_images/
+# proof/gb2312.html is a 7000-line generated coverage page; we no longer
+# commit the rendered HTML, vercel regenerates it via vercel.json buildCommand.
+proof/gb2312.html
+# the similarity report JSON IS small and useful to commit as a hard gate
+!proof/similarity_report.json
 
 # local identity experiments
 dist/Luo-Test.*
