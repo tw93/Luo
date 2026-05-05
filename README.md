@@ -4,7 +4,7 @@
 <h1 align="center">Luo 落文</h1>
 <p align="center">正在造字中的中文字体，面向纸面排版和长文阅读。</p>
 <p align="center">
-  <a href="https://luo.tw93.fun"><img src="https://img.shields.io/badge/preview-v0.3%20starter-14345f?style=flat-square" alt="Preview"></a>
+  <a href="https://luo.tw93.fun"><img src="https://img.shields.io/badge/preview-v0.4%20print--kai-14345f?style=flat-square" alt="Preview"></a>
   <a href="OFL.txt"><img src="https://img.shields.io/badge/license-SIL%20OFL%201.1-14345f?style=flat-square" alt="License"></a>
   <a href="https://luo.tw93.fun/proof/gb2312.html"><img src="https://img.shields.io/badge/GB2312-1115%2F6763-6f6b60?style=flat-square" alt="GB2312 coverage"></a>
 </p>
@@ -15,17 +15,17 @@
 
 ## 这套字
 
-Luo 落文是一套正在造字中的开源中文字体，面向文章、文档、封面和项目官网等纸面感场景，取法魏晋小楷式清骨，结合当代舒展楷意印刷字的开阔骨架，保持横轻竖重、端正含蓄、轮廓干净。
+Luo 落文是一套正在造字中的开源中文字体，面向文章、文档、封面和项目官网等纸面感场景，取法私有印刷楷意参考所抽象出的理性楷意风格，结合魏晋小楷的清瘦骨法，保持笔画决断、端正含蓄、轮廓干净。
 
 落文不做书法复刻，不追求手写感，也不靠古风装饰制造气质，希望在真实排版里安静、有秩序，读久了不腻。
 
-关键词：有筋骨、纸面耐读、端正含蓄、现代可排版。
+关键词：有骨节、决断利落、纸面耐读、端正含蓄、现代可排版。
 
 ## 造字状态
 
-落文目前是 v0.3 starter 预览版，已经覆盖官网、README、两页纸试读、内部打印样张和一组核心校准字，可以用来查看风格、试排页面和参与造字反馈，但还不是完整 GB2312，也不是全量中文字体。
+落文当前是 v0.4 print-kai 预览版。相比 v0.3，这一版主动把设计方向从 "LXGW WenKai 派生的软楷" 挪到 "私有印刷楷意参考所抽象出的理性楷意 + 魏晋小楷骨法"，风格比例从 v0.3 的 50/40/10 调整到 v0.4 的 60/30/10。底盘字 LXGW WenKai Screen v1.522 不变，通过新增 `straighten_strokes` pass + 重调 ~15 个参数来实现转向。
 
-v0.3 先把小范围字集做可信，让官网能看、样张能印、长文灰度稳定、核心字形语法成立，大范围扩字放到 v0.4 推进，先补 GB2312 一级常用字，再进入完整 GB2312 实验构建。
+v0.4 已覆盖官网、README、两页纸试读、内部打印样张和一组核心校准字，可以用来查看风格、试排页面和参与造字反馈，但还不是完整 GB2312。v0.3 final 已打 tag `v0.3.0-final` 保留可回退。
 
 后续会继续扩字、校准部件、检查小字号灰度和打印效果，字形、覆盖范围、文件大小和构建方式都可能继续调整，正式使用前建议先看网页样张、纸面试读和常用字校准页。
 
@@ -43,7 +43,7 @@ v0.3 先把小范围字集做可信，让官网能看、样张能印、长文灰
 - [dist/Luo-Regular.ttf](dist/Luo-Regular.ttf)
 - [dist/Luo-Regular.woff2](dist/Luo-Regular.woff2)
 
-桌面安装用 `.ttf`，网页/打印走 `.woff2`。v0.3 暂不提供 `.otf`：之前的 `.otf` 只是 TrueType outline 套 OpenType sfnt，不是真正的 CFF 字体；如果未来需要 CFF 版本，会作为独立产物单独打包。
+桌面安装用 `.ttf`，网页/打印走 `.woff2`。v0.3 起不再提供 `.otf`：之前的 `.otf` 只是 TrueType outline 套 OpenType sfnt，不是真正的 CFF 字体；如果未来需要 CFF 版本，会作为独立产物单独打包。
 
 网页里可以这样引入：
 

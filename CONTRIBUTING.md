@@ -47,18 +47,27 @@ LUO_BUILD_CHARS=full python3 scripts/build.py
 - `proof/gb2312.html`（CI/部署生成，本地手动重生成）
 - `proof/*.pdf`
 - `proof/*.png`
-- `proof/*.json`（`proof/similarity_report.json` 例外，作为去源字体相似度的硬门提交）
+- `proof/*.json`（`proof/similarity_lxgw.json` 例外，作为公开 source 相似度基线提交）
 - `proof/*.txt`
 - `proof/*-preview.html`
 - `proof/similarity_images/`
+- `local/ref/`（私有印刷楷意参考的本地指标和渲染图）
 
-## 去源字体相似度
+## 相似度门
 
 ```bash
-python3 scripts/compare_to_source.py
+python3 scripts/compare_to.py                       # source + optional private local report
+python3 scripts/compare_to.py --target source       # vs LXGW only
+LUO_PRIVATE_KAI_REF=/path/to/private.ttf python3 scripts/compare_to.py --target private
 ```
 
-跑核心锚字（与 `STYLE.md` 的 `core_anchors` 同步），输出 `proof/similarity_report.json`。规则在 STYLE.md 已写明：普通字 raster IoU 目标不超过 `0.60`，极简字（`一二三十中木` 等）放宽到 `0.75`。如果分数是靠整字平移降的，centered IoU 仍会高，必须继续做结构、内白、主副笔和端点差异。
+跑核心锚字（与 `STYLE.md` 的 `core_anchors` 同步），公开写出：
+
+- `proof/similarity_lxgw.json` — Luo↔LXGW；目标 mean ≤ `0.55`（v0.3 历史是 `0.758`）
+
+设置 `LUO_PRIVATE_KAI_REF` 后，私有参考指标和对照图只写入被忽略的 `local/ref/metrics/` 与 `local/ref/renders/`。这些报告用于本地判断是否接近 commercial print-kai reference 的抽象气质，但不提交、不部署，也不写入绝对本机路径。
+
+`--strict` 在公开 source 指标达标、且本地配置的 private reference 指标也达标时才退出 0；未设置私有参考时会优雅跳过 private 分支。
 
 发布前至少跑：
 
