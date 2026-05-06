@@ -11,9 +11,9 @@ Pipeline (mirrors main()):
   7. Component-aware refinement (7 categories).
   8. Heart-character reshape (心字底/旁, hook + sorted dot group).
   9. Dot contour direction (xiaokai dot rotation + compression).
-  9a. v0.4.6 typographic-kai abstractions (4 generic component refiners):
+  9a. v0.4.6/v0.4.7 typographic-kai abstractions (6 generic component refiners):
        bottom_anchor_settle, left_radical_contain, inner_counter_open,
-       dense_counter_tier.
+       dense_counter_tier, top_bottom_separate, frame_inner_open.
  10. Targeted turn refinement (priority frames/endpoints/multi-horiz).
  10b. Luo signature: long-h end micro-emphasis (luo_horiz_end_emphasis).
  11. Dense dot-cluster protection (墨).
@@ -326,6 +326,58 @@ LUO_DENSE_COUNTER_DOT_MIN = int(os.environ.get("LUO_DENSE_COUNTER_DOT_MIN", "3")
 LUO_DENSE_COUNTER_X = float(os.environ.get("LUO_DENSE_COUNTER_X", "1.018"))
 LUO_DENSE_COUNTER_Y = float(os.environ.get("LUO_DENSE_COUNTER_Y", "1.010"))
 
+# --- v0.4.7 typographic-kai abstractions (2 generic component refiners) ---
+# These extend the v0.4.5 / v0.4.6 topology-driven family to the broader
+# generic body of glyphs that did not match any earlier specialised pass.
+# The site-wide audit on 1,118 page glyphs showed the "generic" bucket
+# (no special whitelist) sits at avg raw IoU ≈ 0.84 against LXGW while
+# the various special buckets sit at 0.71-0.84 thanks to dedicated
+# geometry. The two new passes target the two largest residual topology
+# clusters in that generic bucket (≈33% top-bottom + ≈31% frame-with-
+# inner) without touching glyphs already shaped by a dedicated pass.
+#
+# Magnitudes are deliberately small (≤0.005em / ≤2% scale) and respect
+# the WEB_PRESENCE_* floor so 12-19px body text never loses an inner
+# white or a base horizontal. Both passes skip every existing whitelist
+# they could plausibly double-stack with (frame / roof / stack / heart /
+# walk / straighten-skip / core_v2). See HANDOFF.md v0.4.7 for the full
+# audit log.
+
+# Pass C1 -- top-bottom separation. Detects two outer contours: one with
+# centroid in the upper LUO_TOP_BOTTOM_TOP_BAND of glyph height and one
+# with centroid in the lower LUO_TOP_BOTTOM_BOT_BAND, each with area
+# >= LUO_TOP_BOTTOM_MIN_AREA fraction of the glyph's bbox. The upper
+# layer is shifted up by LUO_TOP_BOTTOM_LIFT_EM and the lower layer is
+# shifted down by LUO_TOP_BOTTOM_SETTLE_EM and y-scaled by
+# LUO_TOP_BOTTOM_BOT_SCALE_Y around its own centroid. Skipped on glyphs
+# with two or more "middle outers" (centroid in the band between the two
+# bands and area >= LUO_TOP_BOTTOM_MID_BLOCK_AREA) so 三-style stacked
+# layouts and densely-middle glyphs are left alone.
+LUO_TOP_BOTTOM_TOP_BAND = float(os.environ.get("LUO_TOP_BOTTOM_TOP_BAND", "0.62"))
+LUO_TOP_BOTTOM_BOT_BAND = float(os.environ.get("LUO_TOP_BOTTOM_BOT_BAND", "0.38"))
+LUO_TOP_BOTTOM_MIN_AREA = float(os.environ.get("LUO_TOP_BOTTOM_MIN_AREA", "0.04"))
+LUO_TOP_BOTTOM_MID_BLOCK_AREA = float(os.environ.get("LUO_TOP_BOTTOM_MID_BLOCK_AREA", "0.10"))
+LUO_TOP_BOTTOM_LIFT_EM = float(os.environ.get("LUO_TOP_BOTTOM_LIFT_EM", "0.005"))
+LUO_TOP_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_TOP_BOTTOM_SETTLE_EM", "0.004"))
+LUO_TOP_BOTTOM_BOT_SCALE_Y = float(os.environ.get("LUO_TOP_BOTTOM_BOT_SCALE_Y", "0.988"))
+LUO_TOP_BOTTOM_TOP_SCALE_X = float(os.environ.get("LUO_TOP_BOTTOM_TOP_SCALE_X", "0.992"))
+
+# Pass C2 -- frame-with-inner counter open. Detects the largest outer
+# contour occupying at least LUO_FRAME_INNER_OUTER_W and
+# LUO_FRAME_INNER_OUTER_H of the glyph bbox (the "frame" hull) along
+# with at least one inner counter sitting inside it. Off-center inner
+# counters (centroid X outside the [LUO_INNER_COUNTER_BAND_LO,
+# LUO_INNER_COUNTER_BAND_HI] middle band already handled by
+# luo_inner_counter_open) get a small expansion around their own
+# centroid. The middle-band counters that luo_inner_counter_open already
+# handles are deliberately left to that pass.
+LUO_FRAME_INNER_OUTER_W = float(os.environ.get("LUO_FRAME_INNER_OUTER_W", "0.55"))
+LUO_FRAME_INNER_OUTER_H = float(os.environ.get("LUO_FRAME_INNER_OUTER_H", "0.55"))
+LUO_FRAME_INNER_MIN_AREA = float(os.environ.get("LUO_FRAME_INNER_MIN_AREA", "0.008"))
+LUO_FRAME_INNER_MAX_AREA = float(os.environ.get("LUO_FRAME_INNER_MAX_AREA", "0.20"))
+LUO_FRAME_INNER_X = float(os.environ.get("LUO_FRAME_INNER_X", "1.014"))
+LUO_FRAME_INNER_Y = float(os.environ.get("LUO_FRAME_INNER_Y", "1.008"))
+
 # --- Targeted turn refinement (Pass C, full CJK with priority bump) ---
 # v0.4.1 reduction: the v0.4 default DISPLACE=2.5 ran on every CJK glyph and
 # created sharp 折点 at hook roots and short-stroke joints, contributing to
@@ -474,7 +526,7 @@ BUILD_CHAR_MODES = (
 FAMILY = os.environ.get("LUO_FAMILY", "Luo")
 SUBFAMILY = os.environ.get("LUO_SUBFAMILY", "Regular")
 OUTPUT_PREFIX = os.environ.get("LUO_OUTPUT_PREFIX", "Luo-Regular")
-VERSION = "0.4.6"
+VERSION = "0.4.7"
 
 COPYRIGHT = (
     "Luo, a CJK typeface for paper and reading. "
@@ -4735,6 +4787,247 @@ def luo_inner_counter_open(font: TTFont) -> None:
     )
 
 
+def luo_top_bottom_separate(font: TTFont) -> None:
+    """v0.4.7: open the gap between upper and lower outer halves.
+
+    The site-wide audit on 1,118 page glyphs showed about a third of the
+    "no special whitelist" generic glyphs match a clean top-bottom layout
+    (盘 / 孟 / 官 / 单 / 盏 / 答 / 案 / 室 / 客 ...) where one outer contour sits
+    in the upper band and another sits in the lower band with no dense
+    middle layer. Print-kai prefers a clearly visible gap between the two
+    halves; LXGW WenKai reads slightly more compressed because the soft
+    bow blurs the boundary.
+
+    Detection (per outer contour, signed_area <= 0):
+      - upper layer: centroid Y >= y_min + LUO_TOP_BOTTOM_TOP_BAND * gh
+      - lower layer: centroid Y <= y_min + LUO_TOP_BOTTOM_BOT_BAND * gh
+      - each layer's area >= LUO_TOP_BOTTOM_MIN_AREA fraction of glyph bbox
+    The glyph is skipped when 2+ outer contours sit in the middle band
+    with area >= LUO_TOP_BOTTOM_MID_BLOCK_AREA, so 三-style stacked-three
+    layouts and densely-middle glyphs are not over-compressed.
+
+    Action: shift each upper contour up by LUO_TOP_BOTTOM_LIFT_EM and
+    lightly contract its width by LUO_TOP_BOTTOM_TOP_SCALE_X around its
+    own centroid; settle each lower contour down by LUO_TOP_BOTTOM_SETTLE_EM
+    and y-scale by LUO_TOP_BOTTOM_BOT_SCALE_Y around its own centroid. The
+    y-scale on the bottom is presence-floor guarded against
+    WEB_PRESENCE_H_MIN_EM so body horizontals never disappear.
+
+    Skipped on the dedicated channels that already shape top-bottom
+    geometry: STRAIGHTEN_SKIP (心字底 / 走之底 dedicated), HEART_CHARS,
+    WALK_FINAL_CHARS, IDENTITY_FRAME_CHARS, KAI_BALANCE_ROOF_CHARS,
+    KAI_BALANCE_STACK_CHARS. Combined with the existing v0.4.5
+    luo_bottom_anchor_settle (wide-foot only), this completes the
+    top-bottom hierarchy story without naming glyphs.
+    """
+    if (
+        LUO_TOP_BOTTOM_LIFT_EM <= 0
+        and LUO_TOP_BOTTOM_SETTLE_EM <= 0
+        and LUO_TOP_BOTTOM_BOT_SCALE_Y >= 1.0
+        and LUO_TOP_BOTTOM_TOP_SCALE_X >= 1.0
+    ):
+        print("[luo] top-bottom separate: skipped (identity)")
+        return
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    upm = font["head"].unitsPerEm
+    h_min = WEB_PRESENCE_H_MIN_EM * upm
+    lift_units = LUO_TOP_BOTTOM_LIFT_EM * upm
+    settle_units = LUO_TOP_BOTTOM_SETTLE_EM * upm
+    skip = (
+        set(STRAIGHTEN_SKIP_CHARS)
+        | set(IDENTITY_FRAME_CHARS)
+        | set(KAI_BALANCE_ROOF_CHARS)
+        | set(KAI_BALANCE_STACK_CHARS)
+        | set(HEART_CHARS)
+        | set(WALK_FINAL_CHARS)
+    )
+    upper_count = 0
+    lower_count = 0
+    glyph_count = 0
+    for cp, gname in cmap.items():
+        if not (0x3400 <= cp <= 0x9FFF):
+            continue
+        ch = chr(cp)
+        if ch in skip:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        _x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+        glyph_area = glyph_w * glyph_h
+        if glyph_area <= 0:
+            continue
+        contours = _contour_info(glyph, coords)
+        outers = [
+            c for c in contours
+            if _contour_signed_area(coords, int(c["start"]), int(c["end"])) <= 0
+        ]
+        if len(outers) < 2:
+            continue
+        top_band_y = y_min + glyph_h * LUO_TOP_BOTTOM_TOP_BAND
+        bot_band_y = y_min + glyph_h * LUO_TOP_BOTTOM_BOT_BAND
+        upper = [
+            c for c in outers
+            if float(c["cy"]) >= top_band_y
+            and float(c["area"]) >= glyph_area * LUO_TOP_BOTTOM_MIN_AREA
+        ]
+        lower = [
+            c for c in outers
+            if float(c["cy"]) <= bot_band_y
+            and float(c["area"]) >= glyph_area * LUO_TOP_BOTTOM_MIN_AREA
+        ]
+        if not upper or not lower:
+            continue
+        # Avoid firing on glyphs with substantial middle content (三 / 重 / 王
+        # style stacked layouts where shifting the outer two would crush
+        # the middle layer).
+        middle_block = [
+            c for c in outers
+            if bot_band_y < float(c["cy"]) < top_band_y
+            and float(c["area"]) >= glyph_area * LUO_TOP_BOTTOM_MID_BLOCK_AREA
+        ]
+        if len(middle_block) >= 2:
+            continue
+        glyph_touched = False
+        for c in upper:
+            c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+            sx = _presence_guarded_scale(LUO_TOP_BOTTOM_TOP_SCALE_X, c_w, h_min)
+            _scale_contour(coords, c, scale_x=sx, shift_y=lift_units)
+            upper_count += 1
+            glyph_touched = True
+        for c in lower:
+            c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+            sy = _presence_guarded_scale(LUO_TOP_BOTTOM_BOT_SCALE_Y, c_h, h_min)
+            _scale_contour(coords, c, scale_y=sy, shift_y=-settle_units)
+            lower_count += 1
+            glyph_touched = True
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+    print(
+        f"[luo] top-bottom separate: {upper_count} upper + {lower_count} lower "
+        f"contours across {glyph_count} glyphs "
+        f"(lift={LUO_TOP_BOTTOM_LIFT_EM}em, settle={LUO_TOP_BOTTOM_SETTLE_EM}em, "
+        f"bot_y={LUO_TOP_BOTTOM_BOT_SCALE_Y}, top_x={LUO_TOP_BOTTOM_TOP_SCALE_X})"
+    )
+
+
+def luo_frame_inner_open(font: TTFont) -> None:
+    """v0.4.7: open the off-center inner counters of frame-with-content glyphs.
+
+    The existing v0.4.6 luo_inner_counter_open targets only counters whose
+    centroid X falls in the middle band [LUO_INNER_COUNTER_BAND_LO,
+    LUO_INNER_COUNTER_BAND_HI]. Glyphs like 田 (four quadrant counters)
+    and 自 / 角 / 由 (broad outer hull with internal layout) leave their
+    inner counters un-opened because those counters sit outside the
+    middle band. This pass picks up only the off-center counters in
+    frame-with-content topology and applies a smaller expansion than the
+    main inner_counter_open pass (1.014 / 1.008 vs 1.040 / 1.020) so it
+    does not over-stretch the typical kai grid.
+
+    Detection (per glyph):
+      - the largest outer contour's bbox spans at least
+        LUO_FRAME_INNER_OUTER_W * gw and LUO_FRAME_INNER_OUTER_H * gh
+        (i.e. the glyph has a clear "frame hull")
+      - at least one inner contour (signed_area > 0) sits with its
+        centroid X outside [BAND_LO, BAND_HI] (so we do not double-stack
+        on luo_inner_counter_open) and its area in
+        [LUO_FRAME_INNER_MIN_AREA, LUO_FRAME_INNER_MAX_AREA]
+
+    Skipped on the dedicated channels that already restructure the
+    frame: STRAIGHTEN_SKIP_CHARS, IDENTITY_FRAME_CHARS,
+    IDENTITY_CORE_V2_CHARS.
+    """
+    if LUO_FRAME_INNER_X <= 1.0 and LUO_FRAME_INNER_Y <= 1.0:
+        print("[luo] frame-inner open: skipped (identity)")
+        return
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    skip = (
+        set(STRAIGHTEN_SKIP_CHARS)
+        | set(IDENTITY_FRAME_CHARS)
+        | set(IDENTITY_CORE_V2_CHARS)
+    )
+    seg_count = 0
+    glyph_count = 0
+    for cp, gname in cmap.items():
+        if not (0x3400 <= cp <= 0x9FFF):
+            continue
+        ch = chr(cp)
+        if ch in skip:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        x_min, _x_max, _y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+        glyph_area = glyph_w * glyph_h
+        if glyph_area <= 0:
+            continue
+        contours = _contour_info(glyph, coords)
+        outers = [
+            c for c in contours
+            if _contour_signed_area(coords, int(c["start"]), int(c["end"])) <= 0
+        ]
+        if not outers:
+            continue
+        # Largest outer hull = frame candidate.
+        largest = max(
+            outers,
+            key=lambda c: (float(c["xmax"]) - float(c["xmin"]))
+            * (float(c["ymax"]) - float(c["ymin"])),
+        )
+        hull_w = float(largest["xmax"]) - float(largest["xmin"])
+        hull_h = float(largest["ymax"]) - float(largest["ymin"])
+        if hull_w < glyph_w * LUO_FRAME_INNER_OUTER_W:
+            continue
+        if hull_h < glyph_h * LUO_FRAME_INNER_OUTER_H:
+            continue
+        band_lo = x_min + glyph_w * LUO_INNER_COUNTER_BAND_LO
+        band_hi = x_min + glyph_w * LUO_INNER_COUNTER_BAND_HI
+        glyph_touched = False
+        for c in contours:
+            signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+            if signed <= 0:
+                continue
+            cc_x = float(c["cx"])
+            # Skip the middle-band counters that luo_inner_counter_open
+            # already handles to avoid double-stacking.
+            if band_lo <= cc_x <= band_hi:
+                continue
+            area = float(c["area"])
+            if area < glyph_area * LUO_FRAME_INNER_MIN_AREA:
+                continue
+            if area > glyph_area * LUO_FRAME_INNER_MAX_AREA:
+                continue
+            # Counter must sit inside the frame hull horizontally (otherwise
+            # it is not really an interior counter of the frame).
+            if (
+                float(c["xmin"]) < float(largest["xmin"]) - 1
+                or float(c["xmax"]) > float(largest["xmax"]) + 1
+            ):
+                continue
+            _scale_contour(coords, c, scale_x=LUO_FRAME_INNER_X, scale_y=LUO_FRAME_INNER_Y)
+            seg_count += 1
+            glyph_touched = True
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+    print(
+        f"[luo] frame-inner open: {seg_count} counters across {glyph_count} glyphs "
+        f"(outer_min={LUO_FRAME_INNER_OUTER_W}x{LUO_FRAME_INNER_OUTER_H}, "
+        f"x={LUO_FRAME_INNER_X}, y={LUO_FRAME_INNER_Y})"
+    )
+
+
 # --- Pass C: Targeted turn refinement ---
 
 def refine_turns_final(font: TTFont) -> None:
@@ -5575,6 +5868,8 @@ def main() -> None:
     luo_bottom_anchor_settle(font)
     luo_left_radical_contain(font)
     luo_inner_counter_open(font)
+    luo_top_bottom_separate(font)
+    luo_frame_inner_open(font)
     refine_turns_final(font)
     luo_horiz_end_emphasis(font)
     refine_black_dot_cluster(font)

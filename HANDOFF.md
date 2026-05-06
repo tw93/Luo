@@ -1,5 +1,83 @@
 # Luo 落文 v0.4 Handoff (print-kai pivot)
 
+## v0.4.7 generic-coverage extension: 2 more topology pass (2026-05)
+
+v0.4.7 是 v0.4.5/v0.4.6 拓扑驱动 pass 系列的延续，目标从 P0/P1 密字队列转向 **首页全字集中尚未被任何专门 pass 触及的 generic 桶**。新增的两个 pass 依然是几何拓扑触发，没有字符白名单，并且严格 skip 已有专门 pass 的所有字组（frame / walk / heart / stack / roof / straighten-skip / core_v2 / inner_counter middle band），确保已经稳定的字不被二次叠加。BOLDEN_H/V、HOOK / TURN / WEB_PRESENCE 全部锁定。
+
+### 站点全字 grouped IoU 审计：v0.4.7 发起的根因
+
+新增 `scripts/measure_groups.py`，在首页 1,118 字上按 pass-specific 白名单分桶跑 raw IoU vs LXGW。v0.4.6 baseline 出来的画面是：
+
+| bucket | count | avg raw IoU |
+|---|---|---|
+| walk | 19 | 0.7155 |
+| heart | 24 | 0.7708 |
+| frame | 8 | 0.7723 |
+| stack | 7 | 0.7832 |
+| core_v2 | 37 | 0.8116 |
+| side | 11 | 0.8309 |
+| roof | 16 | 0.8327 |
+| water | 26 | 0.8187 |
+| hook | 129 | 0.8377 |
+| speech | 25 | 0.8396 |
+| **generic** | **796** | **0.8411** |
+| turn | 20 | 0.8447 |
+| **OVERALL** | **1,118** | **0.8345** |
+
+也就是说，过去四五次迭代把 frame/walk/heart/stack 等专门 pass 字组拉到了 0.71-0.78 区间，但占 71% 的 generic 桶（796 字，无任何专门 pass）仍坐在 0.84，是把整体 IoU 顶在 0.83 的主要原因。30 字锚字集（公开 report 用）则严重偏向分布底部（96% 字落在分布的下 15%），所以那个均值 0.7531 是"门面工作的成绩单"，不是首页全字的实际现状。
+
+### 两个新 pass
+
+- **C1 top_bottom_separate (上下层断隔)**: 找到 outer 轮廓中 cy 落在字面上方 38% 带 (`LUO_TOP_BOTTOM_TOP_BAND=0.62`) 且面积 ≥ 4% 字面的 "upper layer"，以及 cy 落在下方 38% 带 (`LUO_TOP_BOTTOM_BOT_BAND=0.38`) 且面积 ≥ 4% 字面的 "lower layer"。当字内还有 ≥2 个 middle band outer 且每个 ≥10% 字面时（三/王/重 一类堆叠拓扑），整体 skip。命中后对 upper 沿自身中心 X 收 0.992 + 上抬 `0.005em`，对 lower 沿自身中心 Y 收 0.988 + 下沉 `0.004em`。skip 框形 / KAI_BALANCE_ROOF / STACK / HEART / WALK / STRAIGHTEN_SKIP。typical starter build：512 upper + 558 lower contours / 385 glyphs。
+- **C2 frame_inner_open (含框内白舒展)**: 找到最大 outer 轮廓 bbox 至少 55% × 55% 字面（自/曲/田/角/由/见/取 一类含框拓扑），对其内部 inner counter（signed area > 0）做小幅 1.014 × 1.008 放大，但 **跳过中段 [0.30, 0.70] X 带的 counter**（已被 v0.4.6 `luo_inner_counter_open` 覆盖）以避免双叠加。skip frame 白名单 / IDENTITY_CORE_V2 / STRAIGHTEN_SKIP。typical starter build：195 counters / 124 glyphs。
+
+### 度量结果
+
+`measure_groups.py --baseline luo_v046.ttf` 报告：
+
+| bucket | v0.4.6 | v0.4.7 | Δ raw |
+|---|---|---|---|
+| frame | 0.7723 | 0.7723 | **+0.0000** ✓ skip 守住 |
+| walk | 0.7155 | 0.7155 | **+0.0000** ✓ skip 守住 |
+| heart | 0.7708 | 0.7708 | **+0.0000** ✓ skip 守住 |
+| stack | 0.7832 | 0.7832 | **+0.0000** ✓ skip 守住 |
+| roof | 0.8327 | 0.8327 | **+0.0000** ✓ skip 守住 |
+| water | 0.8187 | 0.8081 | -0.0106 ↓ |
+| speech | 0.8396 | 0.8281 | -0.0115 ↓ |
+| side | 0.8309 | 0.8230 | -0.0079 ↓ |
+| core_v2 | 0.8116 | 0.8027 | -0.0089 ↓ |
+| hook | 0.8377 | 0.8333 | -0.0044 ↓ |
+| turn | 0.8447 | 0.8286 | -0.0161 ↓ |
+| **generic** | **0.8411** | **0.8339** | **-0.0072** ↓ |
+| **OVERALL** | **0.8345** | **0.8277** | **-0.0068** ↓ |
+
+每一个 frozen 桶都达到了 +0.0000 严格相等，证明 skip 列表完全有效。下降发生在没列入 v0.4.7 skip 列表的桶（water/speech/side/core_v2/hook/turn），也是预期内的：这些 pass 的下游字组在结构上确实可以受益于上下层断隔或含框内白舒展，没有理由强行排除。30 字锚字集均值 0.7531 → 0.7430（-0.0101），movement 主要来自 turn/water/core_v2 这三个 anchor 集中重叠的桶。
+
+### 视觉验证
+
+`local/ref/renders/v047_topology_check.png`：A/B/C 三组共 32 字三排（LXGW / Luo v0.4.6 / Luo v0.4.7）。
+- A 组（心远月国实寒家字宇宙安帝头眷透道）— 全部 pixel-identical，skip 列表覆盖正确。
+- B 组（孟答案共曾兴县章首）— 上下层之间能看到清晰的呼吸空间，符合"上下结构清晰断隔"设计意图。
+- C 组（由田角自见取）— 内白轻微开放，肉眼能感觉到"内部更透气"，但骨架不变。
+
+`local/ref/renders/v047_body_readability.png`：16/22/32/48px 四档正文渲染（v0.4.6 vs v0.4.7）。16/22px 灰度完全稳定无发虚，32/48px 上下结构字（孟/答/案）能看出层次改进。
+
+### 不要做
+
+- 不要把 `LUO_TOP_BOTTOM_LIFT_EM` / `SETTLE_EM` 推过 0.008，会出现 "上半部漂离" 的视觉问题，特别是上半较轻的字（答/案）。
+- 不要把 `LUO_FRAME_INNER_X` 推过 1.025，会破坏含框紧凑字（角/田）的内白节奏。
+- 不要从 v0.4.7 两个 pass 的 skip 列表里删字。每一个 skip 都对应一个已经在另一个 pass 里精调的字组；移除会出现 v0.4 → v0.4.1 同款的"几个 pass 各自看着 OK，叠在一起破坏正文"问题。
+- 不要把白名单字 (frame/walk/heart/stack/roof) 从专门通道挪到 generic 通道企图"再做一次"。专门通道的几何是按字组拓扑独立校准的，二次叠加无意义。
+
+### 后续方向
+
+如果 v0.4.8+ 还要继续把 generic 桶往下拉：
+
+1. **不要扩签名 push**（`LUO_HORIZ_END_EMPHASIS_PUSH_EM` / `LUO_HOOK_ROOT_HANDLE_PUSH_EM`），AGENTS.md 已硬约束。
+2. **不要扩 BOLDEN 减重**，v0.4.2 验证过会重现 12-19px 发虚。
+3. **优先方向：调小 `LUO_TOP_BOTTOM_TOP_BAND` 到 0.60 / `BOT_BAND` 到 0.40** 让 官-style（cy 边界附近）的字进入命中集；预计 +50-100 字命中。验证时必须重跑 `measure_groups.py --baseline` 确认 skip 桶仍然 +0.0000。
+4. **更长线：扩 IDENTITY_CORE_V2_CHARS 到 ~80-100 字**（v0.4.5 HANDOFF 已写明的方向），把更多字带入 frame_posture / layered / diag 三类结构重写。
+
 ## v0.4.6 homepage dense-counter audit pass (2026-05)
 
 v0.4.6 是一次首页样式队列驱动的小步修正，目标是 P0/P1 密字的内白和灰度层级。BOLDEN、HOOK、WEB_PRESENCE、v0.4.5 三个 generic pass 的原始幅度都不回退；新增的只是 `inner_counter_open` 内部的 **dense_counter_tier**，仍然是几何拓扑触发，不按字符名触发。
