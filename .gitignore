@@ -3,8 +3,10 @@ __pycache__/
 .venv/
 venv/
 .vercel/
-.claude/settings.local.json
+.claude/
+CLAUDE.md
 CLAUDE.local.md
+AGENTS.md
 AGENTS.override.md
 .DS_Store
 local/
