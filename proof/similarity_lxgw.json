@@ -6,7 +6,7 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.7499,
+  "avg_raster_iou": 0.7498,
   "avg_bbox_centered_iou": 0.7181,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
@@ -62,16 +62,16 @@
     {
       "char": "字",
       "codepoint": "U+5B57",
-      "raster_iou": 0.7816,
-      "bbox_centered_iou": 0.6821,
+      "raster_iou": 0.7821,
+      "bbox_centered_iou": 0.6816,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "书",
       "codepoint": "U+4E66",
-      "raster_iou": 0.7665,
-      "bbox_centered_iou": 0.7561,
+      "raster_iou": 0.7668,
+      "bbox_centered_iou": 0.7562,
       "gate": 0.6,
       "pass": false
     },
@@ -86,8 +86,8 @@
     {
       "char": "清",
       "codepoint": "U+6E05",
-      "raster_iou": 0.73,
-      "bbox_centered_iou": 0.6778,
+      "raster_iou": 0.7236,
+      "bbox_centered_iou": 0.6703,
       "gate": 0.6,
       "pass": false
     },
@@ -126,8 +126,8 @@
     {
       "char": "国",
       "codepoint": "U+56FD",
-      "raster_iou": 0.6679,
-      "bbox_centered_iou": 0.6335,
+      "raster_iou": 0.668,
+      "bbox_centered_iou": 0.6336,
       "gate": 0.6,
       "pass": false
     },
@@ -158,8 +158,8 @@
     {
       "char": "霜",
       "codepoint": "U+971C",
-      "raster_iou": 0.7671,
-      "bbox_centered_iou": 0.7402,
+      "raster_iou": 0.7676,
+      "bbox_centered_iou": 0.747,
       "gate": 0.6,
       "pass": false
     },
@@ -183,7 +183,7 @@
       "char": "赢",
       "codepoint": "U+8D62",
       "raster_iou": 0.801,
-      "bbox_centered_iou": 0.7896,
+      "bbox_centered_iou": 0.7897,
       "gate": 0.6,
       "pass": false
     },
@@ -214,8 +214,8 @@
     {
       "char": "亭",
       "codepoint": "U+4EAD",
-      "raster_iou": 0.7155,
-      "bbox_centered_iou": 0.6306,
+      "raster_iou": 0.7151,
+      "bbox_centered_iou": 0.6302,
       "gate": 0.6,
       "pass": false
     },
@@ -230,16 +230,16 @@
     {
       "char": "集",
       "codepoint": "U+96C6",
-      "raster_iou": 0.7756,
-      "bbox_centered_iou": 0.6855,
+      "raster_iou": 0.7762,
+      "bbox_centered_iou": 0.6847,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "章",
       "codepoint": "U+7AE0",
-      "raster_iou": 0.6829,
-      "bbox_centered_iou": 0.5834,
+      "raster_iou": 0.684,
+      "bbox_centered_iou": 0.5843,
       "gate": 0.6,
       "pass": false
     },

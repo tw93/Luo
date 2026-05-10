@@ -1,5 +1,69 @@
 # Luo 落文 v0.4 Handoff (print-kai pivot)
 
+## v0.4.11 luo_horiz_cap_flatten generalisation: chord-line clamp (2026-05)
+
+Tang 实地浏览器复审 v0.4.10 hero / heading 大字号，反馈 `觉 / 风 / 书 / 晋 / 正` 仍有 cap 处粗糙感。280px 单字深度对照 LXGW / Tsanger Print Kai / Luo v0.4.10 后定位元凶：长横右 cap 残留 lump。
+
+### 根因诊断
+
+- `bolden_glyphs` 把每条横画的左 cap 顶 on-curve 抬约 +28u（如 `正` 中横 pt 30: 1386 → 1414）
+- `straighten_strokes` 受 `STRAIGHTEN_MAX_PERP_RATIO=0.20` 角点保护机制限制，只把 9-10% 偏 chord 的 cap off-curve 部分拉向 chord，无法完全压平
+- 净效果：cap apex 落在 leftmost top on-curve **上方** 7 单位（`正` 中横 pt 33: 1421 vs pt 30: 1414），200px+ 大字号读为可见 knob/notch
+- v0.4.10 已有 `luo_horiz_cap_flatten` 但是 8 字白名单（`正晋章书世西二南`），覆盖太窄，幅度 ±10u × 0.75 系数，对 532+ 长横字的整体大盘影响有限
+
+### 修复内容
+
+把 `luo_horiz_cap_flatten` 改成**几何拓扑驱动 + chord-line clamp**，丢掉白名单：
+
+```
+对每个外 CCW contour 走 on-curve 对 (P_a, P_b)：
+  - 长 chord (>= LUO_HORIZ_CAP_FLATTEN_MIN_RATIO * glyph_max, 默认 0.25)
+  - 接近水平 (angle <= LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG, 默认 10°)
+  - 左到右 (dx > 0；CCW outer 上即 top edge)
+对位于 P_a 与 P_b 之间的每个 off-curve 点 P (px, py)：
+  - 计算 chord 在 px 处的线性插值 chord_y
+  - 如果 py > chord_y + 0.5：clamp 到 chord_y
+```
+
+为什么 chord-line clamp 而不是 clamp-to-ay：早期版本试过 clamp-to-leftmost-on-curve-y，但 `正` 底横 chord **上扬** (+37u)，clamp-to-ay 会在 P_b 处制造**反向 lump**（更难看）。chord-line clamp 永远不超过 chord，几何上不可能产生 inverted 现象。
+
+Skip 列表：`STRAIGHTEN_SKIP_CHARS`（心字底 / 忄旁 / 走之底） + `LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS = "月"`（v0.3 baseline 冻结字）。Inner contours 通过 `signed_area >= 0` 检查跳过，cap_flatten 只动外轮廓 top edge。
+
+`LUO_HORIZ_CAP_FLATTEN_CHARS` 白名单保留为 back-compat 引用，不再驱动逻辑。
+
+### 度量结果
+
+`scripts/measure_groups.py --baseline local/ref/baselines/Luo-v0.4.10.ttf`：
+
+| bucket | Δ raw | 备注 |
+|---|---:|---|
+| roof | −0.0011 | 横画密集字组（家/字/宇/宙），cap 全部受益 |
+| water | −0.0018 | 氵旁字横画也命中 |
+| core_v2 | −0.0010 | Phase 1A/B/C 字 cap 进一步精修 |
+| turn | −0.0011 | 章/重 turn 锚字组 cap 进一步压平 |
+| generic | −0.0009 | 大盘缓慢前进 |
+| frame / walk / heart / stack | +0.0000 | 几无变化（这些字组横画结构不一样） |
+| OVERALL | **−0.0008 raw / −0.0009 ctr** | 全字向 Tsanger cap 形态靠拢 |
+
+每次构建 882 cap off-curves clamped across 312 glyphs。30 字 anchor LXGW raw 0.750（基本不变）。`月` frozen 字逐点匹配通过。
+
+### 视觉验证
+
+`local/ref/renders/v0410_deep_*.png` 5 字 280px 大字号对照（LXGW / Tsanger / Luo）：
+
+- ✅ **正** 中横 cap 由"上凸 lump"变成"chord 平滑 + Tsanger angular drop"
+- ✅ **晋** 多横 stack 全部 cap 同步压平，**最显著的视觉改善**
+- ✅ **书** 横折钩根 + cap 双重清理（v0.4.10 polish + v0.4.11 cap_flatten）
+- ✅ **觉** 中横 cap 改善
+- ✅ **风** 横折弯钩 top 段 cap 改善
+- ⚠️ 未解决：`从 / 入` 撇尾 chunky（仍是 v0.4.12 候选 `luo_diag_endpoint_clean` 几何化重写）
+
+### 后续方向
+
+- 当前 `luo_diag_endpoint_clean` 是 6 字白名单（`从入人八为失`）和 v0.4.10 之前的 cap_flatten 同款窄域问题。下一轮按本轮模式做 geometric 化重写
+- 别再把 `LUO_HORIZ_END_EMPHASIS_PUSH_EM` 重启 0.005（v0.4.4 签名顿笔）—— 它和 cap_flatten 直接冲突，会再次产生 step
+- `LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS` 留作扩展点：发现新冻结字时加进去
+
 ## v0.4.10 W04 follow-up: endpoint cleanup + P6 left/right queue (2026-05)
 
 这轮按 TsangerJinKai02-W04 做主参考继续收口，但只学习开阔、干净端点、短钩和层级气质，不复制轮廓。W05 只作为黑度上限检查：当前 W05 已贴近 0.60，后续不应继续按 W05 追黑。

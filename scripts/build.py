@@ -254,6 +254,22 @@ LUO_HORIZ_END_EMPHASIS_MIN_RATIO = float(os.environ.get("LUO_HORIZ_END_EMPHASIS_
 LUO_HORIZ_END_EMPHASIS_ANGLE_DEG = float(os.environ.get("LUO_HORIZ_END_EMPHASIS_ANGLE_DEG", "10.0"))
 LUO_HORIZ_END_EMPHASIS_SAMPLES = int(os.environ.get("LUO_HORIZ_END_EMPHASIS_SAMPLES", "4"))
 
+# v0.4.11 luo_horiz_cap_flatten: residual cap arc on long horizontal top
+# edges. After bolden raises the leftmost top-cap on-curve (~+28u) and
+# straighten only partially flattens the off-curve cap arc, the cap apex
+# sits a few units above the leftmost top-cap on-curve. At heading sizes
+# (≥200px) this reads as a small visible knob/notch on 正 / 晋 / 章 / 书 /
+# 觉 / 风 / 章 (and most chars with long horizontals). Tsanger Print Kai's
+# print-kai design has a flat top edge and an angular cap drop, no upward
+# arc. This pass walks each outer CCW contour, finds horizontal top-edge
+# chords (long, near-horizontal, dx > 0), and clamps any off-curve point
+# between the two on-curves whose y exceeds the leftmost on-curve y down
+# to that y. Skips frozen-glyph 月, STRAIGHTEN_SKIP_CHARS, and inner
+# (CCW signed_area > 0) contours.
+LUO_HORIZ_CAP_FLATTEN_MIN_RATIO = float(os.environ.get("LUO_HORIZ_CAP_FLATTEN_MIN_RATIO", "0.25"))
+LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG = float(os.environ.get("LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG", "10.0"))
+LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS = "月"
+
 # A2: hook root inward handle. After refine_hooks_final and the geometric
 # hook tail width cap, find the off-curve handle just before each detected
 # hook root (p1) and push it slightly toward the glyph centroid. The off-
@@ -537,7 +553,7 @@ BUILD_CHAR_MODES = (
 FAMILY = os.environ.get("LUO_FAMILY", "Luo")
 SUBFAMILY = os.environ.get("LUO_SUBFAMILY", "Regular")
 OUTPUT_PREFIX = os.environ.get("LUO_OUTPUT_PREFIX", "Luo-Regular")
-VERSION = "0.4.10"
+VERSION = "0.4.11"
 
 COPYRIGHT = (
     "Luo, a CJK typeface for paper and reading. "
@@ -1349,6 +1365,10 @@ HOMEPAGE_P3_STRUCTURE_GLYPHS = "曲抽角重争盘者岫虽盏求种复基斗色
 HOMEPAGE_P4_RESIDUAL_RISK_GLYPHS = "去要共朗型携考单技粟稚第樽便理鱼具邑仲皋独值律其身虾快看腹雅柯距展更鹿直扁耳槊由车帖强免建郎轼算走藉里净盛使组主真徘果暑畴路昌夫同较古关如寓追着蓄查眄眼撇详支嫠供境蛟疏旗象细窗娱绝诵根裳维挪别荆很狼输谢奇"
 HOMEPAGE_P5_STUBBORN_RISK_GLYPHS = "曲去重抽种盘斗仲如堆考求律盏樽"
 HOMEPAGE_P6_LEFT_RIGHT_GLYPHS = "抽独种技虾便雅柯携稚供堵朗难建邑仲快看腹距展更鹿鱼具皋值律其身"
+# v0.4.11: luo_horiz_cap_flatten was a 8-char whitelist; v0.4.11 generalised
+# it to a geometry-only pass (chord-line clamp) so every horizontal-with-cap
+# benefits, not just the named anchors. The list below is kept as a
+# back-compat reference for downstream callers that still import the symbol.
 LUO_HORIZ_CAP_FLATTEN_CHARS = "正晋章书世西二南"
 LUO_DIAG_ENDPOINT_CLEAN_CHARS = "从入人八为失"
 LUO_CURVE_TAIL_POLISH_CHARS = "风气成"
@@ -3938,34 +3958,73 @@ def luo_curve_tail_polish(font: TTFont) -> None:
 
 
 def luo_horiz_cap_flatten(font: TTFont) -> None:
-    """Clean tiny horizontal-cap steps on W04 reference-risk glyphs.
+    """v0.4.11: chord-line clamp for residual horizontal cap arc.
 
-    This replaces the disabled v0.4.4 long-h end emphasis. The old signature
-    pushed a stop downward; Tsanger W04 instead has a clean angular cap. This
-    pass only equalises the top edge of right caps on a small screenshot-risk
-    list (`正/晋/章/书/世/西/二/南`) and never adds a new 顿.
+    The Tang-reported '正 / 晋 / 章 / 书 / 觉 / 风 中横右端 lump' is caused by
+    bolden raising the leftmost top-cap on-curve (~+28u in 正), while
+    straighten only partially flattens off-curve cap arcs (perp-ratio
+    threshold of 0.20 protects controls 9-10% off chord). Net: cap apex
+    sits a few units above leftmost top-cap on-curve, reading at heading
+    sizes (≥200px) as a small visible knob/notch on most chars with long
+    horizontals.
+
+    For each outer CCW contour (signed_area < 0), walk consecutive
+    on-curve pairs (P_a, P_b). When the chord PaPb is:
+      - long (>= LUO_HORIZ_CAP_FLATTEN_MIN_RATIO * glyph_max),
+      - near-horizontal (angle <= LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG),
+      - left-to-right (dx > 0; for CCW outer this is a top-edge segment),
+    every off-curve point STRICTLY BETWEEN P_a and P_b is clamped to the
+    linearly-interpolated chord-line y at its x position when its actual
+    y exceeds that chord-line y. The chord-line clamp (vs clamping to
+    P_a.y) is critical for chords that tilt up (e.g., 正's bottom 横画
+    with P_b higher than P_a): clamping to P_a.y would create an
+    inverted bump at P_b. Chord-line clamping never produces such an
+    inverted artifact.
+
+    The clamping eliminates the upward bulge on cap top edges while
+    leaving the angular drop into the right cap (P_b.y < P_a.y by
+    design) untouched. Result: flat top → angular cap drop, matching
+    Tsanger Print Kai's print-kai cap geometry.
+
+    Skips:
+      - inner contours (signed_area >= 0): cap_flatten only handles
+        outer top edges. Inner counter geometry is owned by other passes.
+      - characters in STRAIGHTEN_SKIP_CHARS (心字底/忄旁/走之底): they
+        have dedicated curve geometry that should not be flattened.
+      - characters in LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS (月): point-locked
+        to v0.3 baseline by refine_visible_problem_glyphs upstream.
     """
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
-    touched: list[str] = []
-    seg_count = 0
+    rcmap = _build_reverse_cmap(font)
 
-    for char in LUO_HORIZ_CAP_FLATTEN_CHARS:
-        gname = cmap.get(ord(char))
-        if not gname or gname not in glyf:
+    seg_count = 0
+    glyph_count = 0
+    skip_chars = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF):
             continue
+        char = chr(cp)
+        if char in skip_chars:
+            continue
+
         glyph = glyf[gname]
         if glyph.numberOfContours <= 0:
             continue
-        coords = glyph.coordinates
+
+        coords = list(glyph.coordinates)
         flags = glyph.flags
         ends = glyph.endPtsOfContours
-        box = _glyph_box(coords)
-        if box is None:
-            continue
-        _x_min, _x_max, _y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+
+        all_xs = [c[0] for c in coords]
+        all_ys = [c[1] for c in coords]
+        glyph_w = max(all_xs) - min(all_xs)
+        glyph_h = max(all_ys) - min(all_ys)
         if glyph_w <= 0 or glyph_h <= 0:
             continue
+        glyph_max = max(glyph_w, glyph_h)
+        min_chord_len = LUO_HORIZ_CAP_FLATTEN_MIN_RATIO * glyph_max
         glyph_touched = False
 
         start = 0
@@ -3974,69 +4033,66 @@ def luo_horiz_cap_flatten(font: TTFont) -> None:
             if n < 8:
                 start = end + 1
                 continue
-            if _contour_signed_area(coords, start, end) > 0:
+            # Outer CCW contour only (signed_area < 0)
+            if _contour_signed_area(coords, start, end) >= 0:
                 start = end + 1
                 continue
 
             on_curve = [start + j for j in range(n) if flags[start + j] & 1]
-            if len(on_curve) < 2:
+            num_oc = len(on_curve)
+            if num_oc < 2:
                 start = end + 1
                 continue
 
-            for k, ia in enumerate(on_curve):
-                ib = on_curve[(k + 1) % len(on_curve)]
+            for k in range(num_oc):
+                ia = on_curve[k]
+                ib = on_curve[(k + 1) % num_oc]
                 ax, ay = coords[ia]
                 bx, by = coords[ib]
                 dx = bx - ax
                 dy = by - ay
+                length = math.hypot(dx, dy)
+                if length < min_chord_len:
+                    continue
+                angle_off_h = math.degrees(math.atan2(abs(dy), abs(dx)))
+                if angle_off_h > LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG:
+                    continue
                 if dx <= 0:
                     continue
-                length = math.hypot(dx, dy)
-                if length < glyph_w * 0.18:
-                    continue
-                if math.degrees(math.atan2(abs(dy), abs(dx))) > 12.0:
-                    continue
 
-                # Right cap neighbourhood: the end point plus nearby contour
-                # points that still sit on the top edge. Use the chord line as
-                # the target so a local bump/notch is flattened, not emphasized.
-                candidates: set[int] = {ib}
-                for offset in range(-3, 9):
-                    idx = ib + offset
-                    if idx < start:
-                        idx = end - (start - idx - 1)
-                    elif idx > end:
-                        idx = start + (idx - end - 1)
-                    x, y = coords[idx]
-                    if abs(x - bx) > max(54.0, glyph_w * 0.075):
-                        continue
-                    line_y = ay + dy * ((x - ax) / dx)
-                    if abs(y - line_y) > glyph_h * 0.055:
-                        continue
-                    candidates.add(idx)
-
-                local_touched = False
-                for idx in candidates:
-                    x, y = coords[idx]
-                    line_y = ay + dy * ((x - ax) / dx)
-                    delta = line_y - y
-                    if abs(delta) <= 1:
-                        continue
-                    delta = max(-10.0, min(10.0, delta * 0.75))
-                    coords[idx] = (x, int(round(y + delta)))
-                    local_touched = True
-                if local_touched:
-                    seg_count += 1
-                    glyph_touched = True
+                # Walk off-curve points strictly between ia and ib in
+                # contour order. For each, clamp y to the chord-line
+                # y at its x position when above the chord.
+                pos = ia + 1
+                while True:
+                    if pos > end:
+                        pos = start
+                    if pos == ib:
+                        break
+                    if (flags[pos] & 1) == 0:  # off-curve
+                        px, py = coords[pos]
+                        # Chord line at x = px
+                        t = (px - ax) / dx
+                        chord_y = ay + dy * t
+                        if py > chord_y + 0.5:
+                            coords[pos] = (px, int(round(chord_y)))
+                            seg_count += 1
+                            glyph_touched = True
+                    pos += 1
 
             start = end + 1
 
         if glyph_touched:
+            for i, c in enumerate(coords):
+                glyph.coordinates[i] = c
             glyph.recalcBounds(glyf)
-            touched.append(char)
+            glyph_count += 1
 
-    if touched:
-        print(f"[luo] horizontal cap flatten: {''.join(touched)} ({seg_count} caps)")
+    print(
+        f"[luo] horiz-cap flatten: {seg_count} cap off-curves clamped across "
+        f"{glyph_count} glyphs (min_ratio={LUO_HORIZ_CAP_FLATTEN_MIN_RATIO}, "
+        f"angle<={LUO_HORIZ_CAP_FLATTEN_ANGLE_DEG}°)"
+    )
 
 
 def luo_diag_endpoint_clean(font: TTFont) -> None:
@@ -5437,6 +5493,11 @@ def luo_horiz_end_emphasis(font: TTFont) -> None:
         f"min_ratio={LUO_HORIZ_END_EMPHASIS_MIN_RATIO}, "
         f"angle<={LUO_HORIZ_END_EMPHASIS_ANGLE_DEG}°)"
     )
+
+
+# Note: the v0.4.11 luo_horiz_cap_flatten replacement lives near the
+# canonical pre-existing whitelist version below. This stub is intentionally
+# left as a no-op marker; do not call it.
 
 
 def luo_hook_root_inward_handle(font: TTFont) -> None:
