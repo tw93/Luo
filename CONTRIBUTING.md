@@ -67,6 +67,8 @@ LUO_PRIVATE_KAI_REF=/path/to/private.ttf python3 scripts/compare_to.py --target 
 
 设置 `LUO_PRIVATE_KAI_REF` 后，私有参考指标和对照图只写入被忽略的 `local/ref/metrics/` 与 `local/ref/renders/`。这些报告用于本地判断是否接近 commercial print-kai reference 的抽象气质，但不提交、不部署，也不写入绝对本机路径。
 
+`scripts/render_refinement_sheet.py` 与 `scripts/measure_refinement_baselines.py` 沿用同一约定：未设 `LUO_PRIVATE_KAI_REF` 时静默跳过私有参考列，他机 / CI 上能直接运行。
+
 `--strict` 在公开 source 指标达标、且本地配置的 private reference 指标也达标时才退出 0；未设置私有参考时会优雅跳过 private 分支。
 
 发布前至少跑：

@@ -1,5 +1,240 @@
 # Luo 落文 v0.4 Handoff (print-kai pivot)
 
+## v0.4.10 W04 follow-up: endpoint cleanup + P6 left/right queue (2026-05)
+
+这轮按 TsangerJinKai02-W04 做主参考继续收口，但只学习开阔、干净端点、短钩和层级气质，不复制轮廓。W05 只作为黑度上限检查：当前 W05 已贴近 0.60，后续不应继续按 W05 追黑。
+
+### 调整内容
+
+- **`luo_horiz_cap_flatten`**：替代已关闭的长横末端顿笔签名，只清理长横右端 cap 微台阶，不制造新顿挫。当前目标队列是 `正晋章书世西二南`，本轮命中 19 个 cap。
+- **`luo_diag_endpoint_clean`**：轻收长撇/捺尾部厚块，目标队列是 `从入人八为`。处理底部端点的横向厚块和下探感，但不把 body 尺寸拉细到掉笔。
+- **`HOMEPAGE_P6_LEFT_RIGHT_GLYPHS` + `luo_homepage_p6_left_right`**：新增首页/starter 可见左右结构队列，处理 `抽独种技虾便雅柯携稚供堵朗难建邑仲快看腹距展更鹿鱼具皋值律其身`。共享 refiner 只做左旁降灰、中宫开白、右下尾轻收，不扩到 GB2312。
+- **截图粗糙修补队列**：`失` 加入 `luo_diag_endpoint_clean`；`风气成` 走 `luo_curve_tail_polish`，只清右下曲尾 fishhook / chunky 感；`荒` 用 `_refine_problem_huang` 补中部 亡 组件连续性；`自` 用 `_refine_problem_self` 做单字 frame-grid 清理。
+- 保持 `BOLDEN_H/V`、`STRAIGHTEN_H_BLEND`、底座字体和 `月` 冻结逻辑不动。
+
+### 度量验收
+
+- starter 覆盖仍为 `1128/1128`，`missing=0`。
+- `scripts/check_frozen_glyphs.py`：`[frozen] ok: 月`。
+- Tsanger W04：raw `0.577` / centered `0.570`，保持在 0.56-0.60 目标带内。
+- Tsanger W05：raw `0.600` / centered `0.602`，作为上限信号，不再继续追 W05 黑度。
+- 全站 vs LXGW：overall `0.8278 → 0.8274`，generic `0.8335 → 0.8331`，没有回升。
+- `raw >= 0.87` 风险字：`52 → 40`；其中 generic 高风险 `39 → 30`。
+
+### 视觉验证
+
+- Roughness 单字：`local/ref/renders/v0410_rough_正.png`、`v0410_rough_晋.png`、`v0410_rough_书.png`、`v0410_rough_从.png`、`v0410_rough_魏.png`
+- 截图缺陷单字：`失风气荒自成`，看 LXGW / Tsanger W04 / Luo v0.4.9 / current 四列对照。
+- 综合精修样张：`local/ref/renders/v048_refinement_sheet.png`
+
+后续仍应优先消化 starter / homepage 的可见普通字，不进入 `gb2312-level1` 扩字。剩余风险从“generic 高 IoU”拆成两类：左右结构仍像 LXGW 骨架，以及端点局部粗糙；不要再用全局黑度或 W05 方向解决。
+
+## v0.4.10 Phase 1A follow-up + 1B + 1C: layer/diag extension (2026-05)
+
+v0.4.10 把 v0.4.9 Phase 1A 留下的 `用` edge case 修复，并按计划扩展 IDENTITY_CORE_V2 的 layer / diag 白名单到 13 个新字符。沿用 v0.4.9 的 surgical 风格：**只动字符列表，不动 magnitude，不引入新 pass**。BOLDEN/HOOK/WEB_PRESENCE/DOT/TURN/STRAIGHTEN 全部不动。
+
+### 调整内容
+
+- **Phase 1A 续修（A）**：`HOMEPAGE_P0_GRID_GLYPHS` 加 `用`。v0.4.9 单独的 FRAME_RISK + core_v2 frame_posture 在 `用` 上 net 只产出 +4 单位 counter expand（IoU 几乎不动）；加进 P0_GRID 后吃 `_refine_homepage_p0_grid` 结构改写，IoU 0.874 → 0.835（−0.039）。
+- **Phase 1B layer extension（B，保守路线）**：`IDENTITY_CORE_V2_CHARS` + `IDENTITY_CORE_LAYER_CHARS` 同时加 `重事算基真章第喜`；`IDENTITY_LAYER_RISK_CHARS` 同步加 `重事算第章`（喜/基/真已在），强制 `_identity_core_open_counters` / `_identity_core_lighten_secondary` skip，只跑 `_identity_core_layer_gap` 0.010em。原因：`重` 已在 TURN_FINAL_CHARS（priority displace 1.75）、`章` 已在 IDENTITY_MULTI_HORIZ_CHARS（multi_mid_contain 0.935）、`第` 已在 HOOK_FINAL_CHARS，再加 counter / secondary 会出现三叠风险。
+- **Phase 1C diag extension（C）**：`IDENTITY_CORE_V2_CHARS` + `IDENTITY_CORE_DIAG_CHARS` 加 `大太夫又关` 5 字。`IDENTITY_DIAG_CHARS` 不动（仍只含 `文天玄`），所以只触发 `_identity_core_diag_tension`，不会触发 heavier 的 `_refine_identity_diagonal`。
+- 不动任何 magnitude；不引入新 pass；不修改任何 skip 列表的其他位置。
+
+### 度量结果
+
+`scripts/measure_groups.py --baseline local/ref/baselines/Luo-v0.4.9.ttf`：
+
+| bucket | v0.4.9 | v0.4.10 | Δ raw | 备注 |
+|---|---:|---:|---:|---|
+| frame / walk / heart / stack / roof / water / speech / side / hook / turn / generic | unchanged | unchanged | +0.0000 | ✓ skip 守住 |
+| **core_v2** | **0.8175** | **0.8097** | **−0.0078** | 13 新字进桶，加 `用` 重写 |
+| OVERALL | 0.8278 | 0.8274 | −0.0004 | |
+
+累积 v0.4.8 → v0.4.10：core_v2 −0.0123，OVERALL −0.0006，frozen 桶 12/12 +0.0000。30 字 anchor LXGW raw 0.7486 → 0.7440（−0.005，因为 anchor 集含 大 章 等 v0.4.10 改字）。`月` 冻结字逐点匹配通过。
+
+每字 raw IoU 跳变（v0.4.10 vs v0.4.9 same chars）：
+
+| 字 | v0.4.9 raw | v0.4.10 raw | Δ | 通道 |
+|---|---:|---:|---:|---|
+| 用 | 0.874 | **0.835** | **−0.039** | A 续修，进 P0_GRID |
+| 章 | ~0.87 | **0.623** | **−0.247** | B 三叠（multi_horiz + turn priority + core_v2 layer_gap） |
+| 喜 | ~0.83 | **0.740** | **−0.090** | B layer + 已有 LAYER_RISK |
+| 真 | ~0.86 | **0.831** | **−0.029** | B layer |
+| 第 | 0.876 | **0.848** | **−0.028** | B layer，离开 hook 桶 |
+| 基 | 0.879 | **0.862** | **−0.017** | B layer |
+| 算 | 0.873 | **0.853** | **−0.020** | B layer |
+| 太 | ~0.86 | **0.824** | **−0.036** | C diag |
+| 又 | ~0.85 | **0.812** | **−0.038** | C diag |
+| 大 | ~0.87 | **0.852** | **−0.018** | C diag |
+| 关 | 0.874 | **0.868** | **−0.006** | C diag |
+| 夫 | 0.875 | **0.865** | **−0.010** | C diag |
+| 重 | 0.879 | **0.874** | **−0.005** | B layer，但已在 TURN_FINAL_PRIORITY，layer_gap 微动 |
+| 事 | ~0.87 | **0.825** | **−0.045** | B layer |
+
+### 视觉验证
+
+- `local/ref/renders/v0410_phase1bc_check.png`：4 列 × 4 档字号（22/32/48/96px），覆盖 14 字
+- `local/ref/renders/v0410_zhang_zoom.png`：`章` 单字 200/100/60/32px 大字号对照
+
+`章` 是本轮 IoU 跳变最大的字（−0.247）。视觉验证：v0.4.10 的 `章` 立字头明显收紧、下 `早` 部上下层次分明、整体更挺更印楷感，**不是破坏，是真正的"不像 LXGW 了"**。32/60px body 阅读尺寸下笔画完整、结构清晰、无 chip。
+
+### Roughness polish: kill v0.4.4 signatures + tighten H endpoint
+
+落 Phase 1A/B/C 后实地浏览器看大字号 hero / heading，Tang 反馈 `正 / 晋 / 书 / 从 / 魏` 的折角和端点"粗糙、不好看"。STYLE.md "Screenshot-reported glyph defects" 流程：单字 280px 大对照 → 缺陷类分类 → 元凶 pass → 最小责任旋钮。
+
+**元凶定位**：
+
+1. `书 / 字 / 魏 横折钩根` knuckle —— 来自 v0.4.4 签名 `luo_hook_root_inward_handle` 0.002em，在 200px+ 读为内 kink
+2. `正 / 晋 / 章 横画右 cap` 步进/凹陷 —— 一部分来自 v0.4.4 签名 `luo_horiz_end_emphasis` 0.005em 顿笔，更主要来自 **bolden + 残留 LXGW cap arc + straighten 拉平不彻底** 的几何残留（pt 30 被 bolden 抬 +28u，cap arc 被 straighten 压扁，cap 变成 pt 30 上 7u 的微凸读为"小步进"）
+3. `从 / 入 撇尾 chunky` —— BOLDEN_DIAG + ENDPOINT_DIAG + STRAIGHTEN_DIAG 联动
+4. Tang 直接指 Tsanger Print Kai："最好看，参考他的"。Tsanger Print Kai 的 horiz cap 是清晰角切落、hook 根无 knuckle、横画端点接近切角
+
+**调整内容**（4 个参数，全是降幅度 / 关签名）：
+
+- `LUO_HORIZ_END_EMPHASIS_PUSH_EM` 0.005 → **0**（彻底关。v0.4.4 签名当时为"sub-pixel 几何距离 LXGW"设计，但在 200px+ 实地变成可见 step。Phase 1A/B/C 后 90+ 高频字进 CORE_V2 结构改写，签名的距离贡献已可被 CORE_V2 + endpoint blend + straighten 共同承担）
+- `LUO_HOOK_ROOT_HANDLE_PUSH_EM` 0.002 → **0**（彻底关。同样原因。Tsanger 钩根无 knuckle）
+- `ENDPOINT_H_BLEND` 0.025 → **0.015**（横端更扁。Tsanger 几乎是切角，0.025 仍留 LXGW 软圆 DNA。0.015 不机械化但更靠 Tsanger 印楷 cap）
+- 试过 `STRAIGHTEN_H_BLEND` 0.65 → 0.72 但 cap off-curves 被拉到 pt 30 之下产生 **inverted step**（更难看），回退 0.65。AGENTS.md 已写入 "do not push above 0.72" 教训
+
+**度量验收**（vs Luo v0.4.9 baseline）：
+
+| bucket | Δ raw | 备注 |
+|---|---:|---|
+| frame / walk / heart / stack / roof / side / water / speech / hook / turn / generic / core_v2 | ±0.0000 ~ ±0.0008 | 全局参数动 → 所有桶都有微动，但量级都在 ±0.001 内 |
+| OVERALL | −0.0001 raw / +0.0000 centered | 视觉改善但 IoU 几乎不动（raster IoU 对 cap 形态不敏感） |
+
+30 字 anchor LXGW raw 0.744 → 0.750（+0.006，因 Phase 1B 章/喜 的横画端点变扁后一些 anchor 字的 raster overlap 与 LXGW 略升，但**视觉上 cap 形态远离 LXGW、靠近 Tsanger**）。月 冻结字逐点匹配通过。
+
+**视觉验收** [`local/ref/renders/v0410_rough_*.png`](local/ref/renders/) 5 字 280px 对照：
+
+- ✅ **书 / 字 / 魏** 横折钩根 knuckle 实质消失，hook 根读为干净直接的几何切角
+- ⚠️ **正 / 晋** 横画 cap 残余微步进仍存，但比 v0.4.9 减弱（HORIZ_END 0 比 0.005 改善）。要根治需要新 pass `luo_horiz_cap_flatten`，是 v0.4.11 候选
+- ⚠️ **从 / 入** 撇尾 chunky 未改善，需要 v0.4.11 候选 `luo_diag_endpoint_clean`
+
+### 章 over-spread 修复
+
+落 Phase 1B 后 Tang 反馈"`章` 的上下间隔太开了"。诊断：`章` 同时吃了 `luo_top_bottom_separate` (v0.4.7) 的 17 单位 lift+settle 和 `_identity_core_layer_gap` (CORE_LAYER) 的 41 单位 spread，合计 58 单位多余分离。`luo_top_bottom_separate` 的 skip 列表写于 v0.4.7 时只有 10 个 Lanting-Xu CORE_LAYER 字，没考虑 v0.4.10 加进的 8 个 body-frequency 字。
+
+两件修复一起落到 v0.4.10：
+
+1. **`luo_top_bottom_separate` skip 加 `IDENTITY_CORE_LAYER_CHARS`**：mirror `luo_frame_inner_open` / `luo_inner_counter_open` 已有的 CORE_V2 skip 模式，让 CORE_LAYER 字独占 `layer_gap` 通道，避免 v0.4.7 + v0.4.10 双叠。
+2. **`IDENTITY_CORE_LAYER_GAP_EM` 0.010 → 0.007**：原值是 v0.4.4 起为 10 个 Lanting-Xu 显示锚字 tuned，加 8 个 body 字后嫌过激。降 30% 让 18 字共用更柔和的量级。这是一次有意识的解冻（AGENTS.md "Frozen Parameters" 表移到"v0.4 Unfrozen Parameters"），原因写明在文档里。
+
+修复后 `章` spread/bbox：LXGW 36.9% / Luo v0.4.9 36.5% / Luo v0.4.10 37.3%（v0.4.7+1B 双叠时 37.5%）。每字 IoU 小幅回升（章 0.66 → 0.68，喜 0.74 → 0.79，其余 7 字 +0.001-0.008），Phase 1B 主体收益保留。
+
+### 后续方向
+
+- v0.4.10 把首页 generic 桶 IoU ≥ 0.87 的字从 30 个砍到 11 个，"第一眼像 LXGW"的元凶字砍掉 60%+。
+- 下一个杠杆：**新 pass `luo_balanced_left_right`**，处理 generic 桶里剩余 19 字左右结构 cluster（`抽 独 种 技 虾 便 雅 柯 ...`），这一类目前没有任何专门通道
+- 或者：**新 pass `luo_horiz_start_emphasis`**，mirror `luo_horiz_end_emphasis` 给所有长横左 cap 加切角入笔签名，给 Luo 一个 LXGW 完全没有的 first-glance 几何特征
+- **不要** 把 1A/1B/1C 的 19 字再回流到 `luo_frame_inner_open` / `luo_top_bottom_separate` / `luo_inner_counter_open` 通道。它们的 CORE_V2 skip 已经独占给 FRAME_RISK / CORE_LAYER / CORE_DIAG，回流会造成 v0.4.5 era 的双叠加风险。
+- **不要** 把 1B 的 LAYER_RISK 加字（`重事算第章`）从 LAYER_RISK 移除以"开 counter"。`重 章 第` 已经在 TURN_FINAL_PRIORITY / MULTI_HORIZ / HOOK_FINAL 通道，再加 counter + secondary 会出现三叠让中宫挤碎。
+
+## v0.4.9 Phase 1A: extend IDENTITY_CORE_V2 frame whitelist (2026-05)
+
+v0.4.9 是一次**只扩字符列表、不动任何 magnitude** 的 surgical 扩展，目标是把首页 generic 桶里 raw IoU vs LXGW 最高的 7 个含框字（`由 自 田 曲 直 电 用`）从 guardrail-only 通道挪到 FRAME_RISK + core_v2 frame_posture 通道。BOLDEN/HOOK/WEB_PRESENCE/DOT 全部不动。
+
+### 根因诊断
+
+v0.4.8 site_grouped_iou.json 显示 generic 桶 797 字（首页 71%）avg raw IoU 0.834 vs LXGW，其中 IoU ≥ 0.87 的 30 字几乎全是高频含框/上下/撇捺字（`抽 单 由 虾 技 重 基 共 者 角 一 用 …`）。这些字没有任何专门 pass 通道，只吃 `_refine_identity_all_glyph` 全覆盖护栏（counter 1.012/1.008，幅度 ≤2%）。对比 IDENTITY_CORE_V2 的结构改写（counter 1.055-1.065、frame_posture stem 0.988、layer_gap 0.010em、secondary 0.960，幅度 5-7×），generic 桶字没有任何"被结构改写的机会"。30 字 anchor 报告均值 0.7486 因为 anchor 集严重偏向已专门化的 frame/layer/diag 字，**严重失真，不反映用户实际感知**。
+
+### 调整内容
+
+- **`IDENTITY_FRAME_RISK_CHARS`** `目日月且` → `目日月且由自田曲直电用`（+7 字）。upstream FRAME_RISK pass 用 1.065/1.040 开 inset counter，dispatch 逻辑 `if/elif` 保证 7 字不会同时触发 FRAME (1.050/1.025) 通道。
+- **`IDENTITY_CORE_V2_CHARS`** 追加 `由自田曲直电`（用已在）。
+- **`IDENTITY_CORE_FRAME_CHARS`** `国回日目用月团` → `国回日目用月团由自田曲直电`（+6 字）。core_v2 dispatch 中 `if char in CORE_FRAME_CHARS: frame_posture; if char not in FRAME_CHARS and not in FRAME_RISK_CHARS: open_counters` 的 skip 逻辑保证 7 字不会发生 counter 双叠加（FRAME_RISK 已开 counter，core_v2 只跑 frame_posture stem-narrow + waist contain）。
+- **副作用**：`luo_frame_inner_open` 已经 skip CORE_V2_CHARS，加字后 7 字退出 v0.4.7 的 1.010/1.006 通道，转入 FRAME_RISK 1.065/1.040 + frame_posture 0.988 通道，结构幅度提升 5-7×。
+- 不动任何 magnitude 参数；不引入新 pass；不动字符 skip 列表的其他位置。
+
+### 度量结果
+
+`scripts/measure_groups.py --baseline local/ref/baselines/Luo-v0.4.8.ttf`：
+
+| bucket | v0.4.8 | v0.4.9 | Δ raw | 备注 |
+|---|---:|---:|---:|---|
+| frame | 0.7752 | 0.7752 | +0.0000 | ✓ skip 守住 |
+| walk | 0.7155 | 0.7155 | +0.0000 | ✓ skip 守住 |
+| heart | 0.7707 | 0.7707 | +0.0000 | ✓ skip 守住 |
+| stack | 0.7864 | 0.7864 | +0.0000 | ✓ skip 守住 |
+| roof | 0.8314 | 0.8314 | +0.0000 | ✓ skip 守住 |
+| water / speech / side / hook / turn / generic | 同 v0.4.8 | 同 v0.4.8 | +0.0000 | ✓ 7 字本就不在这些桶 |
+| **core_v2** | **0.8130** | **0.8071** | **−0.0059** | 7 字进桶，把均值拉低 |
+| OVERALL | 0.8280 | 0.8278 | −0.0002 | 7 字 / 1119 ≈ 0.6% 体量 |
+
+每一个 frozen 桶都 +0.0000，证明 skip 列表完全有效。OVERALL 移动量小是因为只动了 7 字，但单字层面的 IoU 跳变是显著的：
+
+| 字 | v0.4.8 raw IoU | v0.4.9 raw IoU | Δ |
+|---|---:|---:|---:|
+| 田 | 0.871 | **0.801** | **−0.070** |
+| 由 | 0.879 | **0.828** | **−0.051** |
+| 自 | 0.860 | **0.811** | **−0.049** |
+| 曲 | 0.874 | **0.833** | **−0.041** |
+| 电 | 0.866 | **0.831** | **−0.035** |
+| 直 | 0.866 | **0.832** | **−0.034** |
+| 用 | 0.875 | 0.874 | −0.001 ❗ |
+
+30 字 anchor LXGW raw 0.7486 → 0.7493（基本不动，anchor 集不含 7 字）。`月` 冻结字逐点匹配通过。
+
+### 视觉验证
+
+`local/ref/renders/v049_phase1a_frame_chars.png`：4 列（LXGW source / Tsanger W04 / Luo v0.4.8 / Luo v0.4.9）× 5 档字号（16/22/32/48/96px）覆盖 7 字。
+
+- anchor 96px：田 / 由 / 自 / 曲 / 直 / 电 内白明显开大，外瘦内开的印楷格调出现，已不读为"LXGW 派生"。
+- title 32px / display 48px：层级清晰，不机械。
+- body 16px / 22px：灰度稳定无回退，没有 v0.4 → v0.4.1 早期"counter 双开反而更像源"的踩坑。
+
+### 用 字 edge case（v0.4.10 follow-up）
+
+`用` IoU 仅 −0.001，远低于其他 6 字。诊断：`refine_visible_problem_glyphs` 列表（visible problem glyphs pass，run after refine_identity_chars）覆盖 `田 自 由 曲 直`（连同首页 P0/P1 风险队列），但**不包含 `用`**。这导致：
+- `用` 只吃裸 FRAME_RISK + core_v2 frame_posture + identity_all_glyph
+- `_refine_identity_frame_risk` 在隔离测试中能给 `用` 内 counter 扩 +32 单位（482→514）
+- 但实际 build pipeline 中 `_refine_identity_all_glyph` 的 inset 检测对 `用` 的 4 个分块小 counter 不全部触发，导致上游叠加链条"饿了一档"，net 只有 +4 单位
+
+修复路径（v0.4.10 任选其一）：
+1. 把 `用` 加进 `refine_visible_problem_glyphs` 列表（最小改动）
+2. 调 `_refine_identity_all_glyph` 的 inset 阈值容纳分块小 counter（影响面更大，需 grouped audit）
+
+不阻塞 Phase 1A ship。`电` 同样不在 visible_problem 列表但拓扑更简单（单 inset counter），FRAME_RISK 完整生效。
+
+### 后续方向
+
+- **Phase 1B**（next iteration）：扩 `IDENTITY_CORE_LAYER_CHARS` 8 字 `重 事 算 基 真 章 第 喜`（保守路线把 重/事/算/第 同步加进 `IDENTITY_LAYER_RISK_CHARS` 强制 skip counter / secondary，只跑 layer_gap）。预测每字 IoU 跳 0.03-0.04。
+- **Phase 1C**：扩 `IDENTITY_CORE_DIAG_CHARS` 5 字 `大 太 夫 又 关`，吃 diag_tension。预测每字 IoU 跳 0.03-0.05。
+- **Phase 1A follow-up**：把 `用` 加进 `refine_visible_problem_glyphs` 列表，预测 IoU 跳 0.03-0.04。
+- 不要把 1A 的 7 字再回流到 luo_frame_inner_open 通道（CORE_V2 skip 已经把它们独占给了 FRAME_RISK + core_v2 frame_posture，回流会重现 v0.4.5 era 的 counter 双叠加风险）。
+
+## v0.4.8 refinement pass: polish without global hardening (2026-05)
+
+v0.4.8 是一次精修，不是继续扩 coverage 或继续硬拉 generic 桶。目标是保留 v0.4.7 已经获得的去 LXGW 距离，同时把用户反馈的“有些粗糙、不如之前精致”收回来。主私有参考固定为 `TsangerJinKai02-W04.ttf`；W05 只做上限检查，避免 Luo 追成更黑更重的状态。BOLDEN_H/V、DOT_ROTATE_DEG、WEB_PRESENCE 地板和底座 LXGW WenKai Screen 都不变。
+
+### 调整内容
+
+- **QA 工具**：`scripts/compare_to.py` / `scripts/measure_groups.py` 修复相对 `--report` / `--output` 打印崩溃；新增 `scripts/measure_refinement_baselines.py` 输出 v0.3 / v0.4.5 / current 的 LXGW、Tsanger W04 和首页 grouped baseline；新增 `scripts/render_refinement_sheet.py` 输出本地视觉对照 `local/ref/renders/v048_refinement_sheet.png`。
+- **Topology 回收**：`top_bottom_separate` 从 0.005/0.004em + 0.988/0.992 收回到 0.004/0.003em + 0.992/0.995；`frame_inner_open` 从 1.014/1.008 收到 1.010/1.006。目的不是撤掉 v0.4.7，而是减少“上下层被机械拉开”和含框内白过撑。
+- **钩根/转折软化**：`HOOK_FINAL_TIP_SHARPEN` 0.15→0.13，curved hook 0.10→0.08，`TURN_FINAL_PRIORITY_DISPLACE` 1.9→1.75，`LUO_HOOK_ROOT_HANDLE_PUSH_EM` 0.003→0.002。钩仍然短、准、收住，不回到 LXGW 的圆软长钩。
+- **部件层级微调**：氵旁 0.950/0.945→0.945/0.942；言旁 secondary 0.945/0.960→0.940/0.958、counter 1.110/1.060→1.125/1.065；左右分体左旁 0.970/0.980→0.965/0.978 且 gap 回到 0；dense tier 1.018/1.010→1.020/1.012，同时 dense layer/upper 稍回 identity，避免密字碎。
+- **月/答 visible fixes**：`月` 是本轮显式冻结例外，final pass 直接 point-lock 到 Luo v0.3 的 50 个坐标；`scripts/check_frozen_glyphs.py` 用来验证当前 `dist` 与 v0.3 baseline 一致。`答` 只补底部口框下边，不做全字加粗、不撑大内白。
+- **首页/校验页风险队列**：当前首页剩余风险先收敛在 `曲重田首里 / 争色事第使 / 技盖准装输` 三组。扩展到全覆盖校验页后，P1 继续覆盖 `虽县单盘基算相官抽自堵盏革由吕审目 / 求角走种值快强支别战同也持联继服 / 者邑棹斗身蓄考难每再维植徊岫鱼查扁主轼复建理具郁 / 往轻给法浅 / 宙宇安定宿`。P2 source-risk 追加 `堆共皋其组 / 要稚携净直 / 粟独樽鹿古 / 耳真距型律 / 便更寓展虾 / 仲朗果免雅 / 暑腹窗柯蛟 / 着看郎槊`。P3 对最高 source-risk 的 `曲抽角重争 / 盘者岫虽盏 / 求种复基斗 / 色相革事再 / 棹堵难官县 / 每植堆` 改用结构型 refiner：内白相位偏移、外框上下张力、右下收束，替代原来的轻触叠加。P4 覆盖当前 `raw >= 0.87` 中仍有结构空间的 102 个残留高风险字，幅度低于 P3，只做内白轻开、部件小分层和外框轻张力。简单形态如 `一/十/乡` 不进主动优化队列，避免为 raw IoU 硬改自然设计空间很小的字。
+
+### 度量结果
+
+`scripts/measure_refinement_baselines.py`：
+
+| font | LXGW 30 raw | Tsanger W04 raw | site LXGW raw | generic raw |
+|---|---:|---:|---:|---:|
+| Luo v0.3 | 0.7579 | 0.5686 | 0.8446 | 0.8504 |
+| Luo v0.4.5 | 0.7531 | 0.5732 | 0.8345 | 0.8410 |
+| Luo v0.4.8 | 0.7486 | 0.5745 | 0.8282 | 0.8342 |
+
+验收线保持：30 字对 LXGW 没有回升到 0.753+，首页 overall 没有回升到 0.8345+，Tsanger W04 仍在 0.56-0.59 带内。W05 raw 约 0.595，仍接近上限，所以后续不要继续按 W05 追黑度。
+
+### 后续方向
+
+- 先看视觉样张，不要只看 IoU。`v048_refinement_sheet.png` 覆盖 core / hook / dense / frame / stack / generic / body 七组。
+- 如果还觉得粗糙，优先继续按缺陷类缩小到具体字（钩根、言旁、水旁、密字、上下结构），不要加新的全局“短/利/清/收” pass。
+- 如果要继续拉开 LXGW，相比扩大 v0.4.7 bands，优先扩 `identity_core_v2` 的结构白名单；这轮已经验证盲目扩大 generic topology 会牺牲精致度。
+- 不要再用参数模拟 `月`。如果它回归，先跑 `python3 scripts/check_frozen_glyphs.py`，再检查是否有后续 pass 写在 visible-problem pass 之后。
+
 ## v0.4.7 generic-coverage extension: 2 more topology pass (2026-05)
 
 v0.4.7 是 v0.4.5/v0.4.6 拓扑驱动 pass 系列的延续，目标从 P0/P1 密字队列转向 **首页全字集中尚未被任何专门 pass 触及的 generic 桶**。新增的两个 pass 依然是几何拓扑触发，没有字符白名单，并且严格 skip 已有专门 pass 的所有字组（frame / walk / heart / stack / roof / straighten-skip / core_v2 / inner_counter middle band），确保已经稳定的字不被二次叠加。BOLDEN_H/V、HOOK / TURN / WEB_PRESENCE 全部锁定。

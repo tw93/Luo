@@ -54,6 +54,13 @@ DEFAULT_CHARS_FILE = ROOT / "proof" / "page_chars.txt"
 DEFAULT_OUTPUT = ROOT / "local" / "ref" / "metrics" / "site_grouped_iou.json"
 
 
+def _relative_or_str(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT.resolve()))
+    except ValueError:
+        return str(path)
+
+
 def load_chars(path: Path) -> list[str]:
     text = path.read_text("utf-8")
     seen: list[str] = []
@@ -193,8 +200,8 @@ def main() -> None:
     else:
         chars = load_chars(args.chars_file)
 
-    print(f"[measure-groups] {len(chars)} chars from "
-          f"{'(anchor)' if args.anchor_only else args.chars_file.relative_to(ROOT)} "
+    chars_label = "(anchor)" if args.anchor_only else _relative_or_str(args.chars_file)
+    print(f"[measure-groups] {len(chars)} chars from {chars_label} "
           f"@ {args.raster_size}px")
 
     main_meas = measure(args.luo, args.source, chars, args.raster_size)
@@ -202,8 +209,8 @@ def main() -> None:
     print_table(f"Luo {args.luo.name} vs LXGW", main_sum)
 
     payload = {
-        "luo": str(args.luo.relative_to(ROOT)) if args.luo.is_relative_to(ROOT) else str(args.luo),
-        "source": str(args.source.relative_to(ROOT)) if args.source.is_relative_to(ROOT) else str(args.source),
+        "luo": _relative_or_str(args.luo),
+        "source": _relative_or_str(args.source),
         "raster": args.raster_size,
         "chars_total": len(chars),
         "errors": main_meas["errors"],
@@ -236,7 +243,7 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), "utf-8")
-    print(f"\n[measure-groups] wrote {args.output.relative_to(ROOT)}")
+    print(f"\n[measure-groups] wrote {_relative_or_str(args.output)}")
 
 
 if __name__ == "__main__":

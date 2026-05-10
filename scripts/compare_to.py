@@ -201,6 +201,10 @@ def _flatten_cubic(start, c1, c2, end, depth: int = 4) -> list[tuple[float, floa
     )
 
 
+def _midpoint(a, b) -> tuple[float, float]:
+    return ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+
+
 def glyph_polylines(font: TTFont, glyph_name: str) -> list[list[tuple[float, float]]]:
     """Return one closed polyline per contour for the named glyph."""
     glyph_set = font.getGlyphSet()
@@ -220,14 +224,27 @@ def glyph_polylines(font: TTFont, glyph_name: str) -> list[list[tuple[float, flo
             current.append(args[0])
             cursor = args[0]
         elif op == "qCurveTo":
+            if args and args[-1] is None:
+                controls = list(args[:-1])
+                if not controls:
+                    continue
+                start = current[0] if current else _midpoint(controls[-1], controls[0])
+                if cursor is None:
+                    current = [start]
+                    cursor = start
+                for i, ctrl in enumerate(controls):
+                    if i + 1 < len(controls):
+                        next_on = _midpoint(ctrl, controls[i + 1])
+                    else:
+                        next_on = start
+                    current.extend(_flatten_quadratic(cursor, ctrl, next_on))
+                    cursor = next_on
+                continue
             controls = list(args[:-1])
             on_end = args[-1]
             for i, ctrl in enumerate(controls):
                 if i + 1 < len(controls):
-                    next_on = (
-                        (ctrl[0] + controls[i + 1][0]) / 2.0,
-                        (ctrl[1] + controls[i + 1][1]) / 2.0,
-                    )
+                    next_on = _midpoint(ctrl, controls[i + 1])
                 else:
                     next_on = on_end
                 current.extend(_flatten_quadratic(cursor, ctrl, next_on))
@@ -510,7 +527,7 @@ def main() -> None:
             f"raw mean={summary['avg_raster_iou']:.3f} "
             f"centered mean={summary['avg_bbox_centered_iou']:.3f} | "
             f"above-gate={len(summary['above_gate'])} | "
-            f"wrote {single_path.relative_to(ROOT)}"
+            f"wrote {_relative_or_str(single_path)}"
         )
 
     if not branch_summaries and args.target == "private":
@@ -550,7 +567,7 @@ def main() -> None:
             f"{verdict['lxgw_below_max']} "
             f"private_in_[{PRIVATE_TARGET_MIN},{PRIVATE_TARGET_MAX}]="
             f"{verdict['private_in_target_band']} | "
-            f"wrote {dual_path.relative_to(ROOT)}"
+            f"wrote {_relative_or_str(dual_path)}"
         )
         if verdict["lxgw_below_max"] is False:
             fail_messages.append(
@@ -573,7 +590,7 @@ def main() -> None:
                 )
 
     if image_dir is not None:
-        print(f"[compare] side-by-side images -> {image_dir.relative_to(ROOT)}/")
+        print(f"[compare] side-by-side images -> {_relative_or_str(image_dir)}/")
 
     if fail_messages:
         msg = "\n".join("[compare] " + m for m in fail_messages)

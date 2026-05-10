@@ -1,4 +1,4 @@
-.PHONY: install fetch build font-audit print-proof release-check all clean
+.PHONY: install fetch build font-audit print-proof release-check ship all clean
 
 PY ?= python3
 
@@ -20,6 +20,29 @@ print-proof:
 
 release-check: build font-audit print-proof
 	$(PY) -m fontTools.ttx -l dist/Luo-Regular.ttf >/dev/null
+
+# Ship: build then run the QA triad. Stops before staging so the human
+# decides what to commit. Build is non-deterministic (woff2 byte order
+# varies across runs), so the rule is: run `make ship`, then immediately
+# `git add` + `git commit` without re-running the build, otherwise the
+# cache-bust hash drifts away from the binary you measured.
+ship: build
+	$(PY) scripts/check_frozen_glyphs.py
+	$(PY) scripts/compare_to.py
+	$(PY) scripts/measure_groups.py
+	@echo ""
+	@echo "Build + QA done. Cache-bust hash:"
+	@cat assets/asset_version.txt
+	@echo ""
+	@echo "Stage now (do NOT rebuild before commit):"
+	@echo "  git add HANDOFF.md STYLE.md index.html assets/asset_version.txt \\\\"
+	@echo "          assets/styles/luo.css assets/styles/print.css \\\\"
+	@echo "          dist/Luo-Regular.ttf dist/Luo-Regular.woff2 \\\\"
+	@echo "          proof/similarity_lxgw.json scripts/build.py \\\\"
+	@echo "          scripts/compare_to.py scripts/measure_groups.py \\\\"
+	@echo "          scripts/check_frozen_glyphs.py \\\\"
+	@echo "          scripts/measure_refinement_baselines.py \\\\"
+	@echo "          scripts/render_refinement_sheet.py"
 
 all: build font-audit print-proof
 

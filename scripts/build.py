@@ -23,7 +23,7 @@ Pipeline (mirrors main()):
  13. Walk-radical final containment (透/道/遇/etc.).
  14. Display anchor refinement (落/笔/见).
  15. Identity refinement (anchor + all-covered guardrails + core_v2).
- 15b. Visible-problem glyph correction (两/月/或/则/魔 audit set).
+ 15b. Visible-problem glyph correction (reported fixes + homepage/proof P0/P1 risk queues).
  16. CJK punctuation + space + spacing.
  17. Rewrite name table -> Luo.
  18. Write Luo-Regular.ttf/.woff2 into dist/.
@@ -111,7 +111,7 @@ SOFTEN_BLEND = float(os.environ.get("LUO_SOFTEN_BLEND", "0.05"))
 SOFTEN_SEG_MAX = float(os.environ.get("LUO_SOFTEN_SEG_MAX", "80"))
 # Endpoint subtypes keep one Luo temperament without stamping every terminal
 # with the same soft-cut geometry.
-ENDPOINT_H_BLEND = float(os.environ.get("LUO_ENDPOINT_H_BLEND", "0.025"))   # v0.4: 横端更直
+ENDPOINT_H_BLEND = float(os.environ.get("LUO_ENDPOINT_H_BLEND", "0.015"))   # v0.4.10 polish: 0.025 → 0.015. Tsanger Print Kai shows nearly cut-flat horizontal endpoints; 0.025 left visible LXGW-style soft round on 正/晋. The remaining 0.015 keeps endpoints from reading as machine-Hei but sits much closer to Tsanger's print-kai cap.
 ENDPOINT_V_BOTTOM_BLEND = float(os.environ.get("LUO_ENDPOINT_V_BOTTOM_BLEND", "0.045"))
 ENDPOINT_DIAG_BLEND = float(os.environ.get("LUO_ENDPOINT_DIAG_BLEND", "0.020"))  # v0.4: 撇捺端更直
 
@@ -125,7 +125,7 @@ ENDPOINT_DIAG_BLEND = float(os.environ.get("LUO_ENDPOINT_DIAG_BLEND", "0.020")) 
 # Three blends apply by chord direction (the more axial the chord, the more
 # we want to flatten it; diagonals carry stroke speed and need lighter
 # treatment so 撇/捺 don't go geometric):
-STRAIGHTEN_H_BLEND = float(os.environ.get("LUO_STRAIGHTEN_H_BLEND", "0.65"))
+STRAIGHTEN_H_BLEND = float(os.environ.get("LUO_STRAIGHTEN_H_BLEND", "0.65"))  # v0.4.10 polish: tried 0.72 to chase Tsanger's flat horizontal but it pulled cap off-curves BELOW the leftmost top on-curve (bolden raises corners, straighten flattens cap controls — net inverted step on 正/晋 at heading sizes). 0.65 keeps cap geometry slightly above the leftmost top corner so the top edge reads as a smooth subtle cap, not a notch. Tsanger's truly-flat top would require redoing the cap geometry at the bolden stage, not over-straightening.
 STRAIGHTEN_V_BLEND = float(os.environ.get("LUO_STRAIGHTEN_V_BLEND", "0.60"))
 STRAIGHTEN_DIAG_BLEND = float(os.environ.get("LUO_STRAIGHTEN_DIAG_BLEND", "0.30"))
 # Chord-angle bands (degrees from nearest axis). H = chord within this many
@@ -207,8 +207,8 @@ DOT_BOLDEN_ASPECT_GATE = 2.2
 # and reserve an even gentler tip sharpening for hooks that turn by >= 80° so
 # the curved tail survives instead of collapsing into a near-straight chord.
 HOOK_FINAL_SHORTEN = float(os.environ.get("LUO_HOOK_FINAL_SHORTEN", "0.16"))
-HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.15"))  # v0.4.3 audit fix: 0.18 仍把 弯钩/横折钩 末端尖刺化，再降一档
-HOOK_FINAL_TIP_SHARPEN_CURVED = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN_CURVED", "0.10"))
+HOOK_FINAL_TIP_SHARPEN = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN", "0.13"))  # v0.4.8 refinement: soften residual hook-tip kinks without lengthening hooks
+HOOK_FINAL_TIP_SHARPEN_CURVED = float(os.environ.get("LUO_HOOK_FINAL_TIP_SHARPEN_CURVED", "0.08"))
 HOOK_FINAL_TAIL_CONTAIN = float(os.environ.get("LUO_HOOK_FINAL_TAIL_CONTAIN", "0.045"))
 # Hooks that turn by at least this many degrees are treated as 弯钩/竖弯钩:
 # the off-curve handle keeps its perpendicular position so the tail reads as
@@ -242,7 +242,7 @@ HOOK_TAIL_CAP_SAMPLES = int(os.environ.get("LUO_HOOK_TAIL_CAP_SAMPLES", "4"))
 # a small downward "顿" beneath the cap, much like a quiet print-kai final
 # stop, that LXGW does not have. Skips contours whose next on-curve drops
 # more than ~20% of glyph height (那是 横折/钩 root, not a free 横画 stop).
-LUO_HORIZ_END_EMPHASIS_PUSH_EM = float(os.environ.get("LUO_HORIZ_END_EMPHASIS_PUSH_EM", "0.005"))
+LUO_HORIZ_END_EMPHASIS_PUSH_EM = float(os.environ.get("LUO_HORIZ_END_EMPHASIS_PUSH_EM", "0.0"))  # v0.4.10 polish: was 0.005 → 0.002 → 0. The 顿笔 step at right cap was reading as visible台阶/凹陷 at heading sizes on 正/晋/章/书. Tsanger Print Kai (the private style reference) has no 顿 — its horizontal cap is a clean angular cut. After Phase 1A+B+C brought 90+ high-frequency chars into CORE_V2 structural rewrite, the signature's "geometric distance from LXGW" job is now carried by CORE_V2 + straighten + endpoint blends, and the signature itself was producing visible artifacts that Tsanger does NOT have. Killing it. The pass remains in code (push=0 → return early) so it can be re-enabled by env var if a future regression diagnosis points back at it.
 LUO_HORIZ_END_EMPHASIS_LEN_RATIO = float(os.environ.get("LUO_HORIZ_END_EMPHASIS_LEN_RATIO", "0.06"))
 # Parent plan called for "length >= 0.40 of glyph max(w,h)" but LXGW outlines
 # subdivide long edges with multiple on-curve points, so a 0.40 chord-length
@@ -260,7 +260,7 @@ LUO_HORIZ_END_EMPHASIS_SAMPLES = int(os.environ.get("LUO_HORIZ_END_EMPHASIS_SAMP
 # curve sits on the stem just above the knee, and a small inward push pulls
 # the stem-to-hook transition into a slightly inward-curving "knuckle"
 # instead of LXGW's straight-into-the-hook geometry.
-LUO_HOOK_ROOT_HANDLE_PUSH_EM = float(os.environ.get("LUO_HOOK_ROOT_HANDLE_PUSH_EM", "0.003"))
+LUO_HOOK_ROOT_HANDLE_PUSH_EM = float(os.environ.get("LUO_HOOK_ROOT_HANDLE_PUSH_EM", "0.0"))  # v0.4.10 polish: was 0.002 → 0.001 → 0. The inward knuckle was reading as visible kink at heading sizes on 书/字/魏 横折钩 root. Tsanger Print Kai has clean hook-root corners with no inward "knuckle" — the off-curve handle sits on the natural turn arc. Killing the signature (same reasoning as horiz_end_emphasis above). Pass remains in code as a no-op return.
 
 # --- v0.4.6 Typographic-kai abstractions (4 generic component refiners) ---
 # Small geometry-only refinement passes that emerged from a deep study
@@ -323,8 +323,8 @@ LUO_INNER_COUNTER_MAX_AREA = float(os.environ.get("LUO_INNER_COUNTER_MAX_AREA", 
 LUO_DENSE_COUNTER_MIN_CONTOURS = int(os.environ.get("LUO_DENSE_COUNTER_MIN_CONTOURS", "7"))
 LUO_DENSE_COUNTER_MIN_INNERS = int(os.environ.get("LUO_DENSE_COUNTER_MIN_INNERS", "1"))
 LUO_DENSE_COUNTER_DOT_MIN = int(os.environ.get("LUO_DENSE_COUNTER_DOT_MIN", "3"))
-LUO_DENSE_COUNTER_X = float(os.environ.get("LUO_DENSE_COUNTER_X", "1.018"))
-LUO_DENSE_COUNTER_Y = float(os.environ.get("LUO_DENSE_COUNTER_Y", "1.010"))
+LUO_DENSE_COUNTER_X = float(os.environ.get("LUO_DENSE_COUNTER_X", "1.020"))
+LUO_DENSE_COUNTER_Y = float(os.environ.get("LUO_DENSE_COUNTER_Y", "1.012"))
 
 # --- v0.4.7 typographic-kai abstractions (2 generic component refiners) ---
 # These extend the v0.4.5 / v0.4.6 topology-driven family to the broader
@@ -357,10 +357,10 @@ LUO_TOP_BOTTOM_TOP_BAND = float(os.environ.get("LUO_TOP_BOTTOM_TOP_BAND", "0.62"
 LUO_TOP_BOTTOM_BOT_BAND = float(os.environ.get("LUO_TOP_BOTTOM_BOT_BAND", "0.38"))
 LUO_TOP_BOTTOM_MIN_AREA = float(os.environ.get("LUO_TOP_BOTTOM_MIN_AREA", "0.04"))
 LUO_TOP_BOTTOM_MID_BLOCK_AREA = float(os.environ.get("LUO_TOP_BOTTOM_MID_BLOCK_AREA", "0.10"))
-LUO_TOP_BOTTOM_LIFT_EM = float(os.environ.get("LUO_TOP_BOTTOM_LIFT_EM", "0.005"))
-LUO_TOP_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_TOP_BOTTOM_SETTLE_EM", "0.004"))
-LUO_TOP_BOTTOM_BOT_SCALE_Y = float(os.environ.get("LUO_TOP_BOTTOM_BOT_SCALE_Y", "0.988"))
-LUO_TOP_BOTTOM_TOP_SCALE_X = float(os.environ.get("LUO_TOP_BOTTOM_TOP_SCALE_X", "0.992"))
+LUO_TOP_BOTTOM_LIFT_EM = float(os.environ.get("LUO_TOP_BOTTOM_LIFT_EM", "0.004"))
+LUO_TOP_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_TOP_BOTTOM_SETTLE_EM", "0.003"))
+LUO_TOP_BOTTOM_BOT_SCALE_Y = float(os.environ.get("LUO_TOP_BOTTOM_BOT_SCALE_Y", "0.992"))
+LUO_TOP_BOTTOM_TOP_SCALE_X = float(os.environ.get("LUO_TOP_BOTTOM_TOP_SCALE_X", "0.995"))
 
 # Pass C2 -- frame-with-inner counter open. Detects the largest outer
 # contour occupying at least LUO_FRAME_INNER_OUTER_W and
@@ -375,8 +375,8 @@ LUO_FRAME_INNER_OUTER_W = float(os.environ.get("LUO_FRAME_INNER_OUTER_W", "0.55"
 LUO_FRAME_INNER_OUTER_H = float(os.environ.get("LUO_FRAME_INNER_OUTER_H", "0.55"))
 LUO_FRAME_INNER_MIN_AREA = float(os.environ.get("LUO_FRAME_INNER_MIN_AREA", "0.008"))
 LUO_FRAME_INNER_MAX_AREA = float(os.environ.get("LUO_FRAME_INNER_MAX_AREA", "0.20"))
-LUO_FRAME_INNER_X = float(os.environ.get("LUO_FRAME_INNER_X", "1.014"))
-LUO_FRAME_INNER_Y = float(os.environ.get("LUO_FRAME_INNER_Y", "1.008"))
+LUO_FRAME_INNER_X = float(os.environ.get("LUO_FRAME_INNER_X", "1.010"))
+LUO_FRAME_INNER_Y = float(os.environ.get("LUO_FRAME_INNER_Y", "1.006"))
 
 # --- Targeted turn refinement (Pass C, full CJK with priority bump) ---
 # v0.4.1 reduction: the v0.4 default DISPLACE=2.5 ran on every CJK glyph and
@@ -387,7 +387,7 @@ LUO_FRAME_INNER_Y = float(os.environ.get("LUO_FRAME_INNER_Y", "1.008"))
 TURN_FINAL_ANGLE_MAX = 105.0
 TURN_FINAL_DISPLACE = float(os.environ.get("LUO_TURN_FINAL_DISPLACE", "1.6"))
 TURN_FINAL_INNER = float(os.environ.get("LUO_TURN_FINAL_INNER", "0.955"))
-TURN_FINAL_PRIORITY_DISPLACE = float(os.environ.get("LUO_TURN_FINAL_PRIORITY_DISPLACE", "1.9"))  # v0.4.3 audit fix: 2.2 在 priority 字仍出现钉头/折点，再压一档同时保留 default 1.6
+TURN_FINAL_PRIORITY_DISPLACE = float(os.environ.get("LUO_TURN_FINAL_PRIORITY_DISPLACE", "1.75"))  # v0.4.8 refinement: keep display bone nodes but soften residual 钩根/折点 roughness
 TURN_FINAL_PRIORITY_INNER = float(os.environ.get("LUO_TURN_FINAL_PRIORITY_INNER", "0.94"))
 TURN_FINAL_SEG_MIN = 15.0
 TURN_FINAL_SEG_MAX = 90.0
@@ -443,18 +443,29 @@ IDENTITY_POSTURE_CHARS = "章天兰书文集字回骨月玄亭清家点国黄印
 IDENTITY_FRAME_CHARS = "国回图园日目月团"  # v0.4.4: 团 加入框形通道，外框稳，内白透气
 IDENTITY_MULTI_HORIZ_CHARS = "章兰书集骨黄点"
 IDENTITY_DIAG_CHARS = "文天玄"
-# Counter opening helps these frame glyphs separate from the source without
-# making the frame body heavier. 用/田/由/曲/电/自/直 are deliberately left on
-# guardrails only for now: counter opening made them look closer to the source.
-IDENTITY_FRAME_RISK_CHARS = "目日月且"
-IDENTITY_LAYER_RISK_CHARS = "昔音喜甚基真备审省革其"
+# v0.4.9 Phase 1A: 由/自/田/曲/直/电/用 enter the FRAME_RISK channel so the
+# upstream pass owns counter opening at 1.065/1.040 and the core_v2
+# frame_posture pass narrows stems at 0.988 without double-stacking the
+# counter expand. The earlier guardrail-only treatment kept these chars in
+# the homepage generic bucket at raw IoU 0.86-0.88 vs LXGW; site_grouped
+# audit identified them as the dominant "first-glance LXGW" cluster.
+IDENTITY_FRAME_RISK_CHARS = "目日月且由自田曲直电用"
+# v0.4.10 Phase 1B: +重事算第章 (喜基真 already covered) so the layer extension
+# fires only `_identity_core_layer_gap` and skips `_identity_core_open_counters`
+# / `_identity_core_lighten_secondary`. 重 also runs through TURN_FINAL_PRIORITY,
+# 章 through MULTI_HORIZ, 第 through HOOK_FINAL — adding them to LAYER_RISK
+# keeps core_v2's contribution to a single quiet layer-gap shift instead of
+# triple-stacking on already-treated chars.
+IDENTITY_LAYER_RISK_CHARS = "昔音喜甚基真备审省革其重事算第章"
 IDENTITY_CORE_V2_CHARS = (
     "落文字书心清骨风纸印永和九年兰亭集序国回日目用月团透道遇墨点游流黑"
     "前赤壁赋归去来兮辞春暮山用壁年之来癸在于稽赤丑阴"
-)  # v0.4.4: + 团 frame extension
-IDENTITY_CORE_FRAME_CHARS = "国回日目用月团"  # v0.4.4: + 团
-IDENTITY_CORE_LAYER_CHARS = "春暮壁前墨黑兰亭集序"
-IDENTITY_CORE_DIAG_CHARS = "文永之来去归兮辞"
+    "由自田曲直电"
+    "重事算基真章第喜大太夫又关"
+)  # v0.4.9 Phase 1A: +由自田曲直电 / v0.4.10 Phase 1B: +重事算基真章第喜 / Phase 1C: +大太夫又关
+IDENTITY_CORE_FRAME_CHARS = "国回日目用月团由自田曲直电"  # v0.4.9 Phase 1A
+IDENTITY_CORE_LAYER_CHARS = "春暮壁前墨黑兰亭集序重事算基真章第喜"  # v0.4.10 Phase 1B
+IDENTITY_CORE_DIAG_CHARS = "文永之来去归兮辞大太夫又关"  # v0.4.10 Phase 1C
 IDENTITY_POSTURE_TOP_RAISE_EM = float(os.environ.get("LUO_IDENTITY_TOP_RAISE_EM", "0.026"))
 IDENTITY_POSTURE_BOTTOM_SETTLE_EM = float(os.environ.get("LUO_IDENTITY_BOTTOM_SETTLE_EM", "0.010"))
 IDENTITY_POSTURE_UPPER_X_CONTAIN = float(os.environ.get("LUO_IDENTITY_UPPER_X_CONTAIN", "0.980"))
@@ -507,7 +518,7 @@ IDENTITY_CORE_COUNTER_EXPAND_X = float(os.environ.get("LUO_IDENTITY_CORE_COUNTER
 IDENTITY_CORE_COUNTER_EXPAND_Y = float(os.environ.get("LUO_IDENTITY_CORE_COUNTER_EXPAND_Y", "1.035"))
 IDENTITY_CORE_SECONDARY_SCALE = float(os.environ.get("LUO_IDENTITY_CORE_SECONDARY_SCALE", "0.960"))
 IDENTITY_CORE_HORIZ_Y_SCALE = float(os.environ.get("LUO_IDENTITY_CORE_HORIZ_Y_SCALE", "0.925"))
-IDENTITY_CORE_LAYER_GAP_EM = float(os.environ.get("LUO_IDENTITY_CORE_LAYER_GAP_EM", "0.010"))
+IDENTITY_CORE_LAYER_GAP_EM = float(os.environ.get("LUO_IDENTITY_CORE_LAYER_GAP_EM", "0.007"))  # v0.4.10: was 0.010 (tuned for 10 Lanting-Xu display anchors); after Phase 1B added 8 body-frequency chars (重事算基真章第喜) the original 0.010em over-spread 章/喜 vertically. 0.007 keeps the print-kai layer signal on display anchors while pulling body 章 into a comfortable spread.
 IDENTITY_CORE_FRAME_STEM_X = float(os.environ.get("LUO_IDENTITY_CORE_FRAME_STEM_X", "0.988"))
 IDENTITY_CORE_DIAG_EDGE_EM = float(os.environ.get("LUO_IDENTITY_CORE_DIAG_EDGE_EM", "0.020"))
 IDENTITY_CORE_DIAG_TOP_CONTAIN = float(os.environ.get("LUO_IDENTITY_CORE_DIAG_TOP_CONTAIN", "0.990"))
@@ -526,7 +537,7 @@ BUILD_CHAR_MODES = (
 FAMILY = os.environ.get("LUO_FAMILY", "Luo")
 SUBFAMILY = os.environ.get("LUO_SUBFAMILY", "Regular")
 OUTPUT_PREFIX = os.environ.get("LUO_OUTPUT_PREFIX", "Luo-Regular")
-VERSION = "0.4.7"
+VERSION = "0.4.10"
 
 COPYRIGHT = (
     "Luo, a CJK typeface for paper and reading. "
@@ -1243,19 +1254,19 @@ KAI_BALANCE_WATER_CHARS = (
 # v0.4.1: 0.915/0.910 + the in-function bottom-dot extra cap (min 0.920/0.900)
 # made 源 third dot break into chips at body sizes. Roll back one notch and let
 # the WEB_PRESENCE floor catch the remaining cases.
-KAI_BALANCE_WATER_X_SCALE = float(os.environ.get("LUO_KAI_BALANCE_WATER_X_SCALE", "0.950"))  # v0.4.3 audit fix: 0.940 在源/清/落 body size 偶尔丢三点，再放松一档
-KAI_BALANCE_WATER_Y_SCALE = float(os.environ.get("LUO_KAI_BALANCE_WATER_Y_SCALE", "0.945"))  # v0.4.3 audit fix: 同步放松，保证三点在 dot floor 内仍可见
+KAI_BALANCE_WATER_X_SCALE = float(os.environ.get("LUO_KAI_BALANCE_WATER_X_SCALE", "0.945"))  # v0.4.8 refinement: reduce 氵 mid-gray while keeping v0.4.3 presence floor
+KAI_BALANCE_WATER_Y_SCALE = float(os.environ.get("LUO_KAI_BALANCE_WATER_Y_SCALE", "0.942"))  # v0.4.8 refinement: small identity-safe gray correction
 KAI_BALANCE_WATER_BOTTOM_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_WATER_BOTTOM_RAISE_EM", "0.024"))
 KAI_BALANCE_WATER_TOP_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_WATER_TOP_RAISE_EM", "0.006"))
 
 KAI_BALANCE_DENSE_COUNTER_CHARS = "魔赢耀题额籍麟馈覆藏霜霞露感皆熹苦"
 KAI_BALANCE_COUNTER_EXPAND_X = float(os.environ.get("LUO_KAI_BALANCE_COUNTER_EXPAND_X", "1.125"))
 KAI_BALANCE_COUNTER_EXPAND_Y = float(os.environ.get("LUO_KAI_BALANCE_COUNTER_EXPAND_Y", "1.095"))
-KAI_BALANCE_DENSE_LAYER_X = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_X", "0.970"))
-KAI_BALANCE_DENSE_LAYER_Y = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_Y", "0.965"))
-KAI_BALANCE_DENSE_LAYER_GAP_EM = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_GAP_EM", "0.004"))
-KAI_BALANCE_DENSE_UPPER_X = float(os.environ.get("LUO_KAI_BALANCE_DENSE_UPPER_X", "0.985"))
-KAI_BALANCE_DENSE_UPPER_Y = float(os.environ.get("LUO_KAI_BALANCE_DENSE_UPPER_Y", "0.970"))
+KAI_BALANCE_DENSE_LAYER_X = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_X", "0.972"))
+KAI_BALANCE_DENSE_LAYER_Y = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_Y", "0.968"))
+KAI_BALANCE_DENSE_LAYER_GAP_EM = float(os.environ.get("LUO_KAI_BALANCE_DENSE_LAYER_GAP_EM", "0.0035"))
+KAI_BALANCE_DENSE_UPPER_X = float(os.environ.get("LUO_KAI_BALANCE_DENSE_UPPER_X", "0.988"))
+KAI_BALANCE_DENSE_UPPER_Y = float(os.environ.get("LUO_KAI_BALANCE_DENSE_UPPER_Y", "0.975"))
 
 KAI_BALANCE_BOOK_DOT_X_SCALE = float(os.environ.get("LUO_KAI_BALANCE_BOOK_DOT_X_SCALE", "0.940"))
 KAI_BALANCE_BOOK_DOT_Y_SCALE = float(os.environ.get("LUO_KAI_BALANCE_BOOK_DOT_Y_SCALE", "0.880"))
@@ -1267,12 +1278,12 @@ KAI_BALANCE_SPEECH_CHARS = (
     "该详诧诫诬语误诱诲说诵请诸诺读课谁调谅谈谊谋谍"
     "谎谐谓谗谦谧谨"
 )
-KAI_BALANCE_SPEECH_SECONDARY_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_SECONDARY_X", "0.945"))
-KAI_BALANCE_SPEECH_SECONDARY_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_SECONDARY_Y", "0.960"))
+KAI_BALANCE_SPEECH_SECONDARY_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_SECONDARY_X", "0.940"))
+KAI_BALANCE_SPEECH_SECONDARY_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_SECONDARY_Y", "0.958"))
 KAI_BALANCE_SPEECH_DOT_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_DOT_X", "0.880"))  # v0.4.3 audit fix: 言/讠点 body size 偏小，放宽 X 让点不收成针
 KAI_BALANCE_SPEECH_DOT_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_DOT_Y", "0.860"))  # v0.4.3 audit fix: 同步放宽 Y
-KAI_BALANCE_SPEECH_COUNTER_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_COUNTER_X", "1.110"))
-KAI_BALANCE_SPEECH_COUNTER_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_COUNTER_Y", "1.060"))
+KAI_BALANCE_SPEECH_COUNTER_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_COUNTER_X", "1.125"))
+KAI_BALANCE_SPEECH_COUNTER_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_COUNTER_Y", "1.065"))
 KAI_BALANCE_SPEECH_UPPER_CHARS = "言"
 KAI_BALANCE_SPEECH_UPPER_X = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_UPPER_X", "0.975"))
 KAI_BALANCE_SPEECH_UPPER_Y = float(os.environ.get("LUO_KAI_BALANCE_SPEECH_UPPER_Y", "0.900"))
@@ -1288,9 +1299,9 @@ KAI_BALANCE_ROOF_BOTTOM_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_ROOF_BO
 # split list to glyphs where the left radical truly benefits from extra
 # subordination beyond what wide_split provides.
 KAI_BALANCE_SIDE_SPLIT_CHARS = "欢剑给怡往径征观轻净缪"
-KAI_BALANCE_SIDE_LEFT_X = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_X", "0.970"))  # v0.4.3 audit fix: 0.960 仍让 split 字左偏旁过弱，再放松一档
-KAI_BALANCE_SIDE_LEFT_Y = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_Y", "0.980"))  # v0.4.3 audit fix: 同步放松
-KAI_BALANCE_SIDE_LEFT_GAP_EM = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_GAP_EM", "-0.002"))
+KAI_BALANCE_SIDE_LEFT_X = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_X", "0.965"))  # v0.4.8 refinement: contain 欢/给-style left radicals a touch more
+KAI_BALANCE_SIDE_LEFT_Y = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_Y", "0.978"))
+KAI_BALANCE_SIDE_LEFT_GAP_EM = float(os.environ.get("LUO_KAI_BALANCE_SIDE_LEFT_GAP_EM", "0.000"))
 KAI_BALANCE_SIDE_COUNTER_X = float(os.environ.get("LUO_KAI_BALANCE_SIDE_COUNTER_X", "1.060"))
 KAI_BALANCE_SIDE_COUNTER_Y = float(os.environ.get("LUO_KAI_BALANCE_SIDE_COUNTER_Y", "1.035"))
 
@@ -1325,7 +1336,36 @@ SITE_BODY_SECONDARY_SCALE = float(os.environ.get("LUO_SITE_BODY_SECONDARY_SCALE"
 # Final visible-defect corrections for the current audit set. These are kept
 # after identity/readability so they compensate pass stacking without changing
 # global weight, straightening, or component-category behavior.
-VISIBLE_PROBLEM_GLYPHS = "两月或则魔"
+HOMEPAGE_P0_GRID_GLYPHS = "曲重田首里用"  # v0.4.10 Phase 1A follow-up: 用 加进 grid 通道，补足 v0.4.9 漏的结构改写
+HOMEPAGE_P0_HOOK_GLYPHS = "争色事第使"
+HOMEPAGE_P0_COMPONENT_GLYPHS = "技盖准装输"
+HOMEPAGE_P1_GRID_GLYPHS = "虽县单盘基算相官抽自堵盏革由吕审目"
+HOMEPAGE_P1_HOOK_GLYPHS = "求角走种值快强支别战同也持联继服"
+HOMEPAGE_P1_COMPONENT_GLYPHS = "者邑棹斗身蓄考难每再维植徊岫鱼查扁主轼复建理具郁"
+HOMEPAGE_P1_RADICAL_GLYPHS = "往轻给法浅"
+HOMEPAGE_P1_ROOF_GLYPHS = "宙宇安定宿"
+HOMEPAGE_P2_SOURCE_RISK_GLYPHS = "堆共皋其组要稚携净直粟独樽鹿古耳真距型律便更寓展虾仲朗果免雅暑腹窗柯蛟着看郎槊"
+HOMEPAGE_P3_STRUCTURE_GLYPHS = "曲抽角重争盘者岫虽盏求种复基斗色相革事再棹堵难官县每植堆"
+HOMEPAGE_P4_RESIDUAL_RISK_GLYPHS = "去要共朗型携考单技粟稚第樽便理鱼具邑仲皋独值律其身虾快看腹雅柯距展更鹿直扁耳槊由车帖强免建郎轼算走藉里净盛使组主真徘果暑畴路昌夫同较古关如寓追着蓄查眄眼撇详支嫠供境蛟疏旗象细窗娱绝诵根裳维挪别荆很狼输谢奇"
+HOMEPAGE_P5_STUBBORN_RISK_GLYPHS = "曲去重抽种盘斗仲如堆考求律盏樽"
+HOMEPAGE_P6_LEFT_RIGHT_GLYPHS = "抽独种技虾便雅柯携稚供堵朗难建邑仲快看腹距展更鹿鱼具皋值律其身"
+LUO_HORIZ_CAP_FLATTEN_CHARS = "正晋章书世西二南"
+LUO_DIAG_ENDPOINT_CLEAN_CHARS = "从入人八为失"
+LUO_CURVE_TAIL_POLISH_CHARS = "风气成"
+VISIBLE_PROBLEM_GLYPHS = "".join(dict.fromkeys(
+    "两月或则魔答荒"
+    + HOMEPAGE_P0_GRID_GLYPHS
+    + HOMEPAGE_P0_HOOK_GLYPHS
+    + HOMEPAGE_P0_COMPONENT_GLYPHS
+    + HOMEPAGE_P1_GRID_GLYPHS
+    + HOMEPAGE_P1_HOOK_GLYPHS
+    + HOMEPAGE_P1_COMPONENT_GLYPHS
+    + HOMEPAGE_P1_RADICAL_GLYPHS
+    + HOMEPAGE_P1_ROOF_GLYPHS
+    + HOMEPAGE_P2_SOURCE_RISK_GLYPHS
+    + HOMEPAGE_P4_RESIDUAL_RISK_GLYPHS
+    + HOMEPAGE_P5_STUBBORN_RISK_GLYPHS
+))
 
 
 def _collect_site_body_readability_chars() -> str:
@@ -1346,13 +1386,13 @@ def _collect_site_body_readability_chars() -> str:
     return "".join(dict.fromkeys("".join(chunks)))
 
 KAI_BALANCE_STACK_CHARS = "实寒库头帝眷背"
-KAI_BALANCE_STACK_BOTTOM_X = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_X", "0.930"))  # v0.4.3 audit fix: 0.910 让 实/寒/库/头 底碎，放宽
-KAI_BALANCE_STACK_BOTTOM_Y = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_Y", "0.910"))  # v0.4.3 audit fix: 同步从 0.885 抬到 0.910
-KAI_BALANCE_STACK_BOTTOM_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_RAISE_EM", "0.024"))
+KAI_BALANCE_STACK_BOTTOM_X = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_X", "0.925"))  # v0.4.8 refinement: reduce 实/库 bottom heaviness without returning to v0.4.1 crush
+KAI_BALANCE_STACK_BOTTOM_Y = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_Y", "0.905"))
+KAI_BALANCE_STACK_BOTTOM_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_STACK_BOTTOM_RAISE_EM", "0.022"))
 
 KAI_BALANCE_WIDE_DIAG_CHARS = "斗考兴今式气全分走去一而后层可"
-KAI_BALANCE_WIDE_EDGE_CONTAIN = float(os.environ.get("LUO_KAI_BALANCE_WIDE_EDGE_CONTAIN", "0.030"))
-KAI_BALANCE_WIDE_BOTTOM_CONTAIN = float(os.environ.get("LUO_KAI_BALANCE_WIDE_BOTTOM_CONTAIN", "0.045"))
+KAI_BALANCE_WIDE_EDGE_CONTAIN = float(os.environ.get("LUO_KAI_BALANCE_WIDE_EDGE_CONTAIN", "0.034"))
+KAI_BALANCE_WIDE_BOTTOM_CONTAIN = float(os.environ.get("LUO_KAI_BALANCE_WIDE_BOTTOM_CONTAIN", "0.050"))
 KAI_BALANCE_WIDE_BOTTOM_RAISE_EM = float(os.environ.get("LUO_KAI_BALANCE_WIDE_BOTTOM_RAISE_EM", "0.006"))
 
 
@@ -2863,6 +2903,80 @@ def _refine_problem_liang(glyph, glyf, upm: int) -> bool:
 
 
 def _refine_problem_moon(glyph, glyf, upm: int) -> bool:
+    """Freeze 月 to the Luo v0.3 outline.
+
+    v0.4.8 tried local frame/counter adjustments first, but the result mixed
+    the v0.4 hook/root rhythm with a v0.3-like left sweep and looked unnatural.
+    Keep this as an explicit point-lock exception; later generic frame/grid
+    passes must not reinterpret 月 again.
+    """
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours != 3 or len(coords) != 50:
+        return False
+    moon_v03_coords = [
+        (1485, -273), (1405, -277), (1199, -93), (1086, 14), (1083, 65),
+        (1091, 98), (1126, 98), (1153, 102), (1324, -2), (1421, -53),
+        (1414, 513), (697, 481), (620, 110), (266, -188), (183, -249),
+        (150, -245), (112, -245), (104, -209), (106, -176), (145, -130),
+        (398, 156), (567, 665), (573, 1152), (574, 1365), (570, 1486),
+        (544, 1567), (549, 1592), (560, 1626), (601, 1626), (632, 1630),
+        (736, 1566), (1476, 1616), (1526, 1620), (1589, 1544),
+        (1594, 1506), (1579, 1453), (1611, -43), (1616, -117),
+        (1620, -178), (1595, -217), (1547, -276), (736, 1088),
+        (1422, 1132), (1415, 1450), (740, 1397), (712, 628),
+        (1431, 662), (1427, 973), (733, 940), (746, 742),
+    ]
+    touched = False
+    for i, (new_x, new_y) in enumerate(moon_v03_coords):
+        if tuple(coords[i]) == (new_x, new_y):
+            continue
+        coords[i] = (new_x, new_y)
+        touched = True
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_problem_answer(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    _x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed >= 0:
+            continue
+        c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+        c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+        cy_t = (float(c["cy"]) - y_min) / max(1.0, glyph_h)
+        if cy_t > 0.35 or c_w < glyph_w * 0.45:
+            continue
+        band = 0.36
+        max_drop = 0.0075 * upm
+        c_ymin = float(c["ymin"])
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            y_t = (y - c_ymin) / c_h
+            if y_t >= band:
+                continue
+            t = (band - y_t) / band
+            drop = max_drop * t
+            if drop <= 0.1:
+                continue
+            coords[i] = (x, int(round(y - drop)))
+            touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p0_grid(glyph, glyf, upm: int) -> bool:
     coords = glyph.coordinates
     box = _glyph_box(coords)
     if box is None or glyph.numberOfContours < 2:
@@ -2874,14 +2988,519 @@ def _refine_problem_moon(glyph, glyf, upm: int) -> bool:
         signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
         if signed <= 0:
             continue
+        c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+        c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+        aspect = c_w / c_h
         y_t = (float(c["cy"]) - y_min) / max(1.0, glyph_h)
-        shift_y = 0.002 * upm if y_t > 0.58 else -0.002 * upm
-        _scale_contour(coords, c, 1.020, 1.010, -0.004 * upm, shift_y)
+        sx = 1.045 if aspect > 1.30 else 1.035
+        sy = 1.030 if c_h > glyph_h * 0.16 else 1.020
+        shift_y = 0.0
+        if y_t > 0.62:
+            shift_y = 0.002 * upm
+        elif y_t < 0.36:
+            shift_y = -0.002 * upm
+        _scale_contour(coords, c, sx, sy, 0.0, shift_y)
         touched = True
 
     if touched:
         glyph.recalcBounds(glyf)
     return touched
+
+
+def _refine_homepage_p0_hook(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 1:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed > 0:
+            _scale_contour(coords, c, 1.025, 1.014)
+            touched = True
+            continue
+        if float(c["area"]) < glyph_w * glyph_h * 0.12:
+            continue
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            if xn <= 0.54 or yn >= 0.34:
+                continue
+            t = (xn - 0.54) / 0.46 * (0.34 - yn) / 0.34
+            new_x = cx + (x - cx) * (1.0 - 0.020 * t)
+            new_y = y + 0.006 * upm * t
+            coords[i] = (int(round(new_x)), int(round(new_y)))
+            touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p0_component(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    glyph_area = glyph_w * glyph_h
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_area = float(c["area"])
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+        if signed > 0:
+            _scale_contour(coords, c, 1.035, 1.020)
+            touched = True
+            continue
+        if c_area < glyph_area * 0.035:
+            continue
+        if ccx < cx - glyph_w * 0.12 and c_area < glyph_area * 0.45:
+            _scale_contour(coords, c, 0.980, 0.988, 0.003 * upm, 0.0)
+            touched = True
+        elif ccy > y_min + glyph_h * 0.60 and c_area < glyph_area * 0.50:
+            _scale_contour(coords, c, 0.988, 0.988, 0.0, 0.002 * upm)
+            touched = True
+        elif ccy < y_min + glyph_h * 0.35 and c_area > glyph_area * 0.16:
+            _scale_contour(coords, c, 0.992, 0.990, 0.0, 0.001 * upm)
+            touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p2_source_risk(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    _x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    glyph_area = glyph_w * glyph_h
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_area = float(c["area"])
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+        area_ratio = c_area / max(1.0, glyph_area)
+
+        if signed > 0:
+            if 0.004 <= area_ratio <= 0.20:
+                _scale_contour(coords, c, 1.025, 1.014)
+                touched = True
+            continue
+
+        if area_ratio < 0.025:
+            continue
+        if ccx < cx - glyph_w * 0.14 and area_ratio < 0.45:
+            _scale_contour(coords, c, 0.986, 0.992, 0.002 * upm, 0.0)
+            touched = True
+        elif ccx > cx + glyph_w * 0.18 and area_ratio < 0.35:
+            _scale_contour(coords, c, 0.988, 0.996, -0.001 * upm, 0.0)
+            touched = True
+        elif ccy > y_min + glyph_h * 0.62 and area_ratio < 0.50:
+            _scale_contour(coords, c, 0.994, 0.992, 0.0, 0.0015 * upm)
+            touched = True
+        elif ccy < y_min + glyph_h * 0.34 and area_ratio < 0.55:
+            _scale_contour(coords, c, 0.996, 0.994, 0.0, -0.001 * upm)
+            touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p3_structure(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    glyph_area = glyph_w * glyph_h
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    largest_outer = None
+    largest_area = 0.0
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed >= 0:
+            continue
+        if float(c["area"]) > largest_area:
+            largest_outer = c
+            largest_area = float(c["area"])
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_area = float(c["area"])
+        area_ratio = c_area / max(1.0, glyph_area)
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+
+        if signed > 0:
+            if not (0.004 <= area_ratio <= 0.22):
+                continue
+            c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+            c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+            aspect = c_w / c_h
+            nx = (ccx - x_min) / max(1.0, glyph_w)
+            ny = (ccy - y_min) / max(1.0, glyph_h)
+            shift_x = (nx - 0.50) * 0.010 * upm
+            if ny > 0.62:
+                shift_y = 0.004 * upm
+            elif ny < 0.34:
+                shift_y = -0.004 * upm
+            else:
+                shift_y = -0.001 * upm
+            sx = 1.075 if aspect > 1.35 else 1.055
+            sy = 1.045 if aspect < 1.20 else 1.030
+            _scale_contour(coords, c, sx, sy, shift_x, shift_y)
+            touched = True
+            continue
+
+        if area_ratio < 0.025:
+            continue
+        if c is not largest_outer:
+            if ccx < cx - glyph_w * 0.14 and area_ratio < 0.45:
+                _scale_contour(coords, c, 0.982, 0.990, 0.004 * upm, 0.0)
+                touched = True
+            elif ccx > cx + glyph_w * 0.18 and area_ratio < 0.40:
+                _scale_contour(coords, c, 0.986, 0.994, -0.003 * upm, 0.0)
+                touched = True
+            elif ccy > y_min + glyph_h * 0.62 and area_ratio < 0.50:
+                _scale_contour(coords, c, 0.990, 0.990, 0.0, 0.003 * upm)
+                touched = True
+            elif ccy < y_min + glyph_h * 0.34 and area_ratio < 0.55:
+                _scale_contour(coords, c, 0.994, 0.992, 0.0, -0.002 * upm)
+                touched = True
+
+    if largest_outer is not None and largest_area >= glyph_area * 0.36:
+        for i in range(int(largest_outer["start"]), int(largest_outer["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            new_x = float(x)
+            new_y = float(y)
+            if yn > 0.70:
+                top_t = (yn - 0.70) / 0.30
+                new_x = cx + (new_x - cx) * (1.0 - 0.006 * top_t)
+                new_y += 0.003 * upm * top_t
+            elif yn < 0.25:
+                bot_t = (0.25 - yn) / 0.25
+                new_x = cx + (new_x - cx) * (1.0 + 0.004 * bot_t)
+                new_y -= 0.002 * upm * bot_t
+            if xn > 0.58 and yn < 0.38:
+                tail_t = (xn - 0.58) / 0.42 * (0.38 - yn) / 0.38
+                new_x = cx + (new_x - cx) * (1.0 - 0.012 * tail_t)
+                new_y += 0.004 * upm * tail_t
+            new_xy = (int(round(new_x)), int(round(new_y)))
+            if new_xy != tuple(coords[i]):
+                coords[i] = new_xy
+                touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p4_residual(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    glyph_area = glyph_w * glyph_h
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    largest_outer = None
+    largest_area = 0.0
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed >= 0:
+            continue
+        if float(c["area"]) > largest_area:
+            largest_outer = c
+            largest_area = float(c["area"])
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_area = float(c["area"])
+        area_ratio = c_area / max(1.0, glyph_area)
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+
+        if signed > 0:
+            if not (0.004 <= area_ratio <= 0.20):
+                continue
+            nx = (ccx - x_min) / max(1.0, glyph_w)
+            ny = (ccy - y_min) / max(1.0, glyph_h)
+            shift_x = (nx - 0.50) * 0.006 * upm
+            if ny > 0.62:
+                shift_y = 0.0025 * upm
+            elif ny < 0.34:
+                shift_y = -0.0025 * upm
+            else:
+                shift_y = 0.0
+            _scale_contour(coords, c, 1.045, 1.024, shift_x, shift_y)
+            touched = True
+            continue
+
+        if c is largest_outer or area_ratio < 0.025:
+            continue
+        if ccx < cx - glyph_w * 0.14 and area_ratio < 0.45:
+            _scale_contour(coords, c, 0.988, 0.994, 0.002 * upm, 0.0)
+            touched = True
+        elif ccx > cx + glyph_w * 0.18 and area_ratio < 0.40:
+            _scale_contour(coords, c, 0.990, 0.996, -0.0015 * upm, 0.0)
+            touched = True
+        elif ccy > y_min + glyph_h * 0.62 and area_ratio < 0.50:
+            _scale_contour(coords, c, 0.994, 0.994, 0.0, 0.0015 * upm)
+            touched = True
+        elif ccy < y_min + glyph_h * 0.34 and area_ratio < 0.55:
+            _scale_contour(coords, c, 0.996, 0.996, 0.0, -0.001 * upm)
+            touched = True
+
+    if largest_outer is not None and largest_area >= glyph_area * 0.36:
+        for i in range(int(largest_outer["start"]), int(largest_outer["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            new_x = float(x)
+            new_y = float(y)
+            if yn > 0.72:
+                top_t = (yn - 0.72) / 0.28
+                new_x = cx + (new_x - cx) * (1.0 - 0.004 * top_t)
+                new_y += 0.002 * upm * top_t
+            elif yn < 0.23:
+                bot_t = (0.23 - yn) / 0.23
+                new_x = cx + (new_x - cx) * (1.0 + 0.003 * bot_t)
+                new_y -= 0.0015 * upm * bot_t
+            if xn > 0.60 and yn < 0.34:
+                tail_t = (xn - 0.60) / 0.40 * (0.34 - yn) / 0.34
+                new_x = cx + (new_x - cx) * (1.0 - 0.008 * tail_t)
+                new_y += 0.0025 * upm * tail_t
+            new_xy = (int(round(new_x)), int(round(new_y)))
+            if new_xy != tuple(coords[i]):
+                coords[i] = new_xy
+                touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_homepage_p5_stubborn(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    if glyph.numberOfContours < 1:
+        return False
+    glyph_area = glyph_w * glyph_h
+    contours = _contour_info(glyph, coords)
+    touched = False
+
+    largest_outer = None
+    largest_area = 0.0
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed >= 0:
+            continue
+        if float(c["area"]) > largest_area:
+            largest_outer = c
+            largest_area = float(c["area"])
+
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_area = float(c["area"])
+        area_ratio = c_area / max(1.0, glyph_area)
+        ccx = float(c["cx"])
+        ccy = float(c["cy"])
+
+        if signed > 0:
+            if not (0.004 <= area_ratio <= 0.24):
+                continue
+            nx = (ccx - x_min) / max(1.0, glyph_w)
+            ny = (ccy - y_min) / max(1.0, glyph_h)
+            shift_x = (nx - 0.50) * 0.018 * upm
+            if ny > 0.62:
+                shift_y = 0.006 * upm
+            elif ny < 0.34:
+                shift_y = -0.006 * upm
+            else:
+                shift_y = -0.002 * upm
+            _scale_contour(coords, c, 1.100, 1.052, shift_x, shift_y)
+            touched = True
+            continue
+
+        if c is largest_outer or area_ratio < 0.025:
+            continue
+        if ccx < cx - glyph_w * 0.14 and area_ratio < 0.45:
+            _scale_contour(coords, c, 0.972, 0.984, 0.0045 * upm, 0.0)
+            touched = True
+        elif ccx > cx + glyph_w * 0.18 and area_ratio < 0.42:
+            _scale_contour(coords, c, 0.976, 0.988, -0.0035 * upm, 0.0)
+            touched = True
+        elif ccy > y_min + glyph_h * 0.62 and area_ratio < 0.52:
+            _scale_contour(coords, c, 0.982, 0.984, 0.0, 0.0035 * upm)
+            touched = True
+        elif ccy < y_min + glyph_h * 0.34 and area_ratio < 0.56:
+            _scale_contour(coords, c, 0.990, 0.986, 0.0, -0.0025 * upm)
+            touched = True
+
+    if largest_outer is not None and largest_area >= glyph_area * 0.34:
+        for i in range(int(largest_outer["start"]), int(largest_outer["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            new_x = float(x)
+            new_y = float(y)
+            if yn > 0.70:
+                top_t = (yn - 0.70) / 0.30
+                new_x = cx + (new_x - cx) * (1.0 - 0.012 * top_t)
+                new_y += 0.005 * upm * top_t
+            elif yn < 0.24:
+                bot_t = (0.24 - yn) / 0.24
+                new_x = cx + (new_x - cx) * (1.0 + 0.007 * bot_t)
+                new_y -= 0.0035 * upm * bot_t
+            if xn > 0.58 and yn < 0.36:
+                tail_t = (xn - 0.58) / 0.42 * (0.36 - yn) / 0.36
+                new_x = cx + (new_x - cx) * (1.0 - 0.020 * tail_t)
+                new_y += 0.006 * upm * tail_t
+            new_xy = (int(round(new_x)), int(round(new_y)))
+            if new_xy != tuple(coords[i]):
+                coords[i] = new_xy
+                touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_problem_qu(glyph, glyf, upm: int) -> bool:
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    touched = False
+    for i in range(len(coords)):
+        x, y = coords[i]
+        xn = (x - x_min) / max(1.0, glyph_w)
+        yn = (y - y_min) / max(1.0, glyph_h)
+        new_x = float(x)
+        new_y = float(y)
+        if yn > 0.68:
+            t = (yn - 0.68) / 0.32
+            new_x = cx + (new_x - cx) * (1.0 - 0.018 * t)
+            new_y += 0.005 * upm * t
+        elif yn < 0.30:
+            t = (0.30 - yn) / 0.30
+            new_x = cx + (new_x - cx) * (1.0 + 0.014 * t)
+            new_y -= 0.004 * upm * t
+            if yn < 0.26:
+                foot_t = (0.26 - yn) / 0.26
+                new_x = cx + (new_x - cx) * (1.0 + 0.012 * foot_t)
+                new_y -= 0.003 * upm * foot_t
+        if xn > 0.58 and yn < 0.42:
+            t = (xn - 0.58) / 0.42 * (0.42 - yn) / 0.42
+            new_x = cx + (new_x - cx) * (1.0 - 0.028 * t)
+            new_y += 0.007 * upm * t
+        new_xy = (int(round(new_x)), int(round(new_y)))
+        if new_xy != tuple(coords[i]):
+            coords[i] = new_xy
+            touched = True
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_problem_dou(glyph, glyf, upm: int) -> bool:
+    # `斗` stays source-like if the two left dots keep LXGW's size/placement.
+    # Apply the P5 skeleton polish first, then make the dots shorter and more
+    # tucked like the Tsanger-style reference without starving body sizes.
+    touched = _refine_homepage_p5_stubborn(glyph, glyf, upm)
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 3:
+        return touched
+    contours = _contour_info(glyph, coords)
+    largest_outer = max(contours, key=lambda c: float(c["area"]))
+    dot_touched = False
+    for c in contours:
+        if c is largest_outer:
+            continue
+        area_ratio = float(c["area"]) / max(1.0, box[4] * box[5])
+        if not (0.015 <= area_ratio <= 0.11):
+            continue
+        _scale_contour(coords, c, 0.940, 0.940, 0.004 * upm, 0.004 * upm)
+        dot_touched = True
+    if dot_touched:
+        glyph.recalcBounds(glyf)
+    return touched or dot_touched
+
+
+def _refine_problem_chong(glyph, glyf, upm: int) -> bool:
+    touched = _refine_homepage_p5_stubborn(glyph, glyf, upm)
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return touched
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+    contours = _contour_info(glyph, coords)
+    counter_touched = False
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed <= 0:
+            continue
+        nx = (float(c["cx"]) - x_min) / max(1.0, glyph_w)
+        ny = (float(c["cy"]) - y_min) / max(1.0, glyph_h)
+        _scale_contour(
+            coords,
+            c,
+            1.020,
+            1.010,
+            (nx - 0.50) * 0.002 * upm,
+            (ny - 0.50) * 0.0008 * upm,
+        )
+        counter_touched = True
+    if counter_touched:
+        glyph.recalcBounds(glyf)
+    return touched or counter_touched
+
+
+def _refine_problem_seed_zhong(glyph, glyf, upm: int) -> bool:
+    touched = _refine_homepage_p5_stubborn(glyph, glyf, upm)
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return touched
+    _x_min, _x_max, _y_min, _y_max, _glyph_w, _glyph_h, cx, _cy = box
+    contours = _contour_info(glyph, coords)
+    local_touched = False
+    for c in contours:
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        if signed < 0 and float(c["cx"]) < cx:
+            _scale_contour(coords, c, 0.995, 0.995, 0.001 * upm, 0.0)
+            local_touched = True
+        elif signed > 0:
+            _scale_contour(coords, c, 1.010, 1.005, 0.0, 0.0)
+            local_touched = True
+    if local_touched:
+        glyph.recalcBounds(glyf)
+    return touched or local_touched
 
 
 def _refine_problem_huo(glyph, glyf, upm: int) -> bool:
@@ -3025,6 +3644,94 @@ def _refine_problem_mo(glyph, glyf, upm: int) -> bool:
     return touched
 
 
+def _refine_problem_huang(glyph, glyf, upm: int) -> bool:
+    """Restore the middle connection in 荒 without changing dense-top globally."""
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 3:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+    glyph_area = glyph_w * glyph_h
+    touched = False
+
+    for c in _contour_info(glyph, coords):
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        cy_t = (float(c["cy"]) - y_min) / max(1.0, glyph_h)
+        area_ratio = float(c["area"]) / max(1.0, glyph_area)
+        if signed > 0 or not (0.46 <= cy_t <= 0.66) or area_ratio <= 0.18:
+            continue
+
+        # Dense/top-bottom/identity stacking leaves the middle 亡 component
+        # optically under-connected at display sizes. Strengthen only this
+        # contour so the center no longer reads as a missing chunk.
+        _scale_contour(coords, c, 1.006, 1.018, 0.0, -0.0015 * upm)
+        touched = True
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            if not (0.34 < xn < 0.66 and 0.39 < yn < 0.58):
+                continue
+            t = (
+                (1.0 - abs(xn - 0.50) / 0.16)
+                * (1.0 - abs(yn - 0.485) / 0.095)
+            )
+            if t <= 0:
+                continue
+            coords[i] = (x, int(round(y - 0.003 * upm * t)))
+            touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
+def _refine_problem_self(glyph, glyf, upm: int) -> bool:
+    """Final W04-style frame/grid cleanup for 自 only."""
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None or glyph.numberOfContours < 2:
+        return False
+    x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+    touched = False
+
+    for c in _contour_info(glyph, coords):
+        signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+        c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+        c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+
+        if signed > 0:
+            _scale_contour(coords, c, 1.012, 1.004)
+            touched = True
+            continue
+
+        if c_w <= glyph_w * 0.75 or c_h <= glyph_h * 0.75:
+            continue
+        for i in range(int(c["start"]), int(c["end"]) + 1):
+            x, y = coords[i]
+            xn = (x - x_min) / max(1.0, glyph_w)
+            yn = (y - y_min) / max(1.0, glyph_h)
+            new_x = float(x)
+            new_y = float(y)
+            if yn < 0.16:
+                t = (0.16 - yn) / 0.16
+                new_y += 0.0025 * upm * t
+                if xn > 0.55:
+                    new_x = cx + (new_x - cx) * (1.0 - 0.006 * t)
+            if xn > 0.80 and 0.10 < yn < 0.88:
+                t = (xn - 0.80) / 0.20 * (1.0 - abs(yn - 0.50) / 0.40)
+                if t > 0:
+                    new_x = cx + (new_x - cx) * (1.0 - 0.004 * t)
+            new_xy = (int(round(new_x)), int(round(new_y)))
+            if new_xy != tuple(coords[i]):
+                coords[i] = new_xy
+                touched = True
+
+    if touched:
+        glyph.recalcBounds(glyf)
+    return touched
+
+
 def refine_visible_problem_glyphs(font: TTFont) -> None:
     """Final correction pass for the glyphs surfaced in the visual audit."""
     glyf = font["glyf"]
@@ -3036,6 +3743,27 @@ def refine_visible_problem_glyphs(font: TTFont) -> None:
         "或": _refine_problem_huo,
         "则": _refine_problem_ze,
         "魔": _refine_problem_mo,
+        "答": _refine_problem_answer,
+        **{ch: _refine_homepage_p0_grid for ch in HOMEPAGE_P0_GRID_GLYPHS},
+        **{ch: _refine_homepage_p0_hook for ch in HOMEPAGE_P0_HOOK_GLYPHS},
+        **{ch: _refine_homepage_p0_component for ch in HOMEPAGE_P0_COMPONENT_GLYPHS},
+        **{ch: _refine_homepage_p0_grid for ch in HOMEPAGE_P1_GRID_GLYPHS},
+        **{ch: _refine_homepage_p0_hook for ch in HOMEPAGE_P1_HOOK_GLYPHS},
+        **{ch: _refine_homepage_p0_component for ch in HOMEPAGE_P1_COMPONENT_GLYPHS},
+        **{ch: _refine_homepage_p0_component for ch in HOMEPAGE_P1_RADICAL_GLYPHS},
+        **{ch: _refine_homepage_p0_component for ch in HOMEPAGE_P1_ROOF_GLYPHS},
+        **{ch: _refine_homepage_p2_source_risk for ch in HOMEPAGE_P2_SOURCE_RISK_GLYPHS},
+        **{ch: _refine_homepage_p4_residual for ch in HOMEPAGE_P4_RESIDUAL_RISK_GLYPHS},
+        **{ch: _refine_homepage_p3_structure for ch in HOMEPAGE_P3_STRUCTURE_GLYPHS},
+        **{ch: _refine_homepage_p5_stubborn for ch in HOMEPAGE_P5_STUBBORN_RISK_GLYPHS},
+        # `去` is a single-contour residual where P4/P5 topology pushes are too blunt.
+        # Keep its dedicated posture correction last so broader queues cannot override it.
+        "去": _refine_problem_qu,
+        "斗": _refine_problem_dou,
+        "重": _refine_problem_chong,
+        "种": _refine_problem_seed_zhong,
+        "荒": _refine_problem_huang,
+        "自": _refine_problem_self,
     }
     touched: list[str] = []
     for char in VISIBLE_PROBLEM_GLYPHS:
@@ -3049,6 +3777,321 @@ def refine_visible_problem_glyphs(font: TTFont) -> None:
             touched.append(char)
     if touched:
         print(f"[luo] refined visible problem glyphs: {''.join(touched)}")
+
+
+def luo_homepage_p6_left_right(font: TTFont) -> None:
+    """v0.4.10 W04 follow-up: add hierarchy to left/right risk glyphs.
+
+    This is deliberately a final, named queue rather than a broad topology
+    pass. The remaining high-LXGW homepage cluster is mostly left/right
+    composition (`抽/独/种/技/虾/便/雅/柯/...`): the source posture keeps the
+    side component too even with the body, and the right-bottom tail stays
+    long. Apply a small shared correction after the existing P4/P5 refiners:
+    contain the left side, open eligible counters, and tuck the lower-right
+    tail. It should not become a GB2312-wide rule until this queue is stable.
+    """
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    upm = font["head"].unitsPerEm
+    h_min = WEB_PRESENCE_H_MIN_EM * upm
+    touched: list[str] = []
+
+    for char in dict.fromkeys(HOMEPAGE_P6_LEFT_RIGHT_GLYPHS):
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 2:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+        glyph_area = glyph_w * glyph_h
+        if glyph_area <= 0:
+            continue
+        contours = _contour_info(glyph, coords)
+        outers = [
+            c for c in contours
+            if _contour_signed_area(coords, int(c["start"]), int(c["end"])) <= 0
+        ]
+        if len(outers) < 2:
+            continue
+        largest_outer = max(outers, key=lambda c: float(c["area"]))
+        glyph_touched = False
+
+        for c in contours:
+            signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+            c_w = max(1.0, float(c["xmax"]) - float(c["xmin"]))
+            c_h = max(1.0, float(c["ymax"]) - float(c["ymin"]))
+            c_area = float(c["area"])
+            area_ratio = c_area / glyph_area
+            ccx = float(c["cx"])
+
+            if signed > 0:
+                if 0.004 <= area_ratio <= 0.22:
+                    _scale_contour(coords, c, 1.055, 1.030)
+                    glyph_touched = True
+                continue
+
+            if c is largest_outer or area_ratio < 0.018:
+                continue
+            if ccx < cx - glyph_w * 0.10 and area_ratio < 0.46:
+                sx = _presence_guarded_scale(0.976, c_w, h_min)
+                sy = _presence_guarded_scale(0.990, c_h, h_min)
+                _scale_contour(coords, c, sx, sy, 0.004 * upm, 0.0)
+                glyph_touched = True
+            elif ccx > cx + glyph_w * 0.14 and area_ratio < 0.42:
+                sx = _presence_guarded_scale(0.988, c_w, h_min)
+                sy = _presence_guarded_scale(0.994, c_h, h_min)
+                _scale_contour(coords, c, sx, sy, -0.002 * upm, 0.0)
+                glyph_touched = True
+
+        # Tuck lower-right overhangs after component scaling. This is the
+        # first-glance W04 cue on high-risk left/right glyphs: shorter, cleaner
+        # right-bottom exits without changing advance width or global weight.
+        for c in outers:
+            if float(c["area"]) < glyph_area * 0.08:
+                continue
+            for i in range(int(c["start"]), int(c["end"]) + 1):
+                x, y = coords[i]
+                xn = (x - x_min) / max(1.0, glyph_w)
+                yn = (y - y_min) / max(1.0, glyph_h)
+                if xn <= 0.58 or yn >= 0.36:
+                    continue
+                t = (xn - 0.58) / 0.42 * (0.36 - yn) / 0.36
+                new_x = cx + (x - cx) * (1.0 - 0.010 * t)
+                new_y = y + 0.0035 * upm * t
+                new_xy = (int(round(new_x)), int(round(new_y)))
+                if new_xy != tuple(coords[i]):
+                    coords[i] = new_xy
+                    glyph_touched = True
+
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            touched.append(char)
+
+    if touched:
+        print(f"[luo] P6 left-right W04 polish: {''.join(touched)}")
+
+
+def luo_curve_tail_polish(font: TTFont) -> None:
+    """Final screenshot-risk curve cleanup for 风/气/成 only.
+
+    Existing hook final + hook-tail cap already protect the whole font. These
+    three glyphs still show a first-glance fishhook/chunky lower-right curve
+    at display size, so keep the fix in a named queue instead of raising any
+    global HOOK/TURN parameter.
+    """
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    upm = font["head"].unitsPerEm
+    touched: list[str] = []
+
+    for char in LUO_CURVE_TAIL_POLISH_CHARS:
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+        glyph_area = glyph_w * glyph_h
+        glyph_touched = False
+
+        for c in _contour_info(glyph, coords):
+            signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+            if signed > 0 or float(c["area"]) < glyph_area * 0.08:
+                continue
+            for i in range(int(c["start"]), int(c["end"]) + 1):
+                x, y = coords[i]
+                xn = (x - x_min) / max(1.0, glyph_w)
+                yn = (y - y_min) / max(1.0, glyph_h)
+                new_x = float(x)
+                new_y = float(y)
+
+                if xn > 0.58 and yn < 0.38:
+                    t = (xn - 0.58) / 0.42 * (0.38 - yn) / 0.38
+                    new_x = cx + (new_x - cx) * (1.0 - 0.030 * t)
+                    new_y += 0.007 * upm * t
+                if xn > 0.70 and 0.22 <= yn <= 0.54:
+                    t = (xn - 0.70) / 0.30 * (1.0 - abs(yn - 0.38) / 0.16)
+                    if t > 0:
+                        new_x = cx + (new_x - cx) * (1.0 - 0.010 * t)
+
+                new_xy = (int(round(new_x)), int(round(new_y)))
+                if new_xy != tuple(coords[i]):
+                    coords[i] = new_xy
+                    glyph_touched = True
+
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            touched.append(char)
+
+    if touched:
+        print(f"[luo] curve-tail W04 polish: {''.join(touched)}")
+
+
+def luo_horiz_cap_flatten(font: TTFont) -> None:
+    """Clean tiny horizontal-cap steps on W04 reference-risk glyphs.
+
+    This replaces the disabled v0.4.4 long-h end emphasis. The old signature
+    pushed a stop downward; Tsanger W04 instead has a clean angular cap. This
+    pass only equalises the top edge of right caps on a small screenshot-risk
+    list (`正/晋/章/书/世/西/二/南`) and never adds a new 顿.
+    """
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    touched: list[str] = []
+    seg_count = 0
+
+    for char in LUO_HORIZ_CAP_FLATTEN_CHARS:
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords = glyph.coordinates
+        flags = glyph.flags
+        ends = glyph.endPtsOfContours
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        _x_min, _x_max, _y_min, _y_max, glyph_w, glyph_h, _cx, _cy = box
+        if glyph_w <= 0 or glyph_h <= 0:
+            continue
+        glyph_touched = False
+
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            if n < 8:
+                start = end + 1
+                continue
+            if _contour_signed_area(coords, start, end) > 0:
+                start = end + 1
+                continue
+
+            on_curve = [start + j for j in range(n) if flags[start + j] & 1]
+            if len(on_curve) < 2:
+                start = end + 1
+                continue
+
+            for k, ia in enumerate(on_curve):
+                ib = on_curve[(k + 1) % len(on_curve)]
+                ax, ay = coords[ia]
+                bx, by = coords[ib]
+                dx = bx - ax
+                dy = by - ay
+                if dx <= 0:
+                    continue
+                length = math.hypot(dx, dy)
+                if length < glyph_w * 0.18:
+                    continue
+                if math.degrees(math.atan2(abs(dy), abs(dx))) > 12.0:
+                    continue
+
+                # Right cap neighbourhood: the end point plus nearby contour
+                # points that still sit on the top edge. Use the chord line as
+                # the target so a local bump/notch is flattened, not emphasized.
+                candidates: set[int] = {ib}
+                for offset in range(-3, 9):
+                    idx = ib + offset
+                    if idx < start:
+                        idx = end - (start - idx - 1)
+                    elif idx > end:
+                        idx = start + (idx - end - 1)
+                    x, y = coords[idx]
+                    if abs(x - bx) > max(54.0, glyph_w * 0.075):
+                        continue
+                    line_y = ay + dy * ((x - ax) / dx)
+                    if abs(y - line_y) > glyph_h * 0.055:
+                        continue
+                    candidates.add(idx)
+
+                local_touched = False
+                for idx in candidates:
+                    x, y = coords[idx]
+                    line_y = ay + dy * ((x - ax) / dx)
+                    delta = line_y - y
+                    if abs(delta) <= 1:
+                        continue
+                    delta = max(-10.0, min(10.0, delta * 0.75))
+                    coords[idx] = (x, int(round(y + delta)))
+                    local_touched = True
+                if local_touched:
+                    seg_count += 1
+                    glyph_touched = True
+
+            start = end + 1
+
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            touched.append(char)
+
+    if touched:
+        print(f"[luo] horizontal cap flatten: {''.join(touched)} ({seg_count} caps)")
+
+
+def luo_diag_endpoint_clean(font: TTFont) -> None:
+    """Lightly tuck chunky diagonal tails on simple W04 comparison glyphs."""
+    glyf = font["glyf"]
+    cmap = _build_cmap(font)
+    upm = font["head"].unitsPerEm
+    touched: list[str] = []
+
+    for char in LUO_DIAG_ENDPOINT_CLEAN_CHARS:
+        gname = cmap.get(ord(char))
+        if not gname or gname not in glyf:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        x_min, _x_max, y_min, _y_max, glyph_w, glyph_h, cx, _cy = box
+        glyph_touched = False
+
+        for c in _contour_info(glyph, coords):
+            signed = _contour_signed_area(coords, int(c["start"]), int(c["end"]))
+            if signed > 0:
+                continue
+            for i in range(int(c["start"]), int(c["end"]) + 1):
+                x, y = coords[i]
+                xn = (x - x_min) / max(1.0, glyph_w)
+                yn = (y - y_min) / max(1.0, glyph_h)
+                if yn > 0.34:
+                    continue
+                left_t = max(0.0, (0.38 - xn) / 0.38)
+                right_t = max(0.0, (xn - 0.62) / 0.38)
+                side_t = max(left_t, right_t)
+                if side_t <= 0:
+                    continue
+                bottom_t = (0.34 - yn) / 0.34
+                t = side_t * bottom_t
+                inward = min(0.010 * upm * t, 18.0)
+                lift = min(0.004 * upm * t, 8.0)
+                new_x = x + inward if x < cx else x - inward
+                new_y = y + lift
+                new_xy = (int(round(new_x)), int(round(new_y)))
+                if new_xy != tuple(coords[i]):
+                    coords[i] = new_xy
+                    glyph_touched = True
+
+        if glyph_touched:
+            glyph.recalcBounds(glyf)
+            touched.append(char)
+
+    if touched:
+        print(f"[luo] diagonal endpoint clean: {''.join(touched)}")
 
 
 def _identity_core_glyph_bounds(coords) -> tuple[float, float, float, float, float, float]:
@@ -4834,6 +5877,12 @@ def luo_top_bottom_separate(font: TTFont) -> None:
     h_min = WEB_PRESENCE_H_MIN_EM * upm
     lift_units = LUO_TOP_BOTTOM_LIFT_EM * upm
     settle_units = LUO_TOP_BOTTOM_SETTLE_EM * upm
+    # v0.4.10 fix: CORE_LAYER chars get the dedicated `_identity_core_layer_gap`
+    # (0.010em up + 0.007em down ≈ 41 units total spread). Without this skip,
+    # 章/重/第 etc. would also eat the v0.4.7 lift+settle (~17 units), netting
+    # ~58 units of vertical separation that reads as "上下间隔太开" at 96px+.
+    # Mirror pattern from `luo_frame_inner_open` / `luo_inner_counter_open`
+    # which already skip IDENTITY_CORE_V2_CHARS for the same surgical reason.
     skip = (
         set(STRAIGHTEN_SKIP_CHARS)
         | set(IDENTITY_FRAME_CHARS)
@@ -4841,6 +5890,7 @@ def luo_top_bottom_separate(font: TTFont) -> None:
         | set(KAI_BALANCE_STACK_CHARS)
         | set(HEART_CHARS)
         | set(WALK_FINAL_CHARS)
+        | set(IDENTITY_CORE_LAYER_CHARS)
     )
     upper_count = 0
     lower_count = 0
@@ -5881,6 +6931,10 @@ def main() -> None:
     refine_identity_chars(font, requested_chars)
     refine_site_body_readability(font)
     refine_visible_problem_glyphs(font)
+    luo_homepage_p6_left_right(font)
+    luo_curve_tail_polish(font)
+    luo_horiz_cap_flatten(font)
+    luo_diag_endpoint_clean(font)
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
     adjust_cjk_spacing(font)
