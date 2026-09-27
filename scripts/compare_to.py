@@ -76,7 +76,7 @@ DEFAULT_CHARS = "落文字书心清骨风纸印国回月雨霜藏魔赢道远家
 # per-glyph variance is normal.
 LXGW_TARGET_MAX = 0.55          # Luo should drift OFF LXGW (v0.3 was 0.758)
 PRIVATE_TARGET_MIN = 0.50       # not too far below means "shares gesture"
-PRIVATE_TARGET_MAX = 0.60       # not too far above means "does not copy outlines"
+PRIVATE_TARGET_MAX = 0.62       # v0.4.12 unfreeze: was 0.60. The maintainer approved pushing closer to the private reference gesture (posture + grayscale + H/V contrast); the ceiling still guards "does not copy outlines". Structural similarity beyond ~0.62 must come from a deliberate future decision, not drift.
 
 # Per-glyph upper-bound gates kept for backwards compatibility (used in the
 # `pass` field on each result entry).

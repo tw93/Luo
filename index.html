@@ -5,7 +5,7 @@
   <title>Luo 落文：有魏晋风骨的长文纸面字</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles/luo.css?v=0.4.11-4b17fa4f">
+  <link rel="stylesheet" href="assets/styles/luo.css?v=0.4.12-7a3ff405">
   <meta name="description" content="落文取法卫夫人笔意，横轻竖重，端正含蓄，适合中文长文、纸面排版和标题展示。">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Luo 落文">
@@ -177,6 +177,16 @@
     .type-row > * {
       padding: 24px 34px;
       min-width: 0;
+    }
+    .type-row { container-type: inline-size; }
+    /* One line at every width above phones: shrink with the cell instead of
+       wrapping. 34.5em covers 33 glyphs plus letter-spacing; 244px is the
+       label column, gap and cell padding of the two-column row. */
+    .glyph-display.body-sample {
+      font-size: 19px;
+      font-size: min(19px, calc((100cqi - 244px) / 34.5));
+      line-height: 1.7;
+      letter-spacing: 0.4px;
     }
     .type-label {
       font-family: var(--latin-ui);
@@ -456,6 +466,10 @@
       .glyph-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .part-row { grid-template-columns: 1fr; gap: 8px; }
       .part-sample { white-space: normal; }
+      .type-row { grid-template-columns: 1fr; }
+      .type-row > * { padding: 16px 0; }
+      .type-label { padding-bottom: 0; border-bottom: none; }
+      .glyph-display.body-sample { font-size: min(19px, calc(100cqi / 34.5)); }
       .rules { grid-template-columns: 1fr; }
       .rules li:nth-child(odd) { border-right: none; padding-right: 0; }
       .rules li:nth-child(even) { padding-left: 0; }
@@ -478,6 +492,7 @@
       .section-title { font-size: 30px; letter-spacing: 0.8px; }
       .glyph-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .glyph-display { font-size: 32px; white-space: normal; }
+      .glyph-display.body-sample { font-size: 19px; }
       .paper-sheet { aspect-ratio: auto; padding: 32px 24px; }
       .paper-title { font-size: 22px; }
       .paper-body { font-size: 12.5px; line-height: 1.66; }
@@ -511,7 +526,7 @@
   <!-- HERO -->
   <header class="hero">
     <div class="eyebrow">
-      <span>CJK Reading Type · v0.4.11 · 2026.05</span>
+      <span>CJK Reading Type · v0.4.12 · 2026.09</span>
       <span class="hero-links">
         <a class="proof-nav" href="proof/gb2312.html">常用字校准</a>
         <a href="https://github.com/tw93/Luo" target="_blank" rel="noopener" aria-label="GitHub">
@@ -570,7 +585,7 @@
       </div>
       <div class="type-row">
         <div class="type-label">Body</div>
-        <div class="glyph-display" style="font-size:19px; line-height:1.7; letter-spacing:0.4px;">好字不争声色，读到最后你才发现，它从第一行就一直安静地陪你读下去。</div>
+        <div class="glyph-display body-sample">好字不争声色，读到最后你才发现，它从第一行就一直安静地陪你读下去。</div>
       </div>
       <div class="type-row">
         <div class="type-label">Latin</div>
