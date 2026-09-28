@@ -162,6 +162,7 @@ STRAIGHTEN_DIAG_INWARD_SCALE = float(os.environ.get("LUO_STRAIGHTEN_DIAG_INWARD_
 STRAIGHTEN_V_END_KEEP = float(os.environ.get("LUO_STRAIGHTEN_V_END_KEEP", "0.0"))  # round 13: share of a vertical span at each end left unstraightened (corner shoulders)
 STRAIGHTEN_MAX_SAG_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_SAG_RATIO", "0.18"))
 STRAIGHTEN_V_CURVY_SAG = float(os.environ.get("LUO_STRAIGHTEN_V_CURVY_SAG", "0.08"))
+STRAIGHTEN_V_SWEEP_SAG = float(os.environ.get("LUO_STRAIGHTEN_V_SWEEP_SAG", "0.06"))
 STRAIGHTEN_MAX_PERP_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_PERP_RATIO", "0.20"))  # v0.4.3 audit fix: 0.18 仍在长横右端拉出三角下尖，放宽到 0.20 让更多 corner controls 被识别保护
 # Glyph categories where straightening is known to interfere with a
 # dedicated downstream pass; left alone here and shaped by their own
@@ -546,6 +547,7 @@ LUO_GESTURE_BODY_CHARS = os.environ.get("LUO_GESTURE_BODY_CHARS", "all")
 # width at 300px (书 -11 / 晋 -10 / 整 -17 / 声 -21 measured against the
 # pre-gesture baseline) and Tang re-flagged all four. Skip, don't rescale.
 # +玄云两来清: skip free-end shorten so tip taper does not stack with BOLDEN_H.
+LUO_GESTURE_MAX_CONTOURS = int(os.environ.get("LUO_GESTURE_MAX_CONTOURS", "9"))
 LUO_GESTURE_SKIP_CHARS = "书整声晋玄云两来清"
 # Main-stroke protection: bottom main 横 (王/里/且 bottom bar, or 一-style
 # flat single-stroke glyphs) act as 主笔 in kai and keep their reach.
@@ -1433,6 +1435,12 @@ def straighten_strokes(font: TTFont) -> None:
                 # Round 15: a steep 竖撇 (柳/卯) classifies as "v"; treat a
                 # visibly curved one like a diagonal so it is not thinned.
                 _curvy = _sag > STRAIGHTEN_V_CURVY_SAG * length
+                # Round 19: a clearly bowed steep span is a 竖撇 sweep (崛's 屈),
+                # not a wobbly 竖; straightening it made a wedge that leaned
+                # into the neighbouring stroke.
+                if kind == "v" and length > 0.25 * glyph_max and _sag > STRAIGHTEN_V_SWEEP_SAG * length:
+                    stats["curve_skip"] = stats.get("curve_skip", 0) + 1
+                    continue
                 if STRAIGHTEN_MAX_SAG_RATIO > 0:
                     if _sag > STRAIGHTEN_MAX_SAG_RATIO * length:
                         stats["curve_skip"] = stats.get("curve_skip", 0) + 1
@@ -5498,6 +5506,10 @@ def luo_na_modulate(font: TTFont) -> None:
             for j in range(n):
                 tx, ty = coords[start + j]
 
+                # Round 19: 捺 feet sit in the lower part of the glyph; the
+                # 竹 head's right dot (篪) was read as one and hooked.
+                if ty > glyph_ymin + 0.6 * glyph_h:
+                    continue
                 key = tx - 1.3 * ty
                 if any(
                     coords[start + (j + k) % n][0] - 1.3 * coords[start + (j + k) % n][1] >= key
@@ -6040,12 +6052,16 @@ def luo_stem_normalize(font: TTFont) -> None:
             if not inner:
                 continue
             ws = []
-            for f in (0.2, 0.35, 0.5, 0.65, 0.8):
+            fr = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+            for f in fr:
                 yq = W[1] + (W[2] - W[1]) * f
                 near = [abs(W[0] - O[0]) for O in inner if O[1] <= yq <= O[2]]
                 if near:
                     ws.append(min(near))
-            if len(ws) < 3:
+            # Round 19: a frame wall has counters along most of its length
+            # (典/目). A stem that only brushes one small counter (崛's 山)
+            # got pushed partly and looked bitten.
+            if len(ws) < 0.5 * len(fr):
                 continue
             w_med = sorted(ws)[len(ws) // 2]
             if w_med >= LUO_STEM_NORM_WALL_TARGET_EM * upm or w_med < 0.03 * upm:
@@ -6071,7 +6087,7 @@ def luo_stem_normalize(font: TTFont) -> None:
             for f in (0.25, 0.5, 0.75):
                 qy = wy0 + (wy1 - wy0) * f
                 qx0 = wx0 + (wx1 - wx0) * f
-                for dd in (0.05, 0.08, 0.11):
+                for dd in (0.05, 0.08, 0.11, 0.15, 0.20, 0.25):  # round 19: reach far enough to see 山 beside 崛's 屈
                     if _ink_at(qx0 + outward * dd * upm, qy):
                         clear = False
             if not clear:
@@ -6299,25 +6315,31 @@ def luo_dense_slim(font: TTFont) -> None:
             if n < 3 or max(max(xs) - min(xs), max(ys) - min(ys)) < min_c:
                 start = end + 1
                 continue
+            # Pinned factor per point, then smoothed along the contour so
+            # the inset fades in and out instead of stepping (a hard pin next
+            # to moved neighbours left spikes: 灏 页 top bar, 篪 竹).
+            fac = [0.0 if _near_other(ci, pts[j][0], pts[j][1]) else 1.0 for j in range(n)]
+            for _ in range(3):
+                fac = [min(fac[j], (fac[j - 1] + fac[j] + fac[(j + 1) % n]) / 3.0) for j in range(n)]
             for j in range(n):
                 px, py = pts[j]
                 ax, ay = pts[j - 1]
                 bx, by = pts[(j + 1) % n]
+                if fac[j] <= 0.0:
+                    continue
                 nx = ny = 0.0
                 for (x0, y0), (x1, y1) in (((ax, ay), (px, py)), ((px, py), (bx, by))):
                     ex, ey = x1 - x0, y1 - y0
                     el = math.hypot(ex, ey)
                     if el > 1e-6:
-                        nx += ey / el   # right of travel = into the ink
+                        nx += ey / el
                         ny += -ex / el
                 nl = math.hypot(nx, ny)
                 if nl < 1e-6:
                     continue
-                if _near_other(ci, px, py):
-                    continue
-                # Corner scale: keep the offset parallel on edges, cap at 2x.
                 sc = min(2.0, 2.0 / nl) if nl > 1.0 else 1.0
-                new[start + j] = (int(round(px + d * sc * nx / nl)), int(round(py + d * sc * ny / nl)))
+                dd = d * fac[j]
+                new[start + j] = (int(round(px + dd * sc * nx / nl)), int(round(py + dd * sc * ny / nl)))
             start = end + 1
         for i, c in enumerate(new):
             glyph.coordinates[i] = c
@@ -7168,6 +7190,10 @@ def luo_gesture_body_contract(font: TTFont) -> None:
             continue
         glyph = glyf[gname]
         if glyph.numberOfContours <= 0:
+            continue
+        # Round 19: dense glyphs are already slimmed by luo_dense_slim; the
+        # shortened cap there came out as a flat blade (灏 页 top bar).
+        if glyph.numberOfContours >= LUO_GESTURE_MAX_CONTOURS:
             continue
 
         coords = list(glyph.coordinates)

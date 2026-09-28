@@ -6,8 +6,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.6618,
-  "avg_bbox_centered_iou": 0.7516,
+  "avg_raster_iou": 0.6641,
+  "avg_bbox_centered_iou": 0.7539,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -94,24 +94,24 @@
     {
       "char": "骨",
       "codepoint": "U+9AA8",
-      "raster_iou": 0.6529,
-      "bbox_centered_iou": 0.7347,
+      "raster_iou": 0.6547,
+      "bbox_centered_iou": 0.7397,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "风",
       "codepoint": "U+98CE",
-      "raster_iou": 0.7885,
-      "bbox_centered_iou": 0.743,
+      "raster_iou": 0.7837,
+      "bbox_centered_iou": 0.7355,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "纸",
       "codepoint": "U+7EB8",
-      "raster_iou": 0.7834,
-      "bbox_centered_iou": 0.8729,
+      "raster_iou": 0.7997,
+      "bbox_centered_iou": 0.8805,
       "gate": 0.6,
       "pass": false
     },
@@ -158,32 +158,32 @@
     {
       "char": "霜",
       "codepoint": "U+971C",
-      "raster_iou": 0.6503,
-      "bbox_centered_iou": 0.6324,
+      "raster_iou": 0.654,
+      "bbox_centered_iou": 0.6373,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "藏",
       "codepoint": "U+85CF",
-      "raster_iou": 0.7848,
-      "bbox_centered_iou": 0.8319,
+      "raster_iou": 0.7928,
+      "bbox_centered_iou": 0.8416,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "魔",
       "codepoint": "U+9B54",
-      "raster_iou": 0.7096,
-      "bbox_centered_iou": 0.6919,
+      "raster_iou": 0.705,
+      "bbox_centered_iou": 0.7188,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "赢",
       "codepoint": "U+8D62",
-      "raster_iou": 0.6957,
-      "bbox_centered_iou": 0.6241,
+      "raster_iou": 0.704,
+      "bbox_centered_iou": 0.6217,
       "gate": 0.6,
       "pass": false
     },
@@ -222,8 +222,8 @@
     {
       "char": "序",
       "codepoint": "U+5E8F",
-      "raster_iou": 0.7308,
-      "bbox_centered_iou": 0.8265,
+      "raster_iou": 0.7706,
+      "bbox_centered_iou": 0.8506,
       "gate": 0.6,
       "pass": false
     },
