@@ -157,6 +157,7 @@ STRAIGHTEN_BOWL_DIP_EM = float(os.environ.get("LUO_STRAIGHTEN_BOWL_DIP_EM", "0.0
 STRAIGHTEN_DIAG_NO_THIN = os.environ.get("LUO_STRAIGHTEN_DIAG_NO_THIN", "1") not in ("0", "false")
 STRAIGHTEN_DIAG_INWARD_SCALE = float(os.environ.get("LUO_STRAIGHTEN_DIAG_INWARD_SCALE", "0.4"))  # round 9: share of the inward (thinning) diag move that is kept
 STRAIGHTEN_V_END_KEEP = float(os.environ.get("LUO_STRAIGHTEN_V_END_KEEP", "0.0"))  # round 13: share of a vertical span at each end left unstraightened (corner shoulders)
+STRAIGHTEN_MAX_SAG_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_SAG_RATIO", "0.18"))
 STRAIGHTEN_MAX_PERP_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_PERP_RATIO", "0.20"))  # v0.4.3 audit fix: 0.18 仍在长横右端拉出三角下尖，放宽到 0.20 让更多 corner controls 被识别保护
 # Glyph categories where straightening is known to interfere with a
 # dedicated downstream pass; left alone here and shaped by their own
@@ -1399,6 +1400,15 @@ def straighten_strokes(font: TTFont) -> None:
                 # stem bow; pulling them along the chord drags the corner
                 # outward and produces a sharp downward spike at the end of
                 # long horizontals.
+                # Round 14: a span whose interior sags far from its chord is a
+                # real sweep (竖撇 in 介/丛/丿), not a hand-drawn bow; pulling
+                # it to the chord snapped the stroke at the seam.
+                if STRAIGHTEN_MAX_SAG_RATIO > 0:
+                    _pl = [coords[i] for i in interior]
+                    _sag = max(abs((qx - ax) * dy - (qy - ay) * dx) / length for qx, qy in _pl)
+                    if _sag > STRAIGHTEN_MAX_SAG_RATIO * length:
+                        stats["curve_skip"] = stats.get("curve_skip", 0) + 1
+                        continue
                 inv_len = 1.0 / length
                 inv_len2 = inv_len * inv_len
                 perp_x = -dy * inv_len
@@ -5946,8 +5956,14 @@ def luo_stem_normalize(font: TTFont) -> None:
             # on their own they drift off the main stem's line.
             if y_hi - y_lo < 0.15 * glyph_max:
                 continue
+            # Edges must describe the same stem length: when one runs on far
+            # past the other (傀's 亻), they are two different strokes.
+            if max(L[2] - L[1], R[2] - R[1]) > 1.35 * (y_hi - y_lo):
+                continue
             ws = [_x_at(R, yq) - _x_at(L, yq) for yq in (y_lo, y_lo + (y_hi - y_lo) * 0.25, (y_lo + y_hi) / 2.0, y_lo + (y_hi - y_lo) * 0.75, y_hi)]
             w_med = sorted(ws)[len(ws) // 2]
+            if min(ws) < 0.03 * upm or max(ws) > 1.8 * max(min(ws), 1.0):
+                continue  # tapering edges (傀's 亻 竖 vs 撇) are not one stem
             if w_med > 0.105 * upm:
                 continue  # wider than any real stem: two strokes plus a gap
             w_t = min(max(w_med, lo), hi)
@@ -5990,6 +6006,7 @@ def luo_stem_normalize(font: TTFont) -> None:
             inner = [
                 O for O in chords + short_chords
                 if O[3] == -W[3] and 0 < (W[0] - O[0]) * outward <= 0.12 * upm
+                and _contour_signed_area(coords, O[4], O[5]) > 0  # a counter, not a neighbouring stroke (傀)
                 and min(O[2], W[2]) - max(O[1], W[1]) > 0
             ]
             if not inner:
