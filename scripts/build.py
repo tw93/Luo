@@ -103,8 +103,8 @@ BOLDEN_DELTA = os.environ.get("LUO_BOLDEN")
 # Graduated boldening: reduce delta as contour count rises.
 BOLDEN_GRAD_STEP = float(os.environ.get("LUO_BOLDEN_GRAD_STEP", "0.06"))
 BOLDEN_GRAD_FLOOR = float(os.environ.get("LUO_BOLDEN_GRAD_FLOOR", "0.85"))
-BOLDEN_DENSE_ONSET = int(os.environ.get("LUO_BOLDEN_DENSE_ONSET", "6"))
-BOLDEN_DENSE_STEP = float(os.environ.get("LUO_BOLDEN_DENSE_STEP", "0.04"))
+BOLDEN_DENSE_ONSET = int(os.environ.get("LUO_BOLDEN_DENSE_ONSET", "4"))
+BOLDEN_DENSE_STEP = float(os.environ.get("LUO_BOLDEN_DENSE_STEP", "0.06"))
 BOLDEN_DENSE_FLOOR = float(os.environ.get("LUO_BOLDEN_DENSE_FLOOR", "0.55"))
 BOLDEN_GRAD_ONSET = int(os.environ.get("LUO_BOLDEN_GRAD_ONSET", "3"))
 
@@ -343,6 +343,7 @@ LUO_INNER_COUNTER_X = float(os.environ.get("LUO_INNER_COUNTER_X", "1.040"))
 LUO_INNER_COUNTER_Y = float(os.environ.get("LUO_INNER_COUNTER_Y", "1.020"))
 LUO_INNER_COUNTER_BAND_LO = float(os.environ.get("LUO_INNER_COUNTER_BAND_LO", "0.30"))
 LUO_INNER_COUNTER_BAND_HI = float(os.environ.get("LUO_INNER_COUNTER_BAND_HI", "0.70"))
+LUO_DENSE_COUNTER_WIDE_CONTOURS = int(os.environ.get("LUO_DENSE_COUNTER_WIDE_CONTOURS", "8"))
 LUO_INNER_COUNTER_MIN_AREA = float(os.environ.get("LUO_INNER_COUNTER_MIN_AREA", "0.005"))
 LUO_INNER_COUNTER_MAX_AREA = float(os.environ.get("LUO_INNER_COUNTER_MAX_AREA", "0.15"))
 
@@ -644,6 +645,16 @@ LUO_FLICK_MAX_PUSH_EM = float(os.environ.get("LUO_FLICK_MAX_PUSH_EM", "0.014"))
 LUO_SMALL_PLUMP_FLOOR_EM = float(os.environ.get("LUO_SMALL_PLUMP_FLOOR_EM", "0.070"))  # was a hard-coded 0.050
 LUO_SMALL_PLUMP_MAX_SCALE = float(os.environ.get("LUO_SMALL_PLUMP_MAX_SCALE", "1.6"))  # was 1.35
 
+# --- v0.4.12 round 18 dense slim (luo_dense_slim) ---
+# W04 thins strokes by density: horizontal stroke 45-57 per-mille em in
+# 鬣/镶/鬓 vs ~68 in normal glyphs, gaps 28-53. Luo stayed at the LXGW base
+# (53-63) because bolden can only add. Inset every outline of dense glyphs
+# along its normals, ramped by contour count.
+LUO_DENSE_SLIM_EM = float(os.environ.get("LUO_DENSE_SLIM_EM", "0.0065"))
+LUO_DENSE_SLIM_INK_START = float(os.environ.get("LUO_DENSE_SLIM_INK_START", "0.42"))  # outline ink/bbox where the inset starts
+LUO_DENSE_SLIM_INK_FULL = float(os.environ.get("LUO_DENSE_SLIM_INK_FULL", "0.50"))
+LUO_DENSE_SLIM_MIN_CONTOUR_EM = float(os.environ.get("LUO_DENSE_SLIM_MIN_CONTOUR_EM", "0.07"))
+
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,
 # 儿/成/片/后) inherit LXGW's needle taper and read as a hairline next to
@@ -694,8 +705,8 @@ LUO_FACE_NARROW_CHARS = {
 # v0.4.12 residual3: refresh membership from the live audit queue; escalate
 # still-over_w05 chars one tier (never demote; never raise the global EM).
 LUO_DENSE_INK_RELIEF_EM = float(os.environ.get("LUO_DENSE_INK_RELIEF_EM", "0.0085"))
-LUO_DENSE_INK_AUTO_CONTOURS = int(os.environ.get("LUO_DENSE_INK_AUTO_CONTOURS", "9"))
-LUO_DENSE_INK_AUTO_TIER = float(os.environ.get("LUO_DENSE_INK_AUTO_TIER", "1.0"))
+LUO_DENSE_INK_AUTO_CONTOURS = int(os.environ.get("LUO_DENSE_INK_AUTO_CONTOURS", "5"))
+LUO_DENSE_INK_AUTO_TIER = float(os.environ.get("LUO_DENSE_INK_AUTO_TIER", "1.75"))
 LUO_DENSE_INK_RELIEF_TIERS = {
     # ugly-queue escalate: 字/风/赢/魔 dens +0.04~0.06 and still over_w05 or
     # visibly blacker than W04 at 200px; 书/套/肿/流 dens +0.03~0.04.
@@ -6211,6 +6222,110 @@ def luo_flick_taper(font: TTFont) -> None:
     print(f"[luo] flick taper: {tips} tips across {glyphs} glyphs (region={LUO_FLICK_REGION_EM}em, tip={LUO_FLICK_TIP})")
 
 
+def luo_dense_slim(font: TTFont) -> None:
+    """Round 18: inset outlines of dense glyphs (see LUO_DENSE_SLIM_*)."""
+    if LUO_DENSE_SLIM_EM <= 0:
+        print("[luo] dense slim: skipped")
+        return
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+    upm = font["head"].unitsPerEm
+    min_c = LUO_DENSE_SLIM_MIN_CONTOUR_EM * upm
+    skip = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
+    count = 0
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF) or chr(cp) in skip:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 3:
+            continue  # 一/二-like glyphs fill their own bbox; not dense
+        co = list(glyph.coordinates)
+        area = 0.0
+        s0 = 0
+        for e0 in glyph.endPtsOfContours:
+            pts = co[s0:e0 + 1]
+            s0 = e0 + 1
+            area += sum(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1] for i in range(len(pts))) / 2.0
+        xs = [p[0] for p in co]
+        ys = [p[1] for p in co]
+        box = max(1.0, (max(xs) - min(xs)) * (max(ys) - min(ys)))
+        ink = abs(area) / box
+        k = (ink - LUO_DENSE_SLIM_INK_START) / (LUO_DENSE_SLIM_INK_FULL - LUO_DENSE_SLIM_INK_START)
+        if k <= 0:
+            continue
+        k = min(1.0, k)
+        d = LUO_DENSE_SLIM_EM * upm * k
+        if d < 0.5:
+            continue
+        coords = list(glyph.coordinates)
+        new = list(coords)
+        # Contour list for junction tests: LXGW strokes are separate
+        # overlapping contours; insetting both sides of a shallow overlap
+        # opened hairline slits (翻/蟹/魔). Points near another contour's ink
+        # stay put.
+        cl = []
+        s1 = 0
+        for e1 in glyph.endPtsOfContours:
+            pts1 = coords[s1:e1 + 1]
+            xs1 = [q[0] for q in pts1]
+            ys1 = [q[1] for q in pts1]
+            cl.append((s1, pts1, min(xs1), max(xs1), min(ys1), max(ys1)))
+            s1 = e1 + 1
+        probe = 3.0 * d
+
+        def _near_other(ci, qx, qy):
+            for cj, (sj, pj, x0, x1, y0, y1) in enumerate(cl):
+                if cj == ci or qx < x0 - probe or qx > x1 + probe or qy < y0 - probe or qy > y1 + probe:
+                    continue
+                for ox, oy in ((0, 0), (probe, 0), (-probe, 0), (0, probe), (0, -probe)):
+                    tx, ty = qx + ox, qy + oy
+                    inside = False
+                    for (ax_, ay_), (bx_, by_) in zip(pj, pj[1:] + pj[:1]):
+                        if (ay_ > ty) != (by_ > ty) and tx < ax_ + (bx_ - ax_) * (ty - ay_) / (by_ - ay_):
+                            inside = not inside
+                    if inside:
+                        return True
+            return False
+
+        start = 0
+        ci = -1
+        for end in glyph.endPtsOfContours:
+            ci += 1
+            n = end - start + 1
+            pts = coords[start:end + 1]
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            if n < 3 or max(max(xs) - min(xs), max(ys) - min(ys)) < min_c:
+                start = end + 1
+                continue
+            for j in range(n):
+                px, py = pts[j]
+                ax, ay = pts[j - 1]
+                bx, by = pts[(j + 1) % n]
+                nx = ny = 0.0
+                for (x0, y0), (x1, y1) in (((ax, ay), (px, py)), ((px, py), (bx, by))):
+                    ex, ey = x1 - x0, y1 - y0
+                    el = math.hypot(ex, ey)
+                    if el > 1e-6:
+                        nx += ey / el   # right of travel = into the ink
+                        ny += -ex / el
+                nl = math.hypot(nx, ny)
+                if nl < 1e-6:
+                    continue
+                if _near_other(ci, px, py):
+                    continue
+                # Corner scale: keep the offset parallel on edges, cap at 2x.
+                sc = min(2.0, 2.0 / nl) if nl > 1.0 else 1.0
+                new[start + j] = (int(round(px + d * sc * nx / nl)), int(round(py + d * sc * ny / nl)))
+            start = end + 1
+        for i, c in enumerate(new):
+            glyph.coordinates[i] = c
+        glyph.recalcBounds(glyf)
+        count += 1
+    print(f"[luo] dense slim: {count} glyphs (max inset {LUO_DENSE_SLIM_EM}em, ink {LUO_DENSE_SLIM_INK_START}-{LUO_DENSE_SLIM_INK_FULL})")
+
+
 def luo_pie_tail_fill(font: TTFont) -> None:
     """v0.4.12: give long 撇 tails flesh down to a blunt point (see the
     LUO_PIE_FILL_* constant block)."""
@@ -9382,7 +9497,12 @@ def luo_inner_counter_open(font: TTFont) -> None:
             if signed <= 0:
                 continue
             cc_x = float(c["cx"])
-            if cc_x < band_lo or cc_x > band_hi:
+            # Round 18: dense glyphs (鬣/镶/馨) carry their crowded counters
+            # in the side components too; open across the full width there.
+            wide = glyph.numberOfContours >= LUO_DENSE_COUNTER_WIDE_CONTOURS
+            lo_b = x_min + glyph_w * 0.05 if wide else band_lo
+            hi_b = x_min + glyph_w * 0.95 if wide else band_hi
+            if cc_x < lo_b or cc_x > hi_b:
                 continue
             if area < glyph_area * LUO_INNER_COUNTER_MIN_AREA:
                 continue
@@ -10547,6 +10667,7 @@ def main() -> None:
     luo_face_narrow(font)
     luo_char_posture_lift(font)
     luo_diag_endpoint_clean(font)
+    luo_dense_slim(font)
     luo_posture_contain(font)
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
