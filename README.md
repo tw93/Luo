@@ -38,7 +38,7 @@ v0.4 已覆盖官网、README、两页纸试读、内部打印样张和一组核
 
 ## 使用
 
-仓库会提交当前构建产物，覆盖 GB2312 一级常用字共 3820 字，可以直接下载试用：
+仓库会提交当前构建产物，覆盖完整 GB2312 共 6763 字，可以直接下载试用：
 
 - [dist/Luo-Regular.ttf](dist/Luo-Regular.ttf)
 - [dist/Luo-Regular.woff2](dist/Luo-Regular.woff2)
