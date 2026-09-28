@@ -6,8 +6,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.6657,
-  "avg_bbox_centered_iou": 0.759,
+  "avg_raster_iou": 0.6661,
+  "avg_bbox_centered_iou": 0.7578,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -46,8 +46,8 @@
     {
       "char": "落",
       "codepoint": "U+843D",
-      "raster_iou": 0.7251,
-      "bbox_centered_iou": 0.7464,
+      "raster_iou": 0.7269,
+      "bbox_centered_iou": 0.7473,
       "gate": 0.6,
       "pass": false
     },
@@ -62,8 +62,8 @@
     {
       "char": "字",
       "codepoint": "U+5B57",
-      "raster_iou": 0.6666,
-      "bbox_centered_iou": 0.8064,
+      "raster_iou": 0.6722,
+      "bbox_centered_iou": 0.816,
       "gate": 0.6,
       "pass": false
     },
@@ -86,8 +86,8 @@
     {
       "char": "清",
       "codepoint": "U+6E05",
-      "raster_iou": 0.6577,
-      "bbox_centered_iou": 0.7671,
+      "raster_iou": 0.6585,
+      "bbox_centered_iou": 0.7694,
       "gate": 0.6,
       "pass": false
     },
@@ -102,8 +102,8 @@
     {
       "char": "风",
       "codepoint": "U+98CE",
-      "raster_iou": 0.7883,
-      "bbox_centered_iou": 0.7427,
+      "raster_iou": 0.7885,
+      "bbox_centered_iou": 0.743,
       "gate": 0.6,
       "pass": false
     },
@@ -118,8 +118,8 @@
     {
       "char": "印",
       "codepoint": "U+5370",
-      "raster_iou": 0.7467,
-      "bbox_centered_iou": 0.8069,
+      "raster_iou": 0.7485,
+      "bbox_centered_iou": 0.8052,
       "gate": 0.6,
       "pass": false
     },
@@ -158,32 +158,32 @@
     {
       "char": "霜",
       "codepoint": "U+971C",
-      "raster_iou": 0.6822,
-      "bbox_centered_iou": 0.7304,
+      "raster_iou": 0.6787,
+      "bbox_centered_iou": 0.719,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "藏",
       "codepoint": "U+85CF",
-      "raster_iou": 0.7871,
-      "bbox_centered_iou": 0.8251,
+      "raster_iou": 0.7884,
+      "bbox_centered_iou": 0.8277,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "魔",
       "codepoint": "U+9B54",
-      "raster_iou": 0.7238,
-      "bbox_centered_iou": 0.7404,
+      "raster_iou": 0.7229,
+      "bbox_centered_iou": 0.703,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "赢",
       "codepoint": "U+8D62",
-      "raster_iou": 0.7261,
-      "bbox_centered_iou": 0.6501,
+      "raster_iou": 0.7301,
+      "bbox_centered_iou": 0.6494,
       "gate": 0.6,
       "pass": false
     },
@@ -222,16 +222,16 @@
     {
       "char": "序",
       "codepoint": "U+5E8F",
-      "raster_iou": 0.7309,
-      "bbox_centered_iou": 0.8264,
+      "raster_iou": 0.7308,
+      "bbox_centered_iou": 0.8265,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "集",
       "codepoint": "U+96C6",
-      "raster_iou": 0.667,
-      "bbox_centered_iou": 0.8048,
+      "raster_iou": 0.6674,
+      "bbox_centered_iou": 0.8063,
       "gate": 0.6,
       "pass": false
     },
@@ -278,8 +278,8 @@
     {
       "char": "黄",
       "codepoint": "U+9EC4",
-      "raster_iou": 0.6623,
-      "bbox_centered_iou": 0.7565,
+      "raster_iou": 0.6634,
+      "bbox_centered_iou": 0.7554,
       "gate": 0.6,
       "pass": false
     }

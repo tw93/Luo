@@ -103,6 +103,9 @@ BOLDEN_DELTA = os.environ.get("LUO_BOLDEN")
 # Graduated boldening: reduce delta as contour count rises.
 BOLDEN_GRAD_STEP = float(os.environ.get("LUO_BOLDEN_GRAD_STEP", "0.06"))
 BOLDEN_GRAD_FLOOR = float(os.environ.get("LUO_BOLDEN_GRAD_FLOOR", "0.85"))
+BOLDEN_DENSE_ONSET = int(os.environ.get("LUO_BOLDEN_DENSE_ONSET", "6"))
+BOLDEN_DENSE_STEP = float(os.environ.get("LUO_BOLDEN_DENSE_STEP", "0.04"))
+BOLDEN_DENSE_FLOOR = float(os.environ.get("LUO_BOLDEN_DENSE_FLOOR", "0.55"))
 BOLDEN_GRAD_ONSET = int(os.environ.get("LUO_BOLDEN_GRAD_ONSET", "3"))
 
 # Endpoint softening (软切角): round sharp corners after boldening.
@@ -237,6 +240,8 @@ HOOK_FINAL_CURVED_ANGLE = float(os.environ.get("LUO_HOOK_FINAL_CURVED_ANGLE", "8
 HOOK_TAIL_CAP_ENABLED = os.environ.get("LUO_HOOK_TAIL_CAP_ENABLED", "1") not in ("0", "false", "False")
 HOOK_TAIL_CAP_TOLERANCE = float(os.environ.get("LUO_HOOK_TAIL_CAP_TOLERANCE", "0.05"))
 HOOK_TAIL_CAP_MAX_PUSH = float(os.environ.get("LUO_HOOK_TAIL_CAP_MAX_PUSH", "16.0"))
+HOOK_TAIL_MIN_RISE = float(os.environ.get("LUO_HOOK_TAIL_MIN_RISE", "0.3"))
+HOOK_TAIL_MIN_CONTOUR_EM = float(os.environ.get("LUO_HOOK_TAIL_MIN_CONTOUR_EM", "0.25"))
 HOOK_TAIL_CAP_SAMPLES = int(os.environ.get("LUO_HOOK_TAIL_CAP_SAMPLES", "7"))  # v0.4.12: 4 → 7 so the tail taper reaches the 竖弯钩 sweep (气/尤/几), not just the first points past the knee.
 
 # --- v0.4.4 Luo signature passes ---
@@ -651,6 +656,7 @@ LUO_PIE_FILL_REGION_EM = float(os.environ.get("LUO_PIE_FILL_REGION_EM", "0.36"))
 LUO_PIE_FILL_TIP = float(os.environ.get("LUO_PIE_FILL_TIP", "0.35"))
 LUO_PIE_FILL_POW = float(os.environ.get("LUO_PIE_FILL_POW", "0.5"))
 LUO_PIE_FILL_MAX_PUSH_EM = float(os.environ.get("LUO_PIE_FILL_MAX_PUSH_EM", "0.020"))
+LUO_PIE_FILL_TIP_RAMP_EM = float(os.environ.get("LUO_PIE_FILL_TIP_RAMP_EM", "0.06"))
 LUO_PIE_FILL_BODY_MIN_EM = float(os.environ.get("LUO_PIE_FILL_BODY_MIN_EM", "0.080"))
 LUO_PIE_FILL_ANGLE_MIN = float(os.environ.get("LUO_PIE_FILL_ANGLE_MIN", "48.0"))
 LUO_PIE_FILL_ANGLE_MAX = float(os.environ.get("LUO_PIE_FILL_ANGLE_MAX", "84.0"))
@@ -688,6 +694,8 @@ LUO_FACE_NARROW_CHARS = {
 # v0.4.12 residual3: refresh membership from the live audit queue; escalate
 # still-over_w05 chars one tier (never demote; never raise the global EM).
 LUO_DENSE_INK_RELIEF_EM = float(os.environ.get("LUO_DENSE_INK_RELIEF_EM", "0.0085"))
+LUO_DENSE_INK_AUTO_CONTOURS = int(os.environ.get("LUO_DENSE_INK_AUTO_CONTOURS", "9"))
+LUO_DENSE_INK_AUTO_TIER = float(os.environ.get("LUO_DENSE_INK_AUTO_TIER", "1.0"))
 LUO_DENSE_INK_RELIEF_TIERS = {
     # ugly-queue escalate: 字/风/赢/魔 dens +0.04~0.06 and still over_w05 or
     # visibly blacker than W04 at 200px; 书/套/肿/流 dens +0.03~0.04.
@@ -1107,7 +1115,12 @@ def _bolden_scale(glyph) -> float:
     n = glyph.numberOfContours
     if n <= BOLDEN_GRAD_ONSET:
         return 1.0
-    return max(BOLDEN_GRAD_FLOOR, 1.0 - (n - BOLDEN_GRAD_ONSET) * BOLDEN_GRAD_STEP)
+    base = max(BOLDEN_GRAD_FLOOR, 1.0 - (n - BOLDEN_GRAD_ONSET) * BOLDEN_GRAD_STEP)
+    # Round 16: very dense glyphs (鬣/齉/馨, 8+ contours, mostly GB2312 level 2)
+    # filled their counters at the 0.85 floor. Keep thinning past it.
+    if n > BOLDEN_DENSE_ONSET:
+        base = max(BOLDEN_DENSE_FLOOR, BOLDEN_GRAD_FLOOR - (n - BOLDEN_DENSE_ONSET) * BOLDEN_DENSE_STEP)
+    return base
 
 
 def soften_endpoints(font: TTFont) -> None:
@@ -6329,6 +6342,11 @@ def luo_pie_tail_fill(font: TTFont) -> None:
                         # Fade the push out over the last 30% so the grown
                         # tail meets the untouched body without a step.
                         fade = min(1.0, (1.0 - x) / 0.3)
+                        # Round 16: ramp in from the tip too. The tip vertex
+                        # never moves, so growing its neighbours at full
+                        # strength left a step right at the point (用's 撇).
+                        _fi = min(1.0, arc / (LUO_PIE_FILL_TIP_RAMP_EM * upm))
+                        fade *= _fi * _fi * (3 - 2 * _fi)
                         grow = min((target - w) / 2.0, max_push) * fade
                         if grow < 1.0:
                             continue
@@ -7382,6 +7400,18 @@ def luo_dense_ink_relief(font: TTFont) -> None:
     upm = font["head"].unitsPerEm
     seg_count = 0
     touched: list[str] = []
+    # Round 16: the curated tiers only cover homepage chars; the full GB2312
+    # set is dominated by dense level-2 glyphs (鬣/馨/齉). Any glyph with at
+    # least AUTO_CONTOURS contours joins at AUTO_TIER.
+    if LUO_DENSE_INK_AUTO_CONTOURS > 0:
+        rc = _build_reverse_cmap(font)
+        for gname in font.getGlyphOrder():
+            cp = rc.get(gname)
+            if cp is None or not (0x3400 <= cp <= 0x9FFF):
+                continue
+            ch = chr(cp)
+            if ch not in tier_by_char and glyf[gname].numberOfContours >= LUO_DENSE_INK_AUTO_CONTOURS:
+                tier_by_char[ch] = LUO_DENSE_INK_AUTO_TIER
 
     for char, tier in tier_by_char.items():
         if char in skip:
@@ -8665,6 +8695,7 @@ def cap_hook_tail_widths(font: TTFont) -> None:
             continue
 
         coords = list(glyph.coordinates)
+        orig_coords = list(coords)
         ends = glyph.endPtsOfContours
         glyph_touched = False
 
@@ -8672,6 +8703,13 @@ def cap_hook_tail_widths(font: TTFont) -> None:
         for end in ends:
             n = end - start + 1
             if n < 12:
+                start = end + 1
+                continue
+            # Round 16: dots (宀/氵 small contours) have no hook; their bottom
+            # corner was read as one and tapered into a dimple.
+            _xs = [coords[i][0] for i in range(start, end + 1)]
+            _ys = [coords[i][1] for i in range(start, end + 1)]
+            if max(max(_xs) - min(_xs), max(_ys) - min(_ys)) < HOOK_TAIL_MIN_CONTOUR_EM * font["head"].unitsPerEm:
                 start = end + 1
                 continue
 
@@ -8704,6 +8742,12 @@ def cap_hook_tail_widths(font: TTFont) -> None:
                 if angle < 60 or angle > 130:
                     continue
 
+                # Round 16: a real hook flicks upward after the knee (竖钩,
+                # 横折钩, 竖弯钩). Dot corners (宀's left dot) and 横撇 turns
+                # (子) leave sideways or downward and were being tapered into
+                # a dimple and a waist.
+                if d_out_y < HOOK_TAIL_MIN_RISE * len_out:
+                    continue
                 hook_seen += 1
 
                 stem_axis = (d_in_x / len_in, d_in_y / len_in)
@@ -8780,6 +8824,15 @@ def cap_hook_tail_widths(font: TTFont) -> None:
             start = end + 1
 
         if glyph_touched:
+            # Round 16: several detected "hooks" can push the same point
+            # (宀 left dot, 子 turn in 字); clamp the total move per point so
+            # overlapping pushes cannot stack into a nub or a waist.
+            lim = HOOK_TAIL_CAP_MAX_PUSH
+            for i, (c, o) in enumerate(zip(coords, orig_coords)):
+                dx, dy = c[0] - o[0], c[1] - o[1]
+                d = math.hypot(dx, dy)
+                if d > lim:
+                    coords[i] = (int(round(o[0] + dx * lim / d)), int(round(o[1] + dy * lim / d)))
             for i, c in enumerate(coords):
                 glyph.coordinates[i] = c
             glyph.recalcBounds(glyf)
