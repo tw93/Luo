@@ -6,8 +6,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.6631,
-  "avg_bbox_centered_iou": 0.7562,
+  "avg_raster_iou": 0.6657,
+  "avg_bbox_centered_iou": 0.759,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -46,8 +46,8 @@
     {
       "char": "落",
       "codepoint": "U+843D",
-      "raster_iou": 0.7248,
-      "bbox_centered_iou": 0.7461,
+      "raster_iou": 0.7251,
+      "bbox_centered_iou": 0.7464,
       "gate": 0.6,
       "pass": false
     },
@@ -62,16 +62,16 @@
     {
       "char": "字",
       "codepoint": "U+5B57",
-      "raster_iou": 0.6678,
-      "bbox_centered_iou": 0.8093,
+      "raster_iou": 0.6666,
+      "bbox_centered_iou": 0.8064,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "书",
       "codepoint": "U+4E66",
-      "raster_iou": 0.6945,
-      "bbox_centered_iou": 0.7754,
+      "raster_iou": 0.6952,
+      "bbox_centered_iou": 0.7762,
       "gate": 0.6,
       "pass": false
     },
@@ -102,16 +102,16 @@
     {
       "char": "风",
       "codepoint": "U+98CE",
-      "raster_iou": 0.7944,
-      "bbox_centered_iou": 0.7407,
+      "raster_iou": 0.7883,
+      "bbox_centered_iou": 0.7427,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "纸",
       "codepoint": "U+7EB8",
-      "raster_iou": 0.7833,
-      "bbox_centered_iou": 0.8728,
+      "raster_iou": 0.7834,
+      "bbox_centered_iou": 0.8729,
       "gate": 0.6,
       "pass": false
     },
@@ -158,32 +158,32 @@
     {
       "char": "霜",
       "codepoint": "U+971C",
-      "raster_iou": 0.6786,
-      "bbox_centered_iou": 0.7259,
+      "raster_iou": 0.6822,
+      "bbox_centered_iou": 0.7304,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "藏",
       "codepoint": "U+85CF",
-      "raster_iou": 0.7866,
-      "bbox_centered_iou": 0.8265,
+      "raster_iou": 0.7871,
+      "bbox_centered_iou": 0.8251,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "魔",
       "codepoint": "U+9B54",
-      "raster_iou": 0.6986,
-      "bbox_centered_iou": 0.712,
+      "raster_iou": 0.7238,
+      "bbox_centered_iou": 0.7404,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "赢",
       "codepoint": "U+8D62",
-      "raster_iou": 0.7193,
-      "bbox_centered_iou": 0.6477,
+      "raster_iou": 0.7261,
+      "bbox_centered_iou": 0.6501,
       "gate": 0.6,
       "pass": false
     },
@@ -206,15 +206,15 @@
     {
       "char": "家",
       "codepoint": "U+5BB6",
-      "raster_iou": 0.6569,
-      "bbox_centered_iou": 0.8289,
+      "raster_iou": 0.6583,
+      "bbox_centered_iou": 0.8305,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "亭",
       "codepoint": "U+4EAD",
-      "raster_iou": 0.6285,
+      "raster_iou": 0.6284,
       "bbox_centered_iou": 0.7259,
       "gate": 0.6,
       "pass": false
@@ -222,8 +222,8 @@
     {
       "char": "序",
       "codepoint": "U+5E8F",
-      "raster_iou": 0.6849,
-      "bbox_centered_iou": 0.7773,
+      "raster_iou": 0.7309,
+      "bbox_centered_iou": 0.8264,
       "gate": 0.6,
       "pass": false
     },
@@ -238,16 +238,16 @@
     {
       "char": "章",
       "codepoint": "U+7AE0",
-      "raster_iou": 0.588,
-      "bbox_centered_iou": 0.7017,
+      "raster_iou": 0.5877,
+      "bbox_centered_iou": 0.7019,
       "gate": 0.6,
       "pass": false
     },
     {
       "char": "兰",
       "codepoint": "U+5170",
-      "raster_iou": 0.583,
-      "bbox_centered_iou": 0.6843,
+      "raster_iou": 0.5832,
+      "bbox_centered_iou": 0.6841,
       "gate": 0.6,
       "pass": false
     },
@@ -271,7 +271,7 @@
       "char": "玄",
       "codepoint": "U+7384",
       "raster_iou": 0.6977,
-      "bbox_centered_iou": 0.7937,
+      "bbox_centered_iou": 0.7939,
       "gate": 0.6,
       "pass": false
     },
@@ -279,7 +279,7 @@
       "char": "黄",
       "codepoint": "U+9EC4",
       "raster_iou": 0.6623,
-      "bbox_centered_iou": 0.7566,
+      "bbox_centered_iou": 0.7565,
       "gate": 0.6,
       "pass": false
     }

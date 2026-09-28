@@ -158,6 +158,7 @@ STRAIGHTEN_DIAG_NO_THIN = os.environ.get("LUO_STRAIGHTEN_DIAG_NO_THIN", "1") not
 STRAIGHTEN_DIAG_INWARD_SCALE = float(os.environ.get("LUO_STRAIGHTEN_DIAG_INWARD_SCALE", "0.4"))  # round 9: share of the inward (thinning) diag move that is kept
 STRAIGHTEN_V_END_KEEP = float(os.environ.get("LUO_STRAIGHTEN_V_END_KEEP", "0.0"))  # round 13: share of a vertical span at each end left unstraightened (corner shoulders)
 STRAIGHTEN_MAX_SAG_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_SAG_RATIO", "0.18"))
+STRAIGHTEN_V_CURVY_SAG = float(os.environ.get("LUO_STRAIGHTEN_V_CURVY_SAG", "0.08"))
 STRAIGHTEN_MAX_PERP_RATIO = float(os.environ.get("LUO_STRAIGHTEN_MAX_PERP_RATIO", "0.20"))  # v0.4.3 audit fix: 0.18 仍在长横右端拉出三角下尖，放宽到 0.20 让更多 corner controls 被识别保护
 # Glyph categories where straightening is known to interfere with a
 # dedicated downstream pass; left alone here and shaped by their own
@@ -1403,9 +1404,12 @@ def straighten_strokes(font: TTFont) -> None:
                 # Round 14: a span whose interior sags far from its chord is a
                 # real sweep (竖撇 in 介/丛/丿), not a hand-drawn bow; pulling
                 # it to the chord snapped the stroke at the seam.
+                _pl = [coords[i] for i in interior]
+                _sag = max(abs((qx - ax) * dy - (qy - ay) * dx) / length for qx, qy in _pl)
+                # Round 15: a steep 竖撇 (柳/卯) classifies as "v"; treat a
+                # visibly curved one like a diagonal so it is not thinned.
+                _curvy = _sag > STRAIGHTEN_V_CURVY_SAG * length
                 if STRAIGHTEN_MAX_SAG_RATIO > 0:
-                    _pl = [coords[i] for i in interior]
-                    _sag = max(abs((qx - ax) * dy - (qy - ay) * dx) / length for qx, qy in _pl)
                     if _sag > STRAIGHTEN_MAX_SAG_RATIO * length:
                         stats["curve_skip"] = stats.get("curve_skip", 0) + 1
                         continue
@@ -1431,7 +1435,7 @@ def straighten_strokes(font: TTFont) -> None:
                     # Straightening both edges of a curved 撇 toward their own
                     # chords thinned 岁's long 撇 by ~0.016em; only the
                     # outward (sag-removing) half of the move is kept.
-                    if kind == "diag" and STRAIGHTEN_DIAG_NO_THIN:
+                    if (kind == "diag" or (kind == "v" and _curvy)) and STRAIGHTEN_DIAG_NO_THIN:
                         mvx, mvy = proj_x - px, proj_y - py
                         # ink normal = right of travel (dy, -dx) for ink_sign 1
                         inward = (mvx * dy - mvy * dx) * ink_sign > 0
