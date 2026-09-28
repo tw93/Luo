@@ -314,7 +314,7 @@
     }
     .part-row {
       display: grid;
-      grid-template-columns: 88px minmax(420px, 1.62fr) minmax(220px, 0.78fr);
+      grid-template-columns: 88px minmax(0, 1fr) max-content;
       gap: 34px;
       align-items: center;
       padding: 24px 0;
@@ -343,7 +343,12 @@
       color: var(--dark-warm);
       line-height: 1.65;
       letter-spacing: 0.4px;
-      min-width: 0;
+      white-space: nowrap;
+    }
+    @media (max-width: 940px) {
+      .part-row { grid-template-columns: 1fr; gap: 8px; }
+      .part-sample { white-space: normal; }
+      .part-note { white-space: normal; }
     }
     /* ─── Rules list ─── */
     .rules {
