@@ -490,6 +490,7 @@ LUO_FRAME_UPRIGHT_MIN_LEN_RATIO = float(os.environ.get("LUO_FRAME_UPRIGHT_MIN_LE
 # the length gate, so the 代黑点述游清流 guard set is structurally safe.
 LUO_LONG_DIAG_THIN_EM = float(os.environ.get("LUO_LONG_DIAG_THIN_EM", "0.011"))  # simple-glyph delta; graduated down to _EM_COMPLEX as contour count rises (engineering principle #1: lerp toward identity as the input grows). First cut used a flat 0.009 and left curved-substroke 人/入 under-thinned while nudging complex 便 past W04.
 LUO_LONG_DIAG_THIN_EM_COMPLEX = float(os.environ.get("LUO_LONG_DIAG_THIN_EM_COMPLEX", "0.005"))
+LUO_LONG_DIAG_THIN_TIP_FADE_EM = float(os.environ.get("LUO_LONG_DIAG_THIN_TIP_FADE_EM", "0.20"))  # round 7: shift fades to 0 over this distance toward free ends
 LUO_LONG_DIAG_THIN_MIN_RATIO = float(os.environ.get("LUO_LONG_DIAG_THIN_MIN_RATIO", "0.20"))
 # v0.4.12 residual round: straight-chord 撇/捺 take the full simple-glyph
 # delta while curved ones resist (the 人/入 asymmetry, but inverted) — on
@@ -6509,11 +6510,37 @@ def luo_long_diag_thin(font: TTFont) -> None:
                 # orientation (see luo_horiz_cap_flatten: dx>0 = top edge).
                 nx = dy / length
                 ny = -dx / length
-                sx = half * nx
-                sy = half * ny
+
+                # Round 7: fade the shift to zero toward a free end (tip or
+                # corner). A flat shift also moved the tip vertex and cut
+                # already-thin 撇/捺 ends into needles (交/多/岁/家/名). An end
+                # that continues into a collinear chord (LXGW splits long
+                # edges) keeps the full shift so the seam gets no notch.
+                def _continues(i_other, i_here, before):
+                    ox, oy = coords[i_other]
+                    hx, hy = coords[i_here]
+                    vx, vy = (hx - ox, hy - oy) if before else (ox - hx, oy - hy)
+                    vl = math.hypot(vx, vy)
+                    if vl < 1e-6:
+                        return False
+                    return (vx * dx + vy * dy) / (vl * length) > math.cos(math.radians(30.0))
+
+                fade_a = not _continues(on_curve[k - 1], ia, True)
+                fade_b = not _continues(on_curve[(k + 2) % num_oc], ib, False)
+                ramp = LUO_LONG_DIAG_THIN_TIP_FADE_EM * upm
 
                 idx = ia
                 while True:
+                    px, py = coords[idx]
+                    along = ((px - ax) * dx + (py - ay) * dy) / length
+                    w = 1.0
+                    if fade_a:
+                        w = min(w, max(0.0, along) / ramp)
+                    if fade_b:
+                        w = min(w, max(0.0, length - along) / ramp)
+                    w = w * w * (3 - 2 * w)
+                    sx = half * nx * w
+                    sy = half * ny * w
                     prev = moves.get(idx)
                     if prev is None or (sx * sx + sy * sy) > (prev[0] ** 2 + prev[1] ** 2):
                         moves[idx] = (sx, sy)
