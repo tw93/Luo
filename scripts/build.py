@@ -5931,7 +5931,7 @@ def luo_stem_normalize(font: TTFont) -> None:
             yl, yh = max(L[1], R[1]), min(L[2], R[2])
             if not all(
                 _inside(L[0] + (R[0] - L[0]) * fx, yl + (yh - yl) * f)
-                for f in (0.25, 0.5, 0.75) for fx in (0.25, 0.5, 0.75)
+                for f in (0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95) for fx in (0.15, 0.35, 0.5, 0.65, 0.85)
             ):
                 continue
             # Round 9: measure the width at the bottom and top of the shared
@@ -6038,6 +6038,32 @@ def luo_stem_normalize(font: TTFont) -> None:
                 continue
             w_med = sorted(ws)[len(ws) // 2]
             if w_med >= LUO_STEM_NORM_WALL_TARGET_EM * upm or w_med < 0.03 * upm:
+                continue
+            # Round 17: only near-vertical walls with open space outside. 荔's
+            # left 力 hook edge (slope 0.16) was pushed 0.035em into the narrow
+            # gap before the right 力 and closed it.
+            (wx0, wy0), (wx1, wy1) = coords[W[6]], coords[W[7]]
+            if abs(wx1 - wx0) > 0.12 * abs(wy1 - wy0):
+                continue
+            def _ink_at(qx, qy):
+                wn = 0
+                s0 = 0
+                for e0 in ends:
+                    pts = coords[s0:e0 + 1]
+                    s0 = e0 + 1
+                    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+                        if (y0 > qy) != (y1 > qy) and qx < x0 + (x1 - x0) * (qy - y0) / (y1 - y0):
+                            wn += 1 if y1 > y0 else -1
+                return wn != 0
+
+            clear = True
+            for f in (0.25, 0.5, 0.75):
+                qy = wy0 + (wy1 - wy0) * f
+                qx0 = wx0 + (wx1 - wx0) * f
+                for dd in (0.05, 0.08, 0.11):
+                    if _ink_at(qx0 + outward * dd * upm, qy):
+                        clear = False
+            if not clear:
                 continue
             d = outward * min(LUO_STEM_NORM_WALL_TARGET_EM * upm - w_med, LUO_STEM_NORM_WALL_MAX_PUSH_EM * upm)
             idx = W[6]
