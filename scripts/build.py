@@ -594,6 +594,19 @@ LUO_NA_SWELL_REL = float(os.environ.get("LUO_NA_SWELL_REL", "0.12"))
 LUO_NA_SWELL_KEEP_TIP_EM = float(os.environ.get("LUO_NA_SWELL_KEEP_TIP_EM", "0.045"))
 LUO_NA_SWELL_STEP_EM = float(os.environ.get("LUO_NA_SWELL_STEP_EM", "0.08"))
 
+# --- v0.4.12 round 6 stem width normalize (luo_stem_normalize) ---
+# Homepage review against W04: vertical stems/walls were uneven, not simply
+# heavy (per-mille em at 512px: 口 92-94, 四 94-96, 门 92-96, 川 96, but
+# 目 64-66 and 白's right wall 57), while W04 keeps every wall within 76-90.
+# BOLDEN_V stays at its red line; this pass only pulls outliers into the
+# band. A stem is a pair of long near-vertical on-curve chords: an upward
+# chord (left edge, ink to its right) and the nearest downward chord to its
+# right that overlaps it vertically. Both edges move symmetrically.
+LUO_STEM_NORM_HI_EM = float(os.environ.get("LUO_STEM_NORM_HI_EM", "0.080"))
+LUO_STEM_NORM_LO_EM = float(os.environ.get("LUO_STEM_NORM_LO_EM", "0.068"))
+LUO_STEM_NORM_MIN_LEN_RATIO = float(os.environ.get("LUO_STEM_NORM_MIN_LEN_RATIO", "0.18"))
+LUO_STEM_NORM_MAX_SHIFT_EM = float(os.environ.get("LUO_STEM_NORM_MAX_SHIFT_EM", "0.008"))
+
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,
 # 儿/成/片/后) inherit LXGW's needle taper and read as a hairline next to
@@ -674,6 +687,9 @@ LUO_CHAR_POSTURE_LIFT = {
     "帝": -0.018, "密": -0.030, "幽": -0.024,
     # ugly-queue posture: 源 cy too low; 里 bot low; 意 floating high
     "源": 0.022, "里": 0.016, "意": -0.014,
+    # round 6 homepage review: closed frames sat 0.050-0.067em below the
+    # reference bottom edge; lift about half of it to avoid the 帝 d_cy overshoot
+    "日": 0.030, "巨": 0.030, "田": 0.026, "吕": 0.030, "回": 0.030,
 }
 
 # --- v0.4.12 hook tail taper (inside cap_hook_tail_widths) ---
@@ -831,7 +847,7 @@ IDENTITY_CORE_DIAG_EDGE_EM = float(os.environ.get("LUO_IDENTITY_CORE_DIAG_EDGE_E
 IDENTITY_CORE_DIAG_TOP_CONTAIN = float(os.environ.get("LUO_IDENTITY_CORE_DIAG_TOP_CONTAIN", "0.990"))
 IDENTITY_CORE_DIAG_TAIL_CONTAIN = float(os.environ.get("LUO_IDENTITY_CORE_DIAG_TAIL_CONTAIN", "0.012"))
 
-BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "starter")
+BUILD_CHARS = os.environ.get("LUO_BUILD_CHARS", "gb2312-level1")  # v0.4.12: shipped font covers GB2312 level 1 (3820 chars)
 BUILD_CHAR_MODES = (
     "seed",
     "site",
@@ -5685,6 +5701,106 @@ def luo_na_foot_swell(font: TTFont) -> None:
     print(f"[luo] na foot swell: {strokes} strokes across {glyphs} glyphs (peak={LUO_NA_SWELL_PEAK_EM}em)")
 
 
+def luo_stem_normalize(font: TTFont) -> None:
+    """v0.4.12 round 6: pull vertical stem widths into the W04 band (see the
+    LUO_STEM_NORM_* constant block)."""
+    if LUO_STEM_NORM_HI_EM <= 0:
+        print("[luo] stem normalize: skipped")
+        return
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+    upm = font["head"].unitsPerEm
+    hi = LUO_STEM_NORM_HI_EM * upm
+    lo = LUO_STEM_NORM_LO_EM * upm
+    max_shift = LUO_STEM_NORM_MAX_SHIFT_EM * upm
+    skip_chars = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
+    thin_count = thick_count = glyph_count = 0
+
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF) or chr(cp) in skip_chars:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords = list(glyph.coordinates)
+        flags = glyph.flags
+        ends = glyph.endPtsOfContours
+        ys = [c[1] for c in coords]
+        xs = [c[0] for c in coords]
+        glyph_max = max(max(xs) - min(xs), max(ys) - min(ys))
+        if glyph_max <= 0:
+            continue
+        min_len = LUO_STEM_NORM_MIN_LEN_RATIO * glyph_max
+
+        # (x_mid, y_lo, y_hi, dir, start, end, ia, ib)
+        chords = []
+        start = 0
+        for end in ends:
+            n = end - start + 1
+            oc = [start + j for j in range(n) if flags[start + j] & 1]
+            for k in range(len(oc)):
+                ia, ib = oc[k], oc[(k + 1) % len(oc)]
+                (ax, ay), (bx, by) = coords[ia], coords[ib]
+                dy = by - ay
+                if abs(dy) < min_len or abs(bx - ax) > 0.12 * abs(dy):
+                    continue
+                chords.append(((ax + bx) / 2.0, min(ay, by), max(ay, by), 1 if dy > 0 else -1, start, end, ia, ib))
+            start = end + 1
+
+        moves: dict[int, float] = {}
+        for L in chords:
+            if L[3] != 1:
+                continue
+            best = None
+            for R in chords:
+                if R[3] != -1 or R[0] <= L[0]:
+                    continue
+                ov = min(L[2], R[2]) - max(L[1], R[1])
+                if ov < 0.6 * min(L[2] - L[1], R[2] - R[1]):
+                    continue
+                gap = R[0] - L[0]
+                if gap > 0.14 * upm:
+                    continue
+                if best is None or gap < best[0]:
+                    best = (gap, R)
+            if best is None:
+                continue
+            w, R = best
+            if w > hi:
+                d = min((w - hi) / 2.0, max_shift)
+                thick_count += 1
+            elif w < lo:
+                d = -min((lo - w) / 2.0, max_shift)
+                thin_count += 1
+            else:
+                continue
+            if abs(d) < 1.0:
+                continue
+            for chord, sign in ((L, 1.0), (R, -1.0)):
+                _, _, _, _, cs, ce, ia, ib = chord
+                idx = ia
+                while True:
+                    mv = sign * d
+                    prev = moves.get(idx)
+                    if prev is None or abs(mv) > abs(prev):
+                        moves[idx] = mv
+                    if idx == ib:
+                        break
+                    idx += 1
+                    if idx > ce:
+                        idx = cs
+        if moves:
+            for idx, dx in moves.items():
+                x, y = coords[idx]
+                coords[idx] = (int(round(x + dx)), y)
+            for i, c in enumerate(coords):
+                glyph.coordinates[i] = c
+            glyph.recalcBounds(glyf)
+            glyph_count += 1
+    print(f"[luo] stem normalize: {thick_count} thick / {thin_count} thin stems across {glyph_count} glyphs (band={LUO_STEM_NORM_LO_EM}-{LUO_STEM_NORM_HI_EM}em)")
+
+
 def luo_pie_tail_fill(font: TTFont) -> None:
     """v0.4.12: give long 撇 tails flesh down to a blunt point (see the
     LUO_PIE_FILL_* constant block)."""
@@ -9910,6 +10026,7 @@ def main() -> None:
     # luo_frame_foot_tuck disabled: its y-clamp chops the bottom-left foot
     # flat (古/田/晋) and notches the 竖弯钩 tip (绝); six-dim bands hold without it.
     luo_long_horiz_thin(font)
+    luo_stem_normalize(font)
     luo_long_diag_thin(font)
     luo_gesture_body_contract(font)
     luo_pie_tail_fill(font)

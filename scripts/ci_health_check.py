@@ -66,7 +66,7 @@ def collect_cmap(font: TTFont) -> dict[int, str]:
 
 
 def main() -> None:
-    mode = os.environ.get("LUO_BUILD_CHARS", "starter")
+    mode = os.environ.get("LUO_BUILD_CHARS", "gb2312-level1")
     if mode not in THRESHOLDS:
         fail(f"unknown build mode {mode!r}")
 

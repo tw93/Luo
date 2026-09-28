@@ -13,7 +13,7 @@ python3 scripts/build.py
 make release-check
 ```
 
-源字体 `source/LXGWWenKaiScreen-Regular.ttf` 不提交到仓库，由 `scripts/fetch_base_font.py` 下载固定版本的 LXGW WenKai Screen，并校验 SHA256。默认构建 `starter` 字符集，并检查公开页面缺字；如果缺字，构建会失败。
+源字体 `source/LXGWWenKaiScreen-Regular.ttf` 不提交到仓库，由 `scripts/fetch_base_font.py` 下载固定版本的 LXGW WenKai Screen，并校验 SHA256。默认构建 `gb2312-level1` 字符集（v0.4.12 起，starter + GB2312 一级常用字，共 3820 字），并检查公开页面缺字；如果缺字，构建会失败。
 
 输出字体：
 
@@ -34,7 +34,7 @@ LUO_BUILD_CHARS=full python3 scripts/build.py
 - `seed`：诊断锚字。
 - `site`：官网页面用字。
 - `starter`：v0.3 默认发布子集。
-- `gb2312-level1`：v0.4-alpha 扩字实验，starter + GB2312 一级常用字。
+- `gb2312-level1`：v0.4.12 起的默认发布字集，starter + GB2312 一级常用字。
 - `gb2312-full`：完整 GB2312 实验构建，一级字稳定后再使用。
 - `full`：保留源字体所有 glyph 的底盘实验模式，不作为 v0.3 发布默认。
 
