@@ -430,6 +430,18 @@ LUO_FRAME_INNER_Y = float(os.environ.get("LUO_FRAME_INNER_Y", "1.006"))
 # retired signature passes).
 LUO_POSTURE_PIVOT_EM = float(os.environ.get("LUO_POSTURE_PIVOT_EM", "0.80"))
 LUO_POSTURE_SCALE_Y = float(os.environ.get("LUO_POSTURE_SCALE_Y", "0.978"))
+# Round 22: after the affine, the population centroid still sat 0.019em
+# below the reference (audit d_cy) while LXGW sits there; lift every Han
+# glyph by one uniform em offset so the face stands where print kai stands.
+LUO_POSTURE_LIFT_EM = float(os.environ.get("LUO_POSTURE_LIFT_EM", "0.012"))
+
+# --- v0.4.12 round 22 upright face (luo_face_upright) ---
+# Every Han glyph is scaled in x about its advance centre, advance unchanged:
+# the face reads a touch taller and more upright (正楷, 端庄). Maintainer
+# picked 0.97 from a 1.00 / 0.97 / 0.94 side-by-side; 0.94 opened the running
+# text too much. Runs after adjust_cjk_spacing so the frozen check can replay
+# it on the final advance. 1.0 = no-op.
+LUO_FACE_SCALE_X = float(os.environ.get("LUO_FACE_SCALE_X", "0.97"))
 
 # --- v0.4.12 long-horizontal thinning (luo_long_horiz_thin) ---
 # LXGW's substrate already carries long horizontals thicker than the W04
@@ -7846,6 +7858,7 @@ def luo_posture_contain(font: TTFont) -> None:
     upm = font["head"].unitsPerEm
     pivot = LUO_POSTURE_PIVOT_EM * upm
     s = LUO_POSTURE_SCALE_Y
+    lift = LUO_POSTURE_LIFT_EM * upm
 
     glyph_count = 0
     for gname in font.getGlyphOrder():
@@ -7858,13 +7871,13 @@ def luo_posture_contain(font: TTFont) -> None:
         coords = glyph.coordinates
         for i in range(len(coords)):
             x, y = coords[i]
-            coords[i] = (x, int(round(pivot + s * (y - pivot))))
+            coords[i] = (x, int(round(pivot + s * (y - pivot) + lift)))
         glyph.recalcBounds(glyf)
         glyph_count += 1
 
     print(
         f"[luo] posture contain: {glyph_count} glyphs "
-        f"(pivot={LUO_POSTURE_PIVOT_EM}em, scale_y={s})"
+        f"(pivot={LUO_POSTURE_PIVOT_EM}em, scale_y={s}, lift={LUO_POSTURE_LIFT_EM}em)"
     )
 
 
@@ -10328,6 +10341,36 @@ def adjust_cjk_spacing(font: TTFont) -> None:
     print(f"[luo]   spacing distribution: {dist}")
 
 
+def luo_face_upright(font: TTFont) -> None:
+    """Round 22: whole-face x-scale for a slightly taller, more upright kai
+    (see the LUO_FACE_SCALE_X constant block)."""
+    if LUO_FACE_SCALE_X >= 1.0:
+        print("[luo] face upright: skipped (scale>=1)")
+        return
+    glyf = font["glyf"]
+    hmtx = font["hmtx"]
+    rcmap = _build_reverse_cmap(font)
+    sx = LUO_FACE_SCALE_X
+    glyph_count = 0
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF):
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        adv, _lsb = hmtx[gname]
+        cx = adv / 2.0
+        coords = glyph.coordinates
+        for i in range(len(coords)):
+            x, y = coords[i]
+            coords[i] = (int(round(cx + sx * (x - cx))), y)
+        glyph.recalcBounds(glyf)
+        hmtx[gname] = (adv, glyph.xMin)
+        glyph_count += 1
+    print(f"[luo] face upright: {glyph_count} glyphs (scale_x={sx})")
+
+
 def rewrite_names(font: TTFont) -> None:
     full_name = f"{FAMILY} {SUBFAMILY}"
     ps_name = f"{FAMILY}-{SUBFAMILY}"
@@ -10780,6 +10823,7 @@ def main() -> None:
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
     adjust_cjk_spacing(font)
+    luo_face_upright(font)
     rewrite_names(font)
     validate_required_chars(font, required_chars, BUILD_CHARS)
     write_debug_reports(font, requested_chars)

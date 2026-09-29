@@ -10,7 +10,8 @@ Exempting 月 would leave it sitting ~0.02em lower than every neighbouring
 glyph, which is visible in running text. The frozen invariant is therefore
 "affine-equivalent to the v0.3 outline under the posture transform"; the
 transform parameters are imported from build.py so the two can never drift
-apart silently. With the posture pass disabled (scale >= 1) the check
+apart silently. Round 22 adds `luo_face_upright`, an x-scale about the final
+advance centre, replayed the same way. With both passes disabled (scale >= 1) the check
 degrades to the original exact point-lock.
 
 Run:
@@ -58,15 +59,21 @@ def _glyph_shape(font: TTFont, char: str) -> tuple[list[int], list[tuple[int, in
 
 
 def _posture_transform(
-    shape: tuple[list[int], list[tuple[int, int]]], upm: int
+    shape: tuple[list[int], list[tuple[int, int]]], upm: int, advance: int
 ) -> tuple[list[int], list[tuple[int, int]]]:
-    """Replay build.py's luo_posture_contain affine on a baseline outline."""
-    if build.LUO_POSTURE_SCALE_Y >= 1.0:
-        return shape
-    pivot = build.LUO_POSTURE_PIVOT_EM * upm
-    s = build.LUO_POSTURE_SCALE_Y
+    """Replay build.py's luo_posture_contain (y) and luo_face_upright (x)
+    affines on a baseline outline."""
     ends, coords = shape
-    return ends, [(x, int(round(pivot + s * (y - pivot)))) for x, y in coords]
+    if build.LUO_POSTURE_SCALE_Y < 1.0:
+        pivot = build.LUO_POSTURE_PIVOT_EM * upm
+        s = build.LUO_POSTURE_SCALE_Y
+        lift = build.LUO_POSTURE_LIFT_EM * upm
+        coords = [(x, int(round(pivot + s * (y - pivot) + lift))) for x, y in coords]
+    if build.LUO_FACE_SCALE_X < 1.0:
+        cx = advance / 2.0
+        sx = build.LUO_FACE_SCALE_X
+        coords = [(int(round(cx + sx * (x - cx))), y) for x, y in coords]
+    return ends, coords
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,14 +92,17 @@ def main() -> None:
 
     failed: list[str] = []
     for char in args.chars:
-        expected = _posture_transform(_glyph_shape(baseline, char), upm)
+        advance = current["hmtx"][current.getBestCmap()[ord(char)]][0]
+        expected = _posture_transform(_glyph_shape(baseline, char), upm, advance)
         if _glyph_shape(current, char) != expected:
             failed.append(char)
 
     if failed:
         raise SystemExit(f"[frozen] mismatch: {''.join(failed)}")
     mode = (
-        "affine-equivalent" if build.LUO_POSTURE_SCALE_Y < 1.0 else "point-locked"
+        "affine-equivalent"
+        if build.LUO_POSTURE_SCALE_Y < 1.0 or build.LUO_FACE_SCALE_X < 1.0
+        else "point-locked"
     )
     print(f"[frozen] ok ({mode}): {args.chars}")
 
