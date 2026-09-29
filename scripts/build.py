@@ -435,6 +435,18 @@ LUO_POSTURE_SCALE_Y = float(os.environ.get("LUO_POSTURE_SCALE_Y", "0.978"))
 # glyph by one uniform em offset so the face stands where print kai stands.
 LUO_POSTURE_LIFT_EM = float(os.environ.get("LUO_POSTURE_LIFT_EM", "0.012"))
 
+# --- round 23 四点底 teardrops (luo_huo_dot_teardrop) ---
+# LXGW's 灬 dots are even-width bars at 35-55 deg; the print-kai reference
+# stands them up (about 70 / 60 / 54 deg left to right) and makes each a
+# teardrop, ~0.045em at the top and ~0.09em at the foot. 点/黑's second dot
+# was the worst case: 35-41 deg, 0.06em wide, sitting above the row.
+LUO_HUO_DOT_ANGLES = (68.0, 60.0, 54.0)
+LUO_HUO_DOT_WMAX_EM = float(os.environ.get("LUO_HUO_DOT_WMAX_EM", "0.086"))
+LUO_HUO_DOT_TOP = 0.60           # width factor at the top end (1.0 at the foot)
+LUO_HUO_DOT_ROW_SLACK_EM = 0.045  # a dot foot higher than this above the row drops
+LUO_HUO_DOT_ROW_SET_EM = 0.030    # ...to this height above the row bottom
+LUO_HUO_DOT_CLEAR_EM = 0.025      # min gap to any contour above after reshaping
+
 # --- v0.4.12 round 22 upright face (luo_face_upright) ---
 # Every Han glyph is scaled in x about its advance centre, advance unchanged:
 # the face reads a touch taller and more upright (正楷, 端庄). Maintainer
@@ -7834,6 +7846,161 @@ def luo_diag_endpoint_clean(font: TTFont) -> None:
         print(f"[luo] diagonal endpoint clean: {''.join(touched)}")
 
 
+def luo_huo_dot_teardrop(font: TTFont) -> None:
+    """Round 23: reshape 四点底 (灬) dots into print-kai teardrops.
+
+    A glyph qualifies when its bottom 30% holds a row of >= 3 small outer
+    contours whose feet sit within 0.09em of each other, the leftmost leaning
+    down-left and at least two leaning down-right. Each down-right dot is
+    rebuilt in its own axis frame: rotated about its foot to the reference
+    angle and tapered from LUO_HUO_DOT_TOP at the top to full width at the foot.
+    """
+    if LUO_HUO_DOT_WMAX_EM <= 0:
+        print("[luo] huo dot teardrop: skipped")
+        return
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+    upm = font["head"].unitsPerEm
+    wmax_t = LUO_HUO_DOT_WMAX_EM * upm
+    touched: list[str] = []
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF):
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours < 4:
+            continue
+        coords = glyph.coordinates
+        box = _glyph_box(coords)
+        if box is None:
+            continue
+        _gx0, _gx1, gy0, _gy1, gw, gh, _gcx, _gcy = box
+        infos = []
+        start = 0
+        for end in glyph.endPtsOfContours:
+            xs = [coords[i][0] for i in range(start, end + 1)]
+            ys = [coords[i][1] for i in range(start, end + 1)]
+            infos.append((start, end, min(xs), max(xs), min(ys), max(ys),
+                          _contour_signed_area(coords, start, end)))
+            start = end + 1
+        outer_sign = 1.0 if max(infos, key=lambda c: abs(c[6]))[6] > 0 else -1.0
+        cand = []
+        for c in infos:
+            st, en, x0, x1, y0, y1, ar = c
+            if ar * outer_sign <= 0 or en - st < 5:
+                continue
+            if y1 > gy0 + 0.30 * gh or max(x1 - x0, y1 - y0) > 0.30 * upm:
+                continue
+            xs = [coords[i][0] for i in range(st, en + 1)]
+            ys = [coords[i][1] for i in range(st, en + 1)]
+            mx = sum(xs) / len(xs)
+            my = sum(ys) / len(ys)
+            sxx = sum((x - mx) ** 2 for x in xs)
+            syy = sum((y - my) ** 2 for y in ys)
+            sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+            th = 0.5 * math.atan2(2 * sxy, sxx - syy)
+            ux, uy = math.cos(th), math.sin(th)
+            ts = [(x - mx) * ux + (y - my) * uy for x, y in zip(xs, ys)]
+            length = max(ts) - min(ts)
+            if length < 0.12 * upm:
+                continue
+            ang = math.degrees(math.atan2(abs(uy), abs(ux)))
+            if not 20.0 <= ang <= 80.0:
+                continue
+            cand.append({"c": c, "down_right": ux * uy < 0, "ang": ang, "x0": x0})
+        if len(cand) < 3:
+            continue
+        foot = min(d["c"][4] for d in cand)
+        row = sorted((d for d in cand if d["c"][4] <= foot + 0.09 * upm), key=lambda d: d["x0"])
+        if len(row) < 3 or row[0]["down_right"]:
+            continue
+        rights = [d for d in row[1:] if d["down_right"]]
+        if len(rights) < 2 or row[-1]["c"][3] - row[0]["c"][2] < 0.45 * gw:
+            continue
+        angles = LUO_HUO_DOT_ANGLES[-len(rights):] if len(rights) <= 3 else None
+        if angles is None:
+            continue
+        row_ids = {d["c"][0] for d in row}
+        others = [c for c in infos if c[0] not in row_ids]
+        # 心 (卧钩) and similar: a big stroke reaching down into the row means
+        # these dots are not a free-standing 四点底.
+        gap0, gap1 = row[0]["c"][3], row[-1]["c"][2]
+        lying = False
+        for c in others:
+            if c[6] * outer_sign <= 0:
+                continue
+            low = [coords[i][0] for i in range(c[0], c[1] + 1) if coords[i][1] < foot + 0.10 * upm]
+            if low and max(low) - min(low) >= 0.20 * gw and min(low) < gap1 and max(low) > gap0:
+                lying = True
+                break
+        if lying:
+            continue
+        changed = False
+        for d, ang_t in zip(rights, angles):
+            st, en = d["c"][0], d["c"][1]
+            pts = [coords[i] for i in range(st, en + 1)]
+            ac = math.radians(d["ang"])
+            # v runs from the foot (lower right) up to the top end.
+            v = (-math.cos(ac), math.sin(ac))
+            w = (math.sin(ac), math.cos(ac))
+            svals = [x * v[0] + y * v[1] for x, y in pts]
+            s0, s1 = min(svals), max(svals)
+            foot_pts = [p for p, sv in zip(pts, svals) if sv <= s0 + 0.08 * (s1 - s0)]
+            fx = sum(p[0] for p in foot_pts) / len(foot_pts)
+            fy = sum(p[1] for p in foot_pts) / len(foot_pts)
+            nvals = [(x - fx) * w[0] + (y - fy) * w[1] for x, y in pts]
+            n_mid = (max(nvals) + min(nvals)) / 2.0
+            width = max(nvals) - min(nvals)
+            if width <= 0 or s1 - s0 <= 0:
+                continue
+            k = min(1.5, max(1.0, wmax_t / width))
+            local = []
+            for (x, y), sv, nv in zip(pts, svals, nvals):
+                t = (sv - s0) / (s1 - s0)  # 0 at the foot, 1 at the top
+                u = 1.0 - t
+                g = LUO_HUO_DOT_TOP + (1.0 - LUO_HUO_DOT_TOP) * math.sin(0.5 * math.pi * min(1.0, u / 0.8))
+                local.append((sv - s0, (nv - n_mid) * g * k))
+            at = math.radians(ang_t)
+            v2 = (-math.cos(at), math.sin(at))
+            w2 = (math.sin(at), math.cos(at))
+            base_x = fx + n_mid * w[0] + (s0 - (fx * v[0] + fy * v[1])) * v[0]
+            base_y = fy + n_mid * w[1] + (s0 - (fx * v[0] + fy * v[1])) * v[1]
+            old_top = d["c"][5]
+
+            def _build(lf: float):
+                pts2 = [(base_x + a * lf * v2[0] + b * w2[0], base_y + a * lf * v2[1] + b * w2[1])
+                        for a, b in local]
+                y_lo = min(p[1] for p in pts2)
+                if y_lo > foot + LUO_HUO_DOT_ROW_SLACK_EM * upm:
+                    dy = foot + LUO_HUO_DOT_ROW_SET_EM * upm - y_lo
+                    pts2 = [(x, y + dy) for x, y in pts2]
+                return pts2
+
+            new = _build(1.0)
+            nx0 = min(p[0] for p in new)
+            nx1 = max(p[0] for p in new)
+            ny0 = min(p[1] for p in new)
+            ny1 = max(p[1] for p in new)
+            ceiling = min(
+                (c[4] for c in others if c[2] < nx1 and c[3] > nx0 and c[4] > ny0),
+                default=None,
+            )
+            if ceiling is not None:
+                limit = max(old_top, ceiling - LUO_HUO_DOT_CLEAR_EM * upm)
+                if ny1 > limit:
+                    lf = (limit - ny0) / (ny1 - ny0)
+                    if lf < 0.72:
+                        continue
+                    new = _build(lf)
+            for i, (x, y) in zip(range(st, en + 1), new):
+                coords[i] = (int(round(x)), int(round(y)))
+            changed = True
+        if changed:
+            glyph.recalcBounds(glyf)
+            touched.append(chr(cp))
+    print(f"[luo] huo dot teardrop: {len(touched)} glyphs {''.join(touched[:60])}")
+
+
 def luo_posture_contain(font: TTFont) -> None:
     """v0.4.12: global vertical posture toward the print-kai reference.
 
@@ -10819,6 +10986,7 @@ def main() -> None:
     luo_char_posture_lift(font)
     luo_diag_endpoint_clean(font)
     luo_dense_slim(font)
+    luo_huo_dot_teardrop(font)
     luo_posture_contain(font)
     fit_punctuation_width(font, PUNCT_WIDTH_RATIO)
     adjust_space_width(font, SPACE_WIDTH_RATIO)
