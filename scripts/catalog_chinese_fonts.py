@@ -560,6 +560,17 @@ def render_html(
     covered_count = int(luo["covered_count"])
     missing_count = int(luo["missing_count"])
     coverage_rate = percent(covered_count / gb_total)
+    # Once every GB2312 glyph is covered the filters and the missing count
+    # carry no information; keep them only while there is something missing.
+    filters_html = (
+        '<div class="segmented" role="group" aria-label="character filters">'
+        '<button type="button" class="active" data-filter="all">全部</button>'
+        '<button type="button" data-filter="covered">已覆盖</button>'
+        '<button type="button" data-filter="missing">待补字</button></div>'
+        if missing_count else ""
+    )
+    missing_tail = f"，当前缺字 {missing_count} 个" if missing_count else ""
+    missing_span = f"<span><b>{missing_count}</b> 待补字</span>" if missing_count else ""
     crowd = fetch_crowd_reports()
     crowd_json = json.dumps(crowd["by_char"], ensure_ascii=False)
     crowd_total = sum(int(v["n"]) for v in crowd["by_char"].values())
@@ -844,20 +855,16 @@ def render_html(
     <p class="status-line">
       <span><b>{gb_total}</b> GB2312</span>
       <span><b>{covered_count}</b> 已覆盖, {coverage_rate}</span>
-      <span><b>{missing_count}</b> 待补字</span>
+      {missing_span}
     </p>
     <p class="crowd-line">众测进行中，点开任意一个字，告诉我它哪里还能写得更好。<span>{crowd_count}</span></p>
   </header>
 
   <div class="toolbar">
     <input id="charSearch" type="search" placeholder="搜索汉字或 Unicode, 例如 落 / 843D" autocomplete="off">
-    <div class="segmented" role="group" aria-label="character filters">
-      <button type="button" class="active" data-filter="all">全部</button>
-      <button type="button" data-filter="covered">已覆盖</button>
-      <button type="button" data-filter="missing">待补字</button>
-    </div>
+    {filters_html}
   </div>
-  <p class="count-line" id="visibleCount">显示 {gb_total} / {gb_total} 字，当前缺字 {missing_count} 个。</p>
+  <p class="count-line" id="visibleCount">显示 {gb_total} / {gb_total} 字{missing_tail}。</p>
   <div class="char-grid" id="charGrid" data-filter="all" aria-label="GB2312 common character grid">
 {cells}
   </div>
@@ -936,7 +943,7 @@ def render_html(
     grid.dataset.filter = activeFilter;
     grid.classList.toggle('is-searching', Boolean(query));
     if (!query) {{
-      visibleCount.textContent = `显示 ${{filterCounts[activeFilter]}} / {gb_total} 字，当前缺字 {missing_count} 个。`;
+      visibleCount.textContent = `显示 ${{filterCounts[activeFilter]}} / {gb_total} 字{missing_tail}。`;
       return;
     }}
     let shown = 0;
@@ -945,7 +952,7 @@ def render_html(
       cell.classList.toggle('search-hidden', !searchVisible);
       if (matchesFilter(cell) && searchVisible) shown += 1;
     }}
-    visibleCount.textContent = `显示 ${{shown}} / {gb_total} 字，当前缺字 {missing_count} 个。`;
+    visibleCount.textContent = `显示 ${{shown}} / {gb_total} 字{missing_tail}。`;
   }}
 
   buttons.forEach((button) => {{
