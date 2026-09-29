@@ -823,12 +823,25 @@ def render_html(
       min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px;
       background: transparent; color: var(--muted); font: 14px var(--audit-text); cursor: pointer;
     }}
-    .crowd-status {{ color: var(--muted); font-size: 13px; }}
-    .crowd-status a {{ color: var(--accent); }}
-    .crowd-who {{ margin: 0; font-size: 12px; color: var(--muted); }}
-    .crowd-who a, .crowd-who button {{ color: var(--accent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; }}
-    .crowd-seen {{ margin: 0; font-size: 13px; color: var(--muted); }}
-    .crowd-seen a {{ color: var(--accent); }}
+    .crowd-status {{ font-size: 13px; }}
+    .crowd-body [hidden] {{ display: none !important; }}
+    .crowd-sheet:focus {{ outline: none; }}
+    .crowd-body button:focus {{ outline: none; }}
+    .crowd-body button:focus-visible, .crowd-body a:focus-visible, .crowd-shot-btn:focus-within {{ outline: 2px solid var(--accent); outline-offset: 2px; }}
+    .crowd-fields {{ display: grid; gap: 14px; }}
+    .crowd-status:empty {{ display: none; }}
+    .crowd-status {{ color: var(--red); }}
+    .crowd-done {{ display: grid; gap: 6px; padding: 2px 0 4px; }}
+    .crowd-done-title {{ margin: 0; font-size: 18px; }}
+    .crowd-done-text {{ margin: 0 0 8px; color: var(--muted); font-size: 14px; }}
+    a.crowd-go {{ display: inline-flex; align-items: center; text-decoration: none; }}
+    .crowd-foot {{
+      display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between;
+      margin: 2px 0 0; padding-top: 12px; border-top: 1px solid var(--line);
+      color: var(--muted); font-size: 12px;
+    }}
+    .crowd-foot a, .crowd-foot button {{ color: var(--accent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: none; }}
+    .crowd-foot a:hover, .crowd-foot button:hover {{ text-decoration: underline; }}
     @media (max-width: 980px) {{
       main {{ padding: 28px 18px 64px; }}
       .page-nav {{ align-items: flex-start; flex-direction: column; gap: 10px; }}
@@ -871,15 +884,16 @@ def render_html(
 
   <footer class="audit-meta">Generated: {generated}</footer>
 </main>
-<dialog class="crowd-sheet" id="crowdSheet" aria-label="字形众测">
+<dialog class="crowd-sheet" id="crowdSheet" aria-label="字形众测" tabindex="-1">
   <form class="crowd-body" id="crowdForm" method="dialog">
     <div class="crowd-head">
       <div class="crowd-glyph" id="crowdGlyph"></div>
       <div>
-        <p class="crowd-ask">这个字哪里还能更好？</p>
+        <p class="crowd-ask" id="crowdAsk">这个字哪里还能更好？</p>
         <p class="crowd-meta" id="crowdMeta"></p>
       </div>
     </div>
+    <div class="crowd-fields" id="crowdFields">
     <div class="crowd-field">
       <span class="crowd-label">问题在</span>
       <div class="crowd-chips" id="crowdAspects">
@@ -907,11 +921,19 @@ def render_html(
     <input id="crowdWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" class="crowd-hp">
     <div class="crowd-actions">
       <button type="button" class="crowd-go" id="crowdSubmit">提交建议</button>
-      <button type="button" class="crowd-close" id="crowdClose">关闭</button>
-      <span class="crowd-status" id="crowdStatus"></span>
+      <button type="button" class="crowd-close" data-close>关闭</button>
+      <span class="crowd-status" id="crowdStatus" role="status"></span>
     </div>
-    <p class="crowd-who" id="crowdWho" hidden></p>
-    <p class="crowd-seen" id="crowdSeen" hidden></p>
+    </div>
+    <div class="crowd-done" id="crowdDone" hidden>
+      <p class="crowd-done-title">收到了，谢谢</p>
+      <p class="crowd-done-text">这条建议已记到这个字的讨论里，之后改动会在那里跟进。</p>
+      <div class="crowd-actions">
+        <a class="crowd-go" id="crowdDoneLink" href="#" target="_blank" rel="noopener">查看讨论</a>
+        <button type="button" class="crowd-close" data-close>再看看别的字</button>
+      </div>
+    </div>
+    <p class="crowd-foot" id="crowdFoot" hidden><span id="crowdWho"></span><span id="crowdSeen"></span></p>
   </form>
 </dialog>
 <script>
@@ -980,6 +1002,10 @@ def render_html(
     $('crowdShotHint').textContent = '也可以直接粘贴截图';
     $('crowdStatus').textContent = '';
     $('crowdSubmit').disabled = false;
+    $('crowdSubmit').textContent = '提交建议';
+    $('crowdFields').hidden = false;
+    $('crowdAsk').hidden = false;
+    $('crowdDone').hidden = true;
   }}
 
   function openCrowd(cell) {{
@@ -990,17 +1016,17 @@ def render_html(
     resetForm();
     const seen = crowd[ch];
     const seenEl = $('crowdSeen');
+    seenEl.innerHTML = '';
     if (seen && seen.n) {{
-      seenEl.hidden = false;
-      seenEl.innerHTML = '';
-      seenEl.append(`这个字已收到 ${{seen.n}} 条建议，`);
       const link = document.createElement('a');
-      link.href = seen.url; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '看看大家怎么说';
+      link.href = seen.url; link.target = '_blank'; link.rel = 'noopener';
+      link.textContent = `已有 ${{seen.n}} 条建议`;
       seenEl.append(link);
-    }} else {{
-      seenEl.hidden = true;
     }}
+    renderWho();
     sheet.showModal();
+    // Focus the sheet itself so no option starts with a focus ring.
+    sheet.focus();
   }}
 
   document.querySelectorAll('#crowdAspects button').forEach((b) => b.addEventListener('click', () => b.classList.toggle('on')));
@@ -1044,7 +1070,8 @@ def render_html(
       return;
     }}
     $('crowdSubmit').disabled = true;
-    status.textContent = '提交中';
+    $('crowdSubmit').textContent = '提交中';
+    status.textContent = '';
     try {{
       const res = await fetch('/api/feedback', {{
         method: 'POST',
@@ -1058,15 +1085,16 @@ def render_html(
       }});
       const out = await res.json().catch(() => ({{}}));
       if (!res.ok || !out.ok) throw new Error(out.error || res.status);
-      status.innerHTML = '';
-      status.append('收到了，谢谢。');
-      if (out.url) {{
-        const link = document.createElement('a');
-        link.href = out.url; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '查看';
-        status.append(link);
-      }}
+      $('crowdFields').hidden = true;
+      $('crowdAsk').hidden = true;
+      $('crowdDone').hidden = false;
+      $('crowdDoneLink').href = out.url || '#';
+      $('crowdDoneLink').hidden = !out.url;
+      $('crowdFoot').hidden = true;
+      $('crowdDone').querySelector('[data-close]').focus();
     }} catch (err) {{
       $('crowdSubmit').disabled = false;
+      $('crowdSubmit').textContent = '提交建议';
       status.textContent = '没有提交成功，稍后再试一次';
     }}
   }});
@@ -1075,11 +1103,13 @@ def render_html(
   // readers post as themselves. The draft survives the GitHub round trip.
   let me = null;
   let loginEnabled = false;
+  function syncFoot() {{
+    $('crowdFoot').hidden = !$('crowdWho').childNodes.length && !$('crowdSeen').childNodes.length;
+  }}
   function renderWho() {{
     const who = $('crowdWho');
     who.innerHTML = '';
     if (me) {{
-      who.hidden = false;
       who.append(`以 @${{me}} 提交 · `);
       const out = document.createElement('button');
       out.type = 'button'; out.textContent = '退出';
@@ -1089,10 +1119,9 @@ def render_html(
       }});
       who.append(out);
     }} else if (loginEnabled) {{
-      who.hidden = false;
-      who.append('以匿名身份提交 · ');
+      who.append('匿名提交 · ');
       const login = document.createElement('a');
-      login.href = '#'; login.textContent = '用 GitHub 登录，以你的名义提交';
+      login.href = '#'; login.textContent = '用 GitHub 登录';
       login.addEventListener('click', (e) => {{
         e.preventDefault();
         try {{
@@ -1106,9 +1135,8 @@ def render_html(
         location.href = `/api/auth/login?back=${{encodeURIComponent(location.pathname)}}`;
       }});
       who.append(login);
-    }} else {{
-      who.hidden = true;
     }}
+    syncFoot();
   }}
   fetch('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => {{
     if (!d) return;
@@ -1128,9 +1156,9 @@ def render_html(
 
   grid.addEventListener('click', (event) => {{
     const cell = event.target.closest('.char-cell.covered');
-    if (cell) {{ openCrowd(cell); renderWho(); }}
+    if (cell) openCrowd(cell);
   }});
-  $('crowdClose').addEventListener('click', () => sheet.close());
+  document.querySelectorAll('#crowdSheet [data-close]').forEach((b) => b.addEventListener('click', () => sheet.close()));
   sheet.addEventListener('click', (event) => {{ if (event.target === sheet) sheet.close(); }});
 </script>
 </body>
