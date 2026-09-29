@@ -657,6 +657,16 @@ LUO_DENSE_SLIM_INK_START = float(os.environ.get("LUO_DENSE_SLIM_INK_START", "0.4
 LUO_DENSE_SLIM_INK_FULL = float(os.environ.get("LUO_DENSE_SLIM_INK_FULL", "0.50"))
 LUO_DENSE_SLIM_MIN_CONTOUR_EM = float(os.environ.get("LUO_DENSE_SLIM_MIN_CONTOUR_EM", "0.07"))
 
+# --- v0.4.12 round 20 horizontal leveling (luo_horiz_level) ---
+# The 行楷 feel on phones came from rising horizontals: across 800+ bars in
+# homepage glyphs W04 rises +0.32 deg on average, LXGW +0.84, Luo +0.79
+# (STYLE.md asks for <= 1 deg, W04 sits well under). Rotate every long,
+# gently rising horizontal edge toward level about its own midpoint; top,
+# bottom and counter edges all move, so bars level instead of thinning.
+LUO_HORIZ_LEVEL_K = float(os.environ.get("LUO_HORIZ_LEVEL_K", "0.4"))
+LUO_HORIZ_LEVEL_MAX_DEG = float(os.environ.get("LUO_HORIZ_LEVEL_MAX_DEG", "9.0"))
+LUO_HORIZ_LEVEL_MIN_RATIO = float(os.environ.get("LUO_HORIZ_LEVEL_MIN_RATIO", "0.10"))
+
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,
 # 儿/成/片/后) inherit LXGW's needle taper and read as a hairline next to
@@ -6348,6 +6358,77 @@ def luo_dense_slim(font: TTFont) -> None:
     print(f"[luo] dense slim: {count} glyphs (max inset {LUO_DENSE_SLIM_EM}em, ink {LUO_DENSE_SLIM_INK_START}-{LUO_DENSE_SLIM_INK_FULL})")
 
 
+def luo_horiz_level(font: TTFont) -> None:
+    """Round 20: level rising horizontals with one y-shear per glyph.
+
+    Per-edge rotation left steps where a bar edge is split by stem joins and
+    nubs at the caps. A y-shear (y -= (x - cx) * s) turns every horizontal by
+    the same angle, leaves verticals exactly vertical and cannot open a seam.
+    s is the median slope of the glyph's long rising horizontal edges.
+    """
+    if LUO_HORIZ_LEVEL_K <= 0:
+        print("[luo] horiz level: skipped")
+        return
+    glyf = font["glyf"]
+    rcmap = _build_reverse_cmap(font)
+    skip = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
+    max_s = math.tan(math.radians(LUO_HORIZ_LEVEL_MAX_DEG))
+    glyphs = 0
+    total = 0.0
+    for gname in font.getGlyphOrder():
+        cp = rcmap.get(gname)
+        if cp is None or not (0x3400 <= cp <= 0x9FFF) or chr(cp) in skip:
+            continue
+        glyph = glyf[gname]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords = list(glyph.coordinates)
+        flags = glyph.flags
+        xs = [c[0] for c in coords]
+        gw = max(xs) - min(xs)
+        if gw <= 0:
+            continue
+        min_len = LUO_HORIZ_LEVEL_MIN_RATIO * gw
+        slopes = []
+        weights = []
+        start = 0
+        for end in glyph.endPtsOfContours:
+            n = end - start + 1
+            oc = [start + j for j in range(n) if flags[start + j] & 1]
+            m = len(oc)
+            for k in range(m):
+                (ax, ay), (bx, by) = coords[oc[k]], coords[oc[(k + 1) % m]]
+                dx, dy = bx - ax, by - ay
+                if abs(dx) < min_len or dx == 0:
+                    continue
+                sl = dy / dx
+                if abs(sl) > max_s:
+                    continue
+                slopes.append(sl)
+                weights.append(abs(dx))
+            start = end + 1
+        if len(slopes) < 2:
+            continue
+        order = sorted(range(len(slopes)), key=lambda i: slopes[i])
+        acc = 0.0
+        half = sum(weights) / 2.0
+        med = slopes[order[-1]]
+        for i in order:
+            acc += weights[i]
+            if acc >= half:
+                med = slopes[i]
+                break
+        if med <= 0.002:
+            continue
+        s_corr = min(med, max_s) * LUO_HORIZ_LEVEL_K
+        cx = (max(xs) + min(xs)) / 2.0
+        for i, (x, y) in enumerate(coords):
+            glyph.coordinates[i] = (x, int(round(y - (x - cx) * s_corr)))
+        glyph.recalcBounds(glyf)
+        glyphs += 1
+        total += math.degrees(math.atan(s_corr))
+    print(f"[luo] horiz level: sheared {glyphs} glyphs, mean {total / max(glyphs, 1):.2f} deg (k={LUO_HORIZ_LEVEL_K})")
+
 def luo_pie_tail_fill(font: TTFont) -> None:
     """v0.4.12: give long 撇 tails flesh down to a blunt point (see the
     LUO_PIE_FILL_* constant block)."""
@@ -10643,6 +10724,7 @@ def main() -> None:
     # already-straighter outline.
     straighten_strokes(font)
     luo_horiz_kink_join(font)
+    luo_horiz_level(font)
 
     # Narrowing: legacy single-value or complexity-aware
     if NARROW_X is not None:
