@@ -464,6 +464,56 @@ def font_face_css(records: list[dict[str, object]], include_records: bool = True
     return "\n".join(rules)
 
 
+CROWD_REPO = "tw93/Luo"
+CROWD_LABEL = "众测"
+
+
+def fetch_crowd_reports() -> dict[str, object]:
+    """Read existing 众测 issues at build time (public API, token optional).
+
+    Returns {"by_char": {char: {"n": count, "url": latest_issue_url}},
+    "people": unique authors}. Any network or API failure returns an empty
+    result so the page still builds offline.
+    """
+    import urllib.parse
+    import urllib.request
+
+    empty: dict[str, object] = {"by_char": {}, "people": 0}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "luo-proof"}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    by_char: dict[str, dict[str, object]] = {}
+    people: set[str] = set()
+    label = urllib.parse.quote(CROWD_LABEL)
+    try:
+        for page in range(1, 11):
+            url = f"https://api.github.com/repos/{CROWD_REPO}/issues?labels={label}&state=all&per_page=100&page={page}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                items = json.loads(resp.read().decode("utf-8"))
+            if not items:
+                break
+            for it in items:
+                if "pull_request" in it:
+                    continue
+                people.add(str((it.get("user") or {}).get("login", "")))
+                title = str(it.get("title", ""))
+                ch = next((c for c in title.replace("[众测]", "") if is_cjk_cp(ord(c))), "")
+                if not ch:
+                    continue
+                rec = by_char.setdefault(ch, {"n": 0, "url": it.get("html_url", "")})
+                # One issue per glyph; later reports arrive as comments.
+                rec["n"] = int(rec["n"]) + 1 + int(it.get("comments", 0) or 0)
+            if len(items) < 100:
+                break
+    except Exception as exc:  # offline build, rate limit, API change
+        logging.warning("crowd reports unavailable: %s", exc)
+        return empty
+    people.discard("")
+    return {"by_char": by_char, "people": len(people)}
+
+
 def render_char_cells(
     gb_level1: str,
     gb_level2: str,
@@ -510,6 +560,10 @@ def render_html(
     covered_count = int(luo["covered_count"])
     missing_count = int(luo["missing_count"])
     coverage_rate = percent(covered_count / gb_total)
+    crowd = fetch_crowd_reports()
+    crowd_json = json.dumps(crowd["by_char"], ensure_ascii=False)
+    crowd_total = sum(int(v["n"]) for v in crowd["by_char"].values())
+    crowd_count = f"已收到 {crowd_total} 条建议。" if crowd_total else ""
 
     return f"""<!doctype html>
 <html lang="zh-CN">
@@ -694,6 +748,76 @@ def render_html(
       display: none;
     }}
     .audit-meta {{ margin-top: 18px; color: var(--muted); font: 11px var(--latin); }}
+    .crowd-line {{ margin: 14px 0 0; color: var(--ink); font-family: var(--audit-text); font-size: 14px; }}
+    .crowd-line span {{ color: var(--muted); }}
+    .char-cell.covered {{ cursor: pointer; }}
+    .char-cell.covered:hover {{ border-color: var(--accent); }}
+    .crowd-sheet {{
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      height: fit-content;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 0;
+      width: min(440px, calc(100vw - 24px));
+      max-height: calc(100vh - 24px);
+      overflow: auto;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 18px 50px rgba(20,20,19,.18);
+    }}
+    .crowd-sheet::backdrop {{ background: rgba(20,20,19,.28); }}
+    .crowd-body {{ padding: 20px 22px 18px; display: grid; gap: 14px; margin: 0; }}
+    .crowd-head {{ display: flex; gap: 14px; align-items: center; }}
+    .crowd-glyph {{
+      flex: 0 0 96px; display: flex; align-items: center; justify-content: center;
+      height: 96px; font-family: var(--luo); font-size: 80px; line-height: 1;
+      background-color: #fffdf8;
+      background-image:
+        linear-gradient(to right, transparent calc(50% - .5px), rgba(20,20,19,.10) calc(50% - .5px), rgba(20,20,19,.10) calc(50% + .5px), transparent calc(50% + .5px)),
+        linear-gradient(to bottom, transparent calc(50% - .5px), rgba(20,20,19,.10) calc(50% - .5px), rgba(20,20,19,.10) calc(50% + .5px), transparent calc(50% + .5px));
+      border: 1px solid var(--line);
+    }}
+    .crowd-ask {{ margin: 0; font-size: 17px; }}
+    .crowd-meta {{ margin: 4px 0 0; color: var(--muted); font: 12px var(--latin); }}
+    .crowd-field {{ display: grid; gap: 6px; }}
+    .crowd-label {{ color: var(--muted); font-size: 12px; }}
+    .crowd-chips {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+    .crowd-chips button {{
+      min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px;
+      background: #fffdf8; color: var(--ink); font: 13px var(--audit-text); cursor: pointer;
+    }}
+    .crowd-chips button.on {{ background: var(--ink); border-color: var(--ink); color: #fff; }}
+    .crowd-body textarea, .crowd-body input[type="text"] {{
+      width: 100%; border: 1px solid var(--line-strong); border-radius: 4px; background: #fffdf8;
+      color: var(--ink); padding: 8px 10px; font: 14px/1.5 var(--audit-text); resize: vertical;
+    }}
+    .crowd-shot {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
+    .crowd-shot-btn {{
+      display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px;
+      border: 1px dashed var(--line-strong); border-radius: 4px; font-size: 13px; cursor: pointer;
+    }}
+    .crowd-hint {{ color: var(--muted); font-size: 12px; }}
+    .crowd-shot img {{ max-height: 64px; max-width: 120px; border: 1px solid var(--line); border-radius: 2px; }}
+    .crowd-hp {{ position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }}
+    .crowd-actions {{ display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }}
+    .crowd-go {{
+      min-height: 38px; padding: 0 16px; border: 0; border-radius: 4px;
+      background: var(--ink); color: #fff; font: 14px var(--audit-text); cursor: pointer;
+    }}
+    .crowd-go:hover {{ background: var(--accent); }}
+    .crowd-go:disabled {{ opacity: .5; cursor: default; }}
+    .crowd-close {{
+      min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px;
+      background: transparent; color: var(--muted); font: 14px var(--audit-text); cursor: pointer;
+    }}
+    .crowd-status {{ color: var(--muted); font-size: 13px; }}
+    .crowd-status a {{ color: var(--accent); }}
+    .crowd-who {{ margin: 0; font-size: 12px; color: var(--muted); }}
+    .crowd-who a, .crowd-who button {{ color: var(--accent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; }}
+    .crowd-seen {{ margin: 0; font-size: 13px; color: var(--muted); }}
+    .crowd-seen a {{ color: var(--accent); }}
     @media (max-width: 980px) {{
       main {{ padding: 28px 18px 64px; }}
       .page-nav {{ align-items: flex-start; flex-direction: column; gap: 10px; }}
@@ -722,6 +846,7 @@ def render_html(
       <span><b>{covered_count}</b> 已覆盖, {coverage_rate}</span>
       <span><b>{missing_count}</b> 待补字</span>
     </p>
+    <p class="crowd-line">众测进行中，点开任意一个字，告诉我它哪里还能写得更好。<span>{crowd_count}</span></p>
   </header>
 
   <div class="toolbar">
@@ -739,6 +864,49 @@ def render_html(
 
   <footer class="audit-meta">Generated: {generated}</footer>
 </main>
+<dialog class="crowd-sheet" id="crowdSheet" aria-label="字形众测">
+  <form class="crowd-body" id="crowdForm" method="dialog">
+    <div class="crowd-head">
+      <div class="crowd-glyph" id="crowdGlyph"></div>
+      <div>
+        <p class="crowd-ask">这个字哪里还能更好？</p>
+        <p class="crowd-meta" id="crowdMeta"></p>
+      </div>
+    </div>
+    <div class="crowd-field">
+      <span class="crowd-label">问题在</span>
+      <div class="crowd-chips" id="crowdAspects">
+        <button type="button" data-v="笔画粗细">笔画粗细</button>
+        <button type="button" data-v="笔画形状">笔画形状</button>
+        <button type="button" data-v="结构重心">结构重心</button>
+        <button type="button" data-v="整体不协调">整体不协调</button>
+        <button type="button" data-v="其他">其他</button>
+      </div>
+    </div>
+    <div class="crowd-field">
+      <span class="crowd-label">看到时的字号</span>
+      <div class="crowd-chips single" id="crowdSize">
+        <button type="button" data-v="标题大字">标题大字</button>
+        <button type="button" data-v="正文">正文</button>
+        <button type="button" data-v="小字">小字</button>
+      </div>
+    </div>
+    <textarea id="crowdNote" rows="3" maxlength="1200" placeholder="哪一笔、哪一处，希望怎么改。比如：右边竖钩太胖，希望和左边一样粗。"></textarea>
+    <div class="crowd-shot">
+      <label class="crowd-shot-btn"><input type="file" id="crowdFile" accept="image/png,image/jpeg,image/webp" hidden>附截图</label>
+      <span class="crowd-hint" id="crowdShotHint">也可以直接粘贴截图</span>
+      <img id="crowdShotPreview" alt="" hidden>
+    </div>
+    <input id="crowdWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" class="crowd-hp">
+    <div class="crowd-actions">
+      <button type="button" class="crowd-go" id="crowdSubmit">提交建议</button>
+      <button type="button" class="crowd-close" id="crowdClose">关闭</button>
+      <span class="crowd-status" id="crowdStatus"></span>
+    </div>
+    <p class="crowd-who" id="crowdWho" hidden></p>
+    <p class="crowd-seen" id="crowdSeen" hidden></p>
+  </form>
+</dialog>
 <script>
   const grid = document.getElementById('charGrid');
   const cells = Array.from(document.querySelectorAll('.char-cell'));
@@ -788,6 +956,175 @@ def render_html(
     }});
   }});
   search.addEventListener('input', updateGrid);
+
+  const crowd = {crowd_json};
+  const sheet = document.getElementById('crowdSheet');
+  const $ = (id) => document.getElementById(id);
+  const levelName = {{ '1': '一级字', '2': '二级字' }};
+  let current = null;
+  let shot = null;
+
+  function resetForm() {{
+    document.querySelectorAll('#crowdAspects button, #crowdSize button').forEach((b) => b.classList.remove('on'));
+    $('crowdNote').value = '';
+    $('crowdWebsite').value = '';
+    shot = null;
+    $('crowdShotPreview').hidden = true;
+    $('crowdShotHint').textContent = '也可以直接粘贴截图';
+    $('crowdStatus').textContent = '';
+    $('crowdSubmit').disabled = false;
+  }}
+
+  function openCrowd(cell) {{
+    current = cell;
+    const ch = cell.dataset.char;
+    $('crowdGlyph').textContent = ch;
+    $('crowdMeta').textContent = `${{cell.dataset.code}} · ${{levelName[cell.dataset.level] || ''}}`;
+    resetForm();
+    const seen = crowd[ch];
+    const seenEl = $('crowdSeen');
+    if (seen && seen.n) {{
+      seenEl.hidden = false;
+      seenEl.innerHTML = '';
+      seenEl.append(`这个字已收到 ${{seen.n}} 条建议，`);
+      const link = document.createElement('a');
+      link.href = seen.url; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '看看大家怎么说';
+      seenEl.append(link);
+    }} else {{
+      seenEl.hidden = true;
+    }}
+    sheet.showModal();
+  }}
+
+  document.querySelectorAll('#crowdAspects button').forEach((b) => b.addEventListener('click', () => b.classList.toggle('on')));
+  document.querySelectorAll('#crowdSize button').forEach((b) => b.addEventListener('click', () => {{
+    const on = !b.classList.contains('on');
+    document.querySelectorAll('#crowdSize button').forEach((x) => x.classList.remove('on'));
+    b.classList.toggle('on', on);
+  }}));
+
+  // Screenshots are downscaled in the browser so uploads stay small.
+  function takeImage(file) {{
+    if (!file || !file.type.startsWith('image/')) return;
+    const img = new Image();
+    img.onload = () => {{
+      const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      shot = canvas.toDataURL('image/jpeg', 0.86);
+      $('crowdShotPreview').src = shot;
+      $('crowdShotPreview').hidden = false;
+      $('crowdShotHint').textContent = '已附上';
+      URL.revokeObjectURL(img.src);
+    }};
+    img.src = URL.createObjectURL(file);
+  }}
+  $('crowdFile').addEventListener('change', (e) => takeImage(e.target.files[0]));
+  sheet.addEventListener('paste', (e) => {{
+    const item = Array.from(e.clipboardData?.items || []).find((i) => i.type.startsWith('image/'));
+    if (item) {{ e.preventDefault(); takeImage(item.getAsFile()); }}
+  }});
+
+  $('crowdSubmit').addEventListener('click', async () => {{
+    const aspects = Array.from(document.querySelectorAll('#crowdAspects button.on')).map((b) => b.dataset.v);
+    const size = document.querySelector('#crowdSize button.on')?.dataset.v || '';
+    const note = $('crowdNote').value.trim();
+    const status = $('crowdStatus');
+    if (!note && !aspects.length && !shot) {{
+      status.textContent = '勾一项或写一句话就可以';
+      return;
+    }}
+    $('crowdSubmit').disabled = true;
+    status.textContent = '提交中';
+    try {{
+      const res = await fetch('/api/feedback', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{
+          char: current.dataset.char, aspects, size, note, image: shot,
+          website: $('crowdWebsite').value,
+          version: '{ASSET_CACHE_QUERY}'.replace('v=', ''),
+          viewport: `${{innerWidth}}x${{innerHeight}}`
+        }})
+      }});
+      const out = await res.json().catch(() => ({{}}));
+      if (!res.ok || !out.ok) throw new Error(out.error || res.status);
+      status.innerHTML = '';
+      status.append('收到了，谢谢。');
+      if (out.url) {{
+        const link = document.createElement('a');
+        link.href = out.url; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '查看';
+        status.append(link);
+      }}
+    }} catch (err) {{
+      $('crowdSubmit').disabled = false;
+      status.textContent = '没有提交成功，稍后再试一次';
+    }}
+  }});
+
+  // Login is optional: anonymous posts go through the site bot, logged-in
+  // readers post as themselves. The draft survives the GitHub round trip.
+  let me = null;
+  let loginEnabled = false;
+  function renderWho() {{
+    const who = $('crowdWho');
+    who.innerHTML = '';
+    if (me) {{
+      who.hidden = false;
+      who.append(`以 @${{me}} 提交 · `);
+      const out = document.createElement('button');
+      out.type = 'button'; out.textContent = '退出';
+      out.addEventListener('click', async () => {{
+        await fetch('/api/auth/me', {{ method: 'POST' }}).catch(() => {{}});
+        me = null; renderWho();
+      }});
+      who.append(out);
+    }} else if (loginEnabled) {{
+      who.hidden = false;
+      who.append('以匿名身份提交 · ');
+      const login = document.createElement('a');
+      login.href = '#'; login.textContent = '用 GitHub 登录，以你的名义提交';
+      login.addEventListener('click', (e) => {{
+        e.preventDefault();
+        try {{
+          sessionStorage.setItem('luo-crowd-draft', JSON.stringify({{
+            char: current.dataset.char,
+            aspects: Array.from(document.querySelectorAll('#crowdAspects button.on')).map((b) => b.dataset.v),
+            size: document.querySelector('#crowdSize button.on')?.dataset.v || '',
+            note: $('crowdNote').value
+          }}));
+        }} catch (err) {{}}
+        location.href = `/api/auth/login?back=${{encodeURIComponent(location.pathname)}}`;
+      }});
+      who.append(login);
+    }} else {{
+      who.hidden = true;
+    }}
+  }}
+  fetch('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => {{
+    if (!d) return;
+    me = d.login; loginEnabled = Boolean(d.enabled);
+    renderWho();
+    if (new URLSearchParams(location.search).get('crowd') !== '1') return;
+    history.replaceState(null, '', location.pathname);
+    let draft = null;
+    try {{ draft = JSON.parse(sessionStorage.getItem('luo-crowd-draft') || 'null'); sessionStorage.removeItem('luo-crowd-draft'); }} catch (err) {{}}
+    const cell = draft && cells.find((c) => c.dataset.char === draft.char);
+    if (!cell) return;
+    openCrowd(cell);
+    draft.aspects.forEach((v) => document.querySelector(`#crowdAspects [data-v="${{v}}"]`)?.classList.add('on'));
+    if (draft.size) document.querySelector(`#crowdSize [data-v="${{draft.size}}"]`)?.classList.add('on');
+    $('crowdNote').value = draft.note || '';
+  }}).catch(() => {{}});
+
+  grid.addEventListener('click', (event) => {{
+    const cell = event.target.closest('.char-cell.covered');
+    if (cell) {{ openCrowd(cell); renderWho(); }}
+  }});
+  $('crowdClose').addEventListener('click', () => sheet.close());
+  sheet.addEventListener('click', (event) => {{ if (event.target === sheet) sheet.close(); }});
 </script>
 </body>
 </html>

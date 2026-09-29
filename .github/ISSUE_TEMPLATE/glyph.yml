@@ -1,0 +1,48 @@
+name: 字形众测
+description: 帮落文校一个字，告诉我哪里还能写得更好
+title: "[众测] "
+labels: ["众测"]
+body:
+  - type: input
+    id: char
+    attributes:
+      label: 字
+      description: 从常用字校准页点进来会自动填好
+      placeholder: 落
+    validations:
+      required: true
+  - type: input
+    id: code
+    attributes:
+      label: 码位
+      placeholder: U+843D
+    validations:
+      required: false
+  - type: checkboxes
+    id: aspect
+    attributes:
+      label: 哪里还能更好
+      options:
+        - label: 笔画粗细不匀，或整体偏黑、偏细
+        - label: 笔画形状，比如收笔、钩、撇捺不顺
+        - label: 结构和重心，部件太挤、太松或歪了
+        - label: 和旁边的字放在一起不协调
+        - label: 其他
+  - type: dropdown
+    id: size
+    attributes:
+      label: 在多大的字号下看到
+      options:
+        - 标题大字
+        - 正文
+        - 小字
+        - 各个字号都有
+    validations:
+      required: false
+  - type: textarea
+    id: detail
+    attributes:
+      label: 具体说说
+      description: 哪一笔、哪一处，希望它怎么改。能附一张截图最好，拿苍耳、霞鹜或其他字体对比也可以。
+    validations:
+      required: false

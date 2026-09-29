@@ -34,5 +34,10 @@
         }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "feedback-assets": false
+    }
+  }
 }
