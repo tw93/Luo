@@ -34,7 +34,7 @@ Target glyph parameters:
   字面率: +4% to +7%
   笔画: Regular~Medium, 横略细竖略重
   中宫: 微紧, complex不挤 simple不散
-  横画: 上扬1-2°, 收笔略重
+  横画: 最终轮廓轻微上扬，长横倾角控制在1°左右
   竖画: 基本垂直, 起收有轻微重量
   转折: 外圆内锐, 转折处略加重
   端点: 软切角, 起笔顿挫收笔稳
@@ -473,6 +473,14 @@ LUO_LONG_HORIZ_THIN_ANGLE_DEG = float(os.environ.get("LUO_LONG_HORIZ_THIN_ANGLE_
 # needle terminals. Skip long-H thin only (do NOT invent free-end geometry —
 # free-end blunt / weight-rescue / 清 hard-cut were tried and made shapes worse).
 LUO_LONG_HORIZ_THIN_SKIP_CHARS = "玄云两来清"
+# Screenshot body-size queue: include its medium-length secondary bars in
+# the existing thinning pass, while keeping the stem and bottom-main gates.
+LUO_LONG_HORIZ_THIN_BODY_CHARS = "常用字校准面横阅风骨"
+
+# Accepted B direction: these screenshot glyphs keep the stroke pipeline,
+# but bypass repeated component/counter reshaping. One shared route prevents
+# a later category or identity pass from silently stacking the rejected shape.
+LUO_COMPONENT_SIMPLIFY_CHARS = frozenset("魔鬣纸面")
 # Killed after visual regression (Tang: 更丑了). Pass remains as no-op.
 LUO_HORIZ_WEIGHT_RESCUE_CHARS = ""
 LUO_HORIZ_WEIGHT_RESCUE_EM = float(os.environ.get("LUO_HORIZ_WEIGHT_RESCUE_EM", "0.0"))
@@ -682,14 +690,15 @@ LUO_DENSE_SLIM_INK_FULL = float(os.environ.get("LUO_DENSE_SLIM_INK_FULL", "0.50"
 LUO_DENSE_SLIM_MIN_CONTOUR_EM = float(os.environ.get("LUO_DENSE_SLIM_MIN_CONTOUR_EM", "0.07"))
 
 # --- v0.4.12 round 20 horizontal leveling (luo_horiz_level) ---
-# The 行楷 feel on phones came from rising horizontals: across 800+ bars in
-# homepage glyphs W04 rises +0.32 deg on average, LXGW +0.84, Luo +0.79
-# (STYLE.md asks for <= 1 deg, W04 sits well under). Rotate every long,
-# gently rising horizontal edge toward level about its own midpoint; top,
-# bottom and counter edges all move, so bars level instead of thinning.
-LUO_HORIZ_LEVEL_K = float(os.environ.get("LUO_HORIZ_LEVEL_K", "0.4"))
+# Level the final outline, after component refiners and face/posture affines.
+# The old 40% correction ran before these refiners and left 面/用/日 around
+# 2 degrees. One whole-glyph shear preserves joins, stroke widths and curves.
+# Target the median of long edges, not short cap/dot fragments. Affine
+# leveling is safe for walk/heart curves; only the frozen 月 is exempt.
+LUO_HORIZ_LEVEL_K = float(os.environ.get("LUO_HORIZ_LEVEL_K", "1.0"))
+LUO_HORIZ_LEVEL_TARGET_DEG = 1.0
 LUO_HORIZ_LEVEL_MAX_DEG = float(os.environ.get("LUO_HORIZ_LEVEL_MAX_DEG", "9.0"))
-LUO_HORIZ_LEVEL_MIN_RATIO = float(os.environ.get("LUO_HORIZ_LEVEL_MIN_RATIO", "0.10"))
+LUO_HORIZ_LEVEL_MIN_RATIO = float(os.environ.get("LUO_HORIZ_LEVEL_MIN_RATIO", "0.22"))
 
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,
@@ -1536,6 +1545,132 @@ def straighten_strokes(font: TTFont) -> None:
     )
 
 
+def rebuild_complex_components(font: TTFont) -> None:
+    """Rebuild the two rejected dense glyphs from the OFL source geometry.
+
+    This runs once after boldening, before topology-changing passes. The
+    source point ranges identify connected strokes, not private outlines.
+    Subsequent passes retain the B exclusions; folded strokes skip dots.
+    """
+    from array import array
+    from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+    glyf = font['glyf']
+    cmap = font.getBestCmap()
+    upm = font['head'].unitsPerEm
+    if upm != 2048:
+        raise ValueError('complex component rebuild requires the 2048-unit source')
+    rebuilt = []
+    for char in '魔鬣':
+        if ord(char) not in cmap:
+            continue
+        g = glyf[cmap[ord(char)]]
+        old = list(g.coordinates)
+        flags = list(g.flags)
+        ends = list(g.endPtsOfContours)
+        new = {}
+        sections = {}
+
+        def q(x, y):
+            return (x, y, 0)
+
+        def p(x, y):
+            return (x, y, 1)
+
+        def scale_span(a, b, sx, sy, cx, cy, dy=0):
+            for i in range(a, b + 1):
+                x, y = old[i]
+                new[i] = (round(cx + sx * (x - cx)), round(cy + sy * (y - cy) + dy), flags[i])
+        if char == '魔':
+            if ends != [4, 9, 204, 208, 213, 268, 278, 295]:
+                raise ValueError('魔 source contour topology changed; review the reconstruction')
+            # Withdraw the opposing wood-bar caps to open their white neck.
+            for i in range(219, 227):
+                x, y = old[i]
+                new[i] = (x - round(55 * min(1, max(0, (x - 930) / 160))), y, flags[i])
+            for i in range(255, 264):
+                x, y = old[i]
+                new[i] = (x + round(55 * min(1, max(0, (1400 - x) / 230))), y, flags[i])
+            # Open the four grid counters without changing the outer face.
+            for a, b in [(0, 4), (5, 9), (205, 208), (209, 213)]:
+                xs = [old[i][0] for i in range(a, b + 1)]
+                ys = [old[i][1] for i in range(a, b + 1)]
+                scale_span(a, b, 1.17, 1.18, (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2)
+
+        else:
+            if ends != [13, 27, 39, 54, 69, 77, 292, 296, 326, 337, 342, 348, 361, 383]:
+                raise ValueError('鬣 source contour topology changed; review the reconstruction')
+
+            # Source-derived directional ticks, with full heads and short exits.
+            def tick(x, y, w, h):
+                return [p(x, y + h), q(x + w * 0.32, y + h), q(x + w * 0.91, y + h * 0.3), p(x + w, y + h * 0.13), q(x + w * 1.02, y - h * 0.04), p(x + w * 0.91, y), q(x + w * 0.51, y + h * 0.41), p(x + w * 0.1, y + h * 0.27), q(x - w * 0.04, y + h * 0.29), q(x - w * 0.04, y + h * 0.94)]
+            sections[0, 13] = tick(553, 48, 300, 131)
+            sections[14, 27] = tick(569, 199, 297, 125)
+            sections[28, 39] = tick(1101, 212, 247, 115)
+            sections[118, 129] = [q(1390, 46)]
+            sections[90, 99] = [q(1845, -68), p(1857, -43), q(1881, 1), q(1906, 59), p(1932, 63), q(1969, 66), p(1969, 18), q(1969, -21), p(1965, -73), q(1949, -197), p(1872, -197)]
+        coords = []
+        ff = []
+        ee = []
+
+        def emit(items):
+            for x, y, on in items:
+                coords.append((round(x), round(y)))
+                ff.append(on)
+            ee.append(len(coords) - 1)
+
+        def edited(a, b):
+            items = []
+            i = a
+            while i <= b:
+                replacement = next(((u, v, part) for (u, v), part in sections.items() if u == i), None)
+                if replacement:
+                    u, v, part = replacement
+                    items.extend(part)
+                    i = v + 1
+                else:
+                    items.append(new.get(i, (*old[i], flags[i])))
+                    i += 1
+            return items
+        # Detach hair, frame and three folded strokes from the fused source.
+        if char == '鬣':
+            for a, b in [(0, 13), (14, 27), (28, 39), (40, 54), (55, 69), (70, 77)]:
+                emit(edited(a, b))
+            frame = edited(78, 168) + [p(*old[270]), q(1642, 756)]
+            emit(frame)
+            # Counterclockwise triangular whites around the crossing.
+            emit([p(1220, 552), p(1488, 463), p(1523, 651)])
+            emit([p(786, 460), p(1204, 461), p(998, 545)])
+            emit([p(1005, 560), p(1197, 642), p(837, 635)])
+            emit([p(510, 443), p(832, 550), p(550, 628)])
+            emit(edited(362, 383))
+            emit(tick(1095, 55, 260, 123))
+            # Close the hair above three separate, clockwise folded strokes.
+            emit(edited(178, 258) + [p(1079, 1044)])
+            # Independently authored B folds: different heads, turns and exits.
+            emit([p(629, 1045), q(666, 1067), p(703, 1024), q(717, 1001), p(691, 976), p(548, 885), q(525, 871), p(548, 851), p(709, 768), q(734, 745), p(726, 719), p(569, 715), q(513, 757), p(409, 812), q(380, 832), p(387, 864), q(383, 896), p(420, 916), p(594, 1008), q(612, 1034)])
+            emit([p(1002, 1061), q(1044, 1073), p(1080, 1027), q(1092, 1002), p(1062, 977), p(957, 894), q(932, 874), p(955, 857), p(1117, 780), q(1144, 754), p(1135, 725), p(974, 711), q(932, 753), p(817, 815), q(789, 835), p(796, 867), q(794, 899), p(829, 921), p(976, 1020), q(994, 1040)])
+            emit([p(1480, 1076), q(1524, 1091), p(1568, 1041), q(1580, 1015), p(1548, 989), p(1421, 899), q(1397, 879), p(1420, 861), p(1573, 784), q(1602, 761), p(1590, 735), p(1428, 724), q(1375, 764), p(1260, 824), q(1232, 844), p(1238, 875), q(1235, 907), p(1272, 926), p(1454, 1030), q(1472, 1053)])
+        else:
+            emit(edited(0, 4))
+            emit(edited(5, 9))
+            # Keep the bowl in the main stroke. Its two trapped whites are
+            # replaced by open space around a separately owned si component.
+            cup = [p(1293, 302), p(1289, 48), q(1289, -23), p(1350, -27), q(1615, -40), p(1780, -20), q(1809, -16), p(1829, 18), q(1849, 59), q(1871, 168), p(1898, 178), q(1937, 188), p(1937, 127), q(1937, 18), q(1931, -54), p(1912, -92)]
+            emit(edited(10, 97) + cup + edited(128, 204))
+            emit(edited(205, 208))
+            emit(edited(209, 213))
+            emit(edited(214, 268))
+            # Give the sloping bar and dot body their own weight; keep the gap.
+            emit([p(1456, 271), q(1494, 271), p(1516, 236), q(1524, 217), p(1496, 197), p(1401, 125), p(1600, 142), q(1575, 164), p(1578, 174), q(1598, 205), p(1633, 199), q(1700, 167), p(1739, 104), q(1753, 65), p(1716, 34), q(1692, 20), p(1665, 34), p(1626, 72), p(1415, 32), q(1375, 23), p(1348, 73), q(1335, 94), p(1358, 114), q(1431, 205), p(1438, 248), q(1440, 273)])
+        g.coordinates = GlyphCoordinates(coords)
+        g.flags = array('B', ff)
+        g.endPtsOfContours = ee
+        g.numberOfContours = len(ee)
+        g.recalcBounds(glyf)
+        rebuilt.append(char)
+    if rebuilt:
+        print('[luo] rebuilt complex components: ' + ''.join(rebuilt))
+
 def narrow_and_scale(
     font: TTFont,
     narrow_simple: float,
@@ -2195,6 +2330,8 @@ def refine_by_category(font: TTFont) -> None:
         if not cp:
             continue
         char = chr(cp)
+        if char in LUO_COMPONENT_SIMPLIFY_CHARS:
+            continue
         cat = _char_category(char)
         if not cat:
             continue
@@ -3155,7 +3292,7 @@ def _refine_kai_balance_wide_diag(glyph, glyf, upm: int) -> bool:
 def refine_kai_component_balance(font: TTFont) -> None:
     """Apply targeted typographic-kai component hierarchy to problem groups."""
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     upm = font["head"].unitsPerEm
     stats = {
         "water": 0,
@@ -4762,6 +4899,8 @@ def refine_visible_problem_glyphs(font: TTFont) -> None:
     }
     touched: list[str] = []
     for char in VISIBLE_PROBLEM_GLYPHS:
+        if char in LUO_COMPONENT_SIMPLIFY_CHARS:
+            continue
         gname = cmap.get(ord(char))
         if not gname or gname not in glyf:
             continue
@@ -6383,20 +6522,21 @@ def luo_dense_slim(font: TTFont) -> None:
 
 
 def luo_horiz_level(font: TTFont) -> None:
-    """Round 20: level rising horizontals with one y-shear per glyph.
+    """Level final horizontal posture with one y-shear per glyph.
 
     Per-edge rotation left steps where a bar edge is split by stem joins and
     nubs at the caps. A y-shear (y -= (x - cx) * s) turns every horizontal by
     the same angle, leaves verticals exactly vertical and cannot open a seam.
-    s is the median slope of the glyph's long rising horizontal edges.
+    Correct only the excess beyond the one-degree final posture band.
     """
     if LUO_HORIZ_LEVEL_K <= 0:
         print("[luo] horiz level: skipped")
         return
     glyf = font["glyf"]
     rcmap = _build_reverse_cmap(font)
-    skip = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
+    skip = set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
     max_s = math.tan(math.radians(LUO_HORIZ_LEVEL_MAX_DEG))
+    target_s = math.tan(math.radians(LUO_HORIZ_LEVEL_TARGET_DEG))
     glyphs = 0
     total = 0.0
     for gname in font.getGlyphOrder():
@@ -6442,9 +6582,9 @@ def luo_horiz_level(font: TTFont) -> None:
             if acc >= half:
                 med = slopes[i]
                 break
-        if med <= 0.002:
+        if abs(med) <= target_s:
             continue
-        s_corr = min(med, max_s) * LUO_HORIZ_LEVEL_K
+        s_corr = (med - math.copysign(target_s, med)) * min(1.0, LUO_HORIZ_LEVEL_K)
         cx = (max(xs) + min(xs)) / 2.0
         for i, (x, y) in enumerate(coords):
             glyph.coordinates[i] = (x, int(round(y - (x - cx) * s_corr)))
@@ -6696,7 +6836,8 @@ def luo_long_horiz_thin(font: TTFont) -> None:
         if glyph_w <= 0 or glyph_h <= 0:
             continue
         glyph_max = max(glyph_w, glyph_h)
-        min_chord_len = LUO_LONG_HORIZ_THIN_MIN_RATIO * glyph_max
+        min_ratio = 0.22 if char in LUO_LONG_HORIZ_THIN_BODY_CHARS else LUO_LONG_HORIZ_THIN_MIN_RATIO
+        min_chord_len = min_ratio * glyph_max
         min_stem_len = 0.30 * glyph_max
 
         # Topology gate: require at least one long near-vertical chord.
@@ -7275,6 +7416,7 @@ def luo_gesture_body_contract(font: TTFont) -> None:
         set(STRAIGHTEN_SKIP_CHARS)
         | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
         | set(LUO_GESTURE_SKIP_CHARS)
+        | {"面"}
     )
 
     if LUO_GESTURE_BODY_CHARS == "all":
@@ -7552,7 +7694,7 @@ def luo_small_stroke_plump(font: TTFont) -> None:
         if cp is None or not (0x3400 <= cp <= 0x9FFF):
             continue
         char = chr(cp)
-        if char in skip_chars:
+        if char in skip_chars or char == "鬣":
             continue
         glyph = glyf[gname]
         if glyph.numberOfContours <= 0:
@@ -7566,6 +7708,11 @@ def luo_small_stroke_plump(font: TTFont) -> None:
         for end in ends:
             n = end - start + 1
             if n < 4:
+                start = end + 1
+                continue
+            if char == "魔" and end == ends[-1]:
+                # rebuild_complex_components owns the detached si. Inflating
+                # it as one small stroke reconnects it to the bowl/frame.
                 start = end + 1
                 continue
             signed = _contour_signed_area(coords, start, end)
@@ -8521,6 +8668,8 @@ def refine_identity_chars(font: TTFont, requested_chars: str = "") -> None:
     target_chars = _identity_target_chars(requested_chars)
 
     for char in target_chars:
+        if char in LUO_COMPONENT_SIMPLIFY_CHARS:
+            continue
         cp = ord(char)
         if not (0x3400 <= cp <= 0x4DBF or 0x4E00 <= cp <= 0x9FFF):
             continue
@@ -8607,6 +8756,7 @@ DOT_SKIP_CHARS = (
     "然照熊燃焦煮热"
     "墨"
     "每"
+    "鬣"  # Rebuilt folded strokes and ticks are not dot contours.
 )
 
 # 氵/讠 chars: use soft channel (rotation preserved for consistency, short-axis eased).
@@ -8660,6 +8810,15 @@ def _build_cmap(font: TTFont) -> dict[int, str]:
                 cmap.update(table.cmap)
     setattr(font, _CMAP_CACHE_ATTR, cmap)
     return cmap
+
+
+
+def _component_cmap(font: TTFont) -> dict[int, str]:
+    """Keep accepted simplification glyphs out of component reshaping."""
+    return {
+        cp: name for cp, name in _build_cmap(font).items()
+        if chr(cp) not in LUO_COMPONENT_SIMPLIFY_CHARS
+    }
 
 
 def clear_cmap_cache(font: TTFont) -> None:
@@ -9579,7 +9738,7 @@ def luo_bottom_anchor_settle(font: TTFont) -> None:
         print("[luo] bottom-anchor settle: skipped (identity)")
         return
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     upm = font["head"].unitsPerEm
     h_min = WEB_PRESENCE_H_MIN_EM * upm
     lift_units = LUO_BOTTOM_ANCHOR_LIFT_EM * upm
@@ -9665,7 +9824,7 @@ def luo_left_radical_contain(font: TTFont) -> None:
         print("[luo] left-radical contain: skipped (identity)")
         return
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     upm = font["head"].unitsPerEm
     h_min = WEB_PRESENCE_DOT_MIN_EM * upm
     gap_units = LUO_LEFT_RADICAL_GAP_EM * upm
@@ -9744,7 +9903,7 @@ def luo_inner_counter_open(font: TTFont) -> None:
         print("[luo] inner-counter open: skipped (identity)")
         return
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     seg_count = 0
     dense_seg_count = 0
     dense_glyph_count = 0
@@ -9872,7 +10031,7 @@ def luo_top_bottom_separate(font: TTFont) -> None:
         print("[luo] top-bottom separate: skipped (identity)")
         return
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     upm = font["head"].unitsPerEm
     h_min = WEB_PRESENCE_H_MIN_EM * upm
     lift_units = LUO_TOP_BOTTOM_LIFT_EM * upm
@@ -9997,7 +10156,7 @@ def luo_frame_inner_open(font: TTFont) -> None:
         print("[luo] frame-inner open: skipped (identity)")
         return
     glyf = font["glyf"]
-    cmap = _build_cmap(font)
+    cmap = _component_cmap(font)
     skip = (
         set(STRAIGHTEN_SKIP_CHARS)
         | set(IDENTITY_FRAME_CHARS)
@@ -10600,6 +10759,79 @@ def save_outputs(font: TTFont) -> None:
     print(f"[luo] wrote {woff2_path.relative_to(ROOT)}")
 
 
+def sync_installed_font() -> None:
+    """Refresh an existing macOS installation after a full local build.
+
+    Diagnostic subsets and CI must never replace a user's complete font.
+    No font is installed on machines that have not already installed Luo.
+    """
+    if sys.platform != "darwin" or os.environ.get("CI") or BUILD_CHARS != "gb2312-full":
+        return
+    import ctypes
+    import ctypes.util
+    import io
+    import tempfile
+
+    target = Path.home() / "Library" / "Fonts" / f"{OUTPUT_PREFIX}.ttf"
+    source = DIST_DIR / f"{OUTPUT_PREFIX}.ttf"
+    if not target.is_file():
+        return
+    candidate_bytes = source.read_bytes()
+    if target.read_bytes() == candidate_bytes:
+        return
+    # Validate and install one snapshot, even if another build overwrites dist.
+    with TTFont(io.BytesIO(candidate_bytes)) as installed_candidate:
+        if len(installed_candidate.getBestCmap() or {}) < 6500:
+            raise RuntimeError("refusing to install an incomplete Luo font")
+
+    cf = ctypes.CDLL(ctypes.util.find_library("CoreFoundation"))
+    ct = ctypes.CDLL(ctypes.util.find_library("CoreText"))
+    cf.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long, ctypes.c_bool]
+    cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
+    cf.CFRelease.argtypes = [ctypes.c_void_p]
+    cf.CFErrorGetCode.argtypes = [ctypes.c_void_p]
+    cf.CFErrorGetCode.restype = ctypes.c_long
+    path_bytes = os.fsencode(target)
+    url = cf.CFURLCreateFromFileSystemRepresentation(None, path_bytes, len(path_bytes), False)
+    if not url:
+        raise RuntimeError("cannot create installed-font URL")
+
+    def register(enabled: bool) -> None:
+        fn = ct.CTFontManagerRegisterFontsForURL if enabled else ct.CTFontManagerUnregisterFontsForURL
+        fn.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_void_p)]
+        fn.restype = ctypes.c_bool
+        error = ctypes.c_void_p()
+        ok = fn(url, 2, ctypes.byref(error))  # kCTFontManagerScopeUser (macOS 10.6+)
+        code = cf.CFErrorGetCode(error) if error.value else 0
+        if error.value:
+            cf.CFRelease(error)
+        if not ok and code != (105 if enabled else 201):
+            raise RuntimeError(f"font {'registration' if enabled else 'unregistration'} failed ({code})")
+
+    previous = target.read_bytes()
+    try:
+        # Prepare the copy before unregistering, then replace it atomically.
+        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".Luo-", suffix=".ttf", delete=False) as tmp:
+            temporary = Path(tmp.name)
+        try:
+            temporary.write_bytes(candidate_bytes)
+            register(False)
+            try:
+                os.replace(temporary, target)
+                register(True)
+            except Exception:
+                target.write_bytes(previous)
+                register(True)
+                raise
+        finally:
+            temporary.unlink(missing_ok=True)
+        if target.read_bytes() != candidate_bytes:
+            raise RuntimeError("installed Luo differs from the completed build")
+    finally:
+        cf.CFRelease(url)
+    print("[luo] refreshed existing macOS font installation")
+
+
 # Files that embed a `?v=<asset-version>` query string against the woff2 or
 # luo.css URL. Patched in-place after each successful build so the cache-bust
 # token always tracks the actual font binary content.
@@ -10928,13 +11160,13 @@ def main() -> None:
     else:
         bolden_glyphs(font, BOLDEN_H, BOLDEN_V)
 
+    rebuild_complex_components(font)
     soften_endpoints(font)
     # v0.4 print-kai pivot: flatten LXGW's quadratic bow on long near-axis
     # spans. Has to run before narrow/refine so subsequent passes see the
     # already-straighter outline.
     straighten_strokes(font)
     luo_horiz_kink_join(font)
-    luo_horiz_level(font)
 
     # Narrowing: legacy single-value or complexity-aware
     if NARROW_X is not None:
@@ -10992,11 +11224,13 @@ def main() -> None:
     adjust_space_width(font, SPACE_WIDTH_RATIO)
     adjust_cjk_spacing(font)
     luo_face_upright(font)
+    luo_horiz_level(font)
     rewrite_names(font)
     validate_required_chars(font, required_chars, BUILD_CHARS)
     write_debug_reports(font, requested_chars)
     save_outputs(font)
     update_asset_versions(compute_asset_version())
+    sync_installed_font()
     print("[luo] done.")
 
 

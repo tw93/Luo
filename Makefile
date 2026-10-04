@@ -28,6 +28,7 @@ release-check: build font-audit print-proof
 # cache-bust hash drifts away from the binary you measured.
 ship: build
 	$(PY) scripts/check_frozen_glyphs.py
+	$(PY) scripts/test_font_geometry.py
 	$(PY) scripts/compare_to.py
 	$(PY) scripts/measure_groups.py
 	@echo ""

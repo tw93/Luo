@@ -37,6 +37,9 @@ jobs:
       - name: Fetch source font
         run: python scripts/fetch_base_font.py
 
+      - name: Committed full-font geometry regression
+        run: python scripts/test_font_geometry.py
+
       - name: Build font (${{ matrix.build_mode }})
         env:
           LUO_BUILD_CHARS: ${{ matrix.build_mode }}

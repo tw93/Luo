@@ -5,7 +5,7 @@
   <title>Luo 落文：有魏晋风骨的长文纸面字</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles/luo.css?v=0.4.12-352a7694">
+  <link rel="stylesheet" href="assets/styles/luo.css?v=0.4.12-893b0d17">
   <meta name="description" content="落文取法卫夫人笔意，横轻竖重，端正含蓄，适合中文长文、纸面排版和标题展示。">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Luo 落文">
@@ -61,7 +61,7 @@
     }
     .hero-links .proof-nav {
       font-family: var(--serif);
-      font-size: 13px;
+      font-size: 15px;
       color: var(--brand);
       letter-spacing: 0.04em;
       text-transform: none;
@@ -179,14 +179,12 @@
       min-width: 0;
     }
     .type-row { container-type: inline-size; }
-    /* One line at every width above phones: shrink with the cell instead of
-       wrapping. 34.5em covers 33 glyphs plus letter-spacing; 244px is the
-       label column, gap and cell padding of the two-column row. */
+    /* Keep the reading sample at its intended size when the cell narrows. */
     .glyph-display.body-sample {
       font-size: 19px;
-      font-size: min(19px, calc((100cqi - 244px) / 34.5));
       line-height: 1.7;
       letter-spacing: 0.4px;
+      white-space: normal;
     }
     .type-label {
       font-family: var(--latin-ui);
@@ -216,11 +214,9 @@
     }
     .paper-sheet {
       width: 100%;
-      aspect-ratio: 210 / 297;
       background: #fffdf8;
       border: 1px solid var(--border);
       padding: 40px 37px;
-      overflow: hidden;
     }
     .paper-title {
       font-family: var(--display);
@@ -232,15 +228,15 @@
     }
     .paper-byline {
       font-family: var(--serif);
-      font-size: 12px;
+      font-size: 13px;
       color: var(--stone);
       margin: 0 0 18px;
       letter-spacing: 0.06em;
     }
     .paper-body {
       font-family: var(--serif);
-      font-size: 12.8px;
-      line-height: 1.64;
+      font-size: 15px;
+      line-height: 1.75;
       color: var(--dark-warm);
       letter-spacing: 0.028em;
     }
@@ -474,13 +470,11 @@
       .type-row { grid-template-columns: 1fr; }
       .type-row > * { padding: 16px 0; }
       .type-label { padding-bottom: 0; border-bottom: none; }
-      .glyph-display.body-sample { font-size: min(19px, calc(100cqi / 34.5)); }
       .rules { grid-template-columns: 1fr; }
       .rules li:nth-child(odd) { border-right: none; padding-right: 0; }
       .rules li:nth-child(even) { padding-left: 0; }
       .paper-preview { grid-template-columns: 1fr; }
       .paper-sheet { width: min(100%, 560px); justify-self: center; padding: 40px 37px; }
-      .paper-body { font-size: 12.7px; line-height: 1.62; }
       .footer { flex-direction: column; align-items: flex-start; gap: 24px; }
       .footer .colophon { text-align: left; max-width: 100%; }
       .footer .wm-name { font-size: 22px; }
@@ -500,7 +494,6 @@
       .glyph-display.body-sample { font-size: 19px; }
       .paper-sheet { aspect-ratio: auto; padding: 32px 24px; }
       .paper-title { font-size: 22px; }
-      .paper-body { font-size: 12.5px; line-height: 1.66; }
       .type-row { grid-template-columns: 1fr; }
       .type-row > * { padding: 16px 0; }
       .type-label { padding-bottom: 0; border-bottom: none; }
