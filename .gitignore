@@ -4,9 +4,9 @@ __pycache__/
 venv/
 .vercel/
 .claude/
-CLAUDE.md
+!/CLAUDE.md
 CLAUDE.local.md
-AGENTS.md
+!/AGENTS.md
 AGENTS.override.md
 .DS_Store
 local/

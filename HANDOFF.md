@@ -590,7 +590,7 @@ make print-proof          # 生成 proof/a4.pdf 和 proof/a4-600dpi.png
 文档：
 
 - [STYLE.md](STYLE.md) — v0.4 风格规范
-- [AGENTS.md](AGENTS.md) — v0.4 解冻参数 + 冻结参数表
+- [字体工程档案](docs/font-engineering-history.md)，v0.4 解冻参数、冻结参数表和回滚原因
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 双向门用法
 - [HANDOFF.v0.3.md](HANDOFF.v0.3.md) — v0.3 历史
 - [README.md](README.md)
