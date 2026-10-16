@@ -37,6 +37,43 @@ def fixture(char, slope):
     return fb.font
 
 
+class NaStrokeClassificationTests(unittest.TestCase):
+    def test_hooks_and_horizontal_feet_are_not_na(self):
+        with TTFont(build.BASE_FONT) as font, patch.dict(build._NA_TIPS, clear=True), \
+             contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "上笔毙比")
+            cmap = font.getBestCmap()
+            before = {ch: font["glyf"][cmap[ord(ch)]].compile(font["glyf"])
+                      for ch in "上笔毙比"}
+            build.luo_na_modulate(font)
+            build.luo_na_foot_swell(font)
+            for ch in before:
+                with self.subTest(char=ch):
+                    self.assertNotIn(cmap[ord(ch)], build._NA_TIPS)
+                    self.assertEqual(before[ch], font["glyf"][cmap[ord(ch)]].compile(font["glyf"]))
+
+    def test_accepted_components_keep_their_existing_na_route(self):
+        with TTFont(build.BASE_FONT) as font, patch.dict(build._NA_TIPS, clear=True), \
+             contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "魔鬣纸面")
+            build.luo_na_modulate(font)
+            expected = {"魔": [(1882, 831), (1804, 2)],
+                        "鬣": [(1948, -201), (1366, 41), (1526, 756)]}
+            for ch, tips in expected.items():
+                with self.subTest(char=ch):
+                    actual = build._NA_TIPS[font.getBestCmap()[ord(ch)]]
+                    self.assertEqual([(x, y) for x, y, width in actual], tips)
+
+    def test_diagonal_and_flat_na_still_receive_their_foot(self):
+        with TTFont(build.BASE_FONT) as font, patch.dict(build._NA_TIPS, clear=True), \
+             contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "人大天文木法之道")
+            build.luo_na_modulate(font)
+            for ch in "人大天文木法之道":
+                with self.subTest(char=ch):
+                    self.assertTrue(build._NA_TIPS.get(font.getBestCmap()[ord(ch)]))
+
+
 class InstalledFontTests(unittest.TestCase):
     def test_diagnostic_overwrite_cannot_change_validated_installation(self):
         with tempfile.TemporaryDirectory() as directory:

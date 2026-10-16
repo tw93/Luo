@@ -5721,6 +5721,14 @@ def luo_na_modulate(font: TTFont) -> None:
                 def _at(pts, a):
                     return min(pts, key=lambda r: abs(r[3] - a))
                 m1, m2 = _at(sides[0], region * 0.8), _at(sides[1], region * 0.8)
+                # Both boundaries must lead back up-left. Averaging first
+                # mistook a hook's upward arm and horizontal base for a na:
+                # 笔/毙 acquired a swollen foot and 上 a heavier base bar.
+                # Accepted hand-refined components retain their existing route.
+                if chr(cp) not in LUO_COMPONENT_SIMPLIFY_CHARS and any(
+                    p[1] >= tx or p[2] <= ty for p in (m1, m2)
+                ):
+                    continue
                 dx = (m1[1] + m2[1]) / 2.0 - tx
                 dy = (m1[2] + m2[2]) / 2.0 - ty
                 if dx >= 0 or dy <= 0:

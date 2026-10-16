@@ -6,8 +6,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.529,
-  "avg_bbox_centered_iou": 0.6851,
+  "avg_raster_iou": 0.5283,
+  "avg_bbox_centered_iou": 0.6823,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -148,8 +148,8 @@
     {
       "char": "雨",
       "codepoint": "U+96E8",
-      "raster_iou": 0.5993,
-      "bbox_centered_iou": 0.6326,
+      "raster_iou": 0.5932,
+      "bbox_centered_iou": 0.6297,
       "gate": 0.6,
       "pass": false
     },
@@ -164,8 +164,8 @@
     {
       "char": "藏",
       "codepoint": "U+85CF",
-      "raster_iou": 0.6255,
-      "bbox_centered_iou": 0.6946,
+      "raster_iou": 0.616,
+      "bbox_centered_iou": 0.6967,
       "gate": 0.6,
       "pass": false
     },
@@ -244,8 +244,8 @@
     {
       "char": "兰",
       "codepoint": "U+5170",
-      "raster_iou": 0.4155,
-      "bbox_centered_iou": 0.683,
+      "raster_iou": 0.409,
+      "bbox_centered_iou": 0.6015,
       "gate": 0.6,
       "pass": false
     },
