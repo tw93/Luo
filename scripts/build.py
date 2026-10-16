@@ -54,6 +54,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fontTools.ttLib import TTFont
+from fontTools.pens.pointInsidePen import PointInsidePen
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = ROOT / "source"
@@ -688,6 +689,14 @@ LUO_DENSE_SLIM_EM = float(os.environ.get("LUO_DENSE_SLIM_EM", "0.0065"))
 LUO_DENSE_SLIM_INK_START = float(os.environ.get("LUO_DENSE_SLIM_INK_START", "0.42"))  # outline ink/bbox where the inset starts
 LUO_DENSE_SLIM_INK_FULL = float(os.environ.get("LUO_DENSE_SLIM_INK_FULL", "0.50"))
 LUO_DENSE_SLIM_MIN_CONTOUR_EM = float(os.environ.get("LUO_DENSE_SLIM_MIN_CONTOUR_EM", "0.07"))
+
+# Small-text spacing is local: keep the frame and main strokes, opening only
+# proven white channels. At 15px, 0.10em leaves 1.5px between opposing edges.
+# Floors are (vertical stem width, horizontal stroke height), not global weight.
+LUO_READING_GAP_EM = 0.10
+LUO_READING_GAP_MAX_MOVE_EM = 0.012
+LUO_READING_STROKE_FLOOR_EM = (0.060, 0.045)
+
 
 # --- v0.4.12 round 20 horizontal leveling (luo_horiz_level) ---
 # Level the final outline, after component refiners and face/posture affines.
@@ -6411,114 +6420,248 @@ def luo_flick_taper(font: TTFont) -> None:
     print(f"[luo] flick taper: {tips} tips across {glyphs} glyphs (region={LUO_FLICK_REGION_EM}em, tip={LUO_FLICK_TIP})")
 
 
+def _open_crowded_gaps(glyph, glyf, upm: int) -> int:
+    """Open short white channels without thinning already-light strokes.
+
+    Overall ink/bbox density misses crowded details in otherwise open glyphs.
+    Pair opposite near-axis edges, prove the intervening region is white using
+    the actual quadratic outlines, then spend only the neighboring ink's spare
+    thickness. This handles both closed counters and open component gaps.
+    """
+    coords = list(glyph.coordinates)
+    flags, ends = glyph.flags, glyph.endPtsOfContours
+    target_gap = LUO_READING_GAP_EM * upm
+    max_move = LUO_READING_GAP_MAX_MOVE_EM * upm
+    min_run = 0.075 * upm
+    moves: dict[tuple[int, int], float] = {}
+    cache: dict[tuple[float, float], bool] = {}
+    count = 0
+
+    def ink(x, y):
+        key = (round(x, 3), round(y, 3))
+        if key not in cache:
+            pen = PointInsidePen(None, (x, y), evenOdd=False)
+            glyph.draw(pen, glyf)
+            cache[key] = pen.getResult()
+        return cache[key]
+
+    # axis is the displacement axis; along is the direction of the stroke.
+    for axis in (0, 1):
+        along = 1 - axis
+        edges = []
+        start = 0
+        for end in ends:
+            on = [i for i in range(start, end + 1) if flags[i] & 1]
+            for k, ia in enumerate(on):
+                ib = on[(k + 1) % len(on)]
+                a, b = coords[ia], coords[ib]
+                run = b[along] - a[along]
+                if abs(run) < min_run or abs(b[axis] - a[axis]) > abs(run) * 0.14:
+                    continue
+                indices = []
+                idx = ia
+                while True:
+                    indices.append(idx)
+                    if idx == ib:
+                        break
+                    idx = start if idx == end else idx + 1
+
+                def at(t, a=a, b=b, run=run):
+                    return a[axis] + (b[axis] - a[axis]) * (t - a[along]) / run
+
+                # Curved bowls and terminals belong to their own channels.
+                if any(abs(coords[i][axis] - at(coords[i][along])) > 0.003 * upm for i in indices):
+                    continue
+                direction = (1 if run > 0 else -1) * (1 if axis == 0 else -1)
+                # (span low/high, normal into ink, point indices, line query)
+                edges.append((min(a[along], b[along]), max(a[along], b[along]), direction, indices, at))
+            start = end + 1
+
+        def point(position, t):
+            return (position, t) if axis == 0 else (t, position)
+
+        for low in edges:
+            if low[2] != -1:
+                continue
+            for high in edges:
+                if high[2] != 1:
+                    continue
+                lo, hi = max(low[0], high[0]), min(low[1], high[1])
+                span = hi - lo
+                if span < min_run or span < 0.65 * min(low[1] - low[0], high[1] - high[0]):
+                    continue
+                samples = [lo + span * f for f in (0.15, 0.5, 0.85)]
+                gaps = [high[4](t) - low[4](t) for t in samples]
+                if min(gaps) <= 0.012 * upm or max(gaps) >= target_gap:
+                    continue
+                # Non-zero winding keeps overlapping strokes black. A real
+                # crossing must not be mistaken for a counter and cut apart.
+                if any(ink(*point(low[4](t) + gap * f, t))
+                       for t, gap in zip(samples, gaps) for f in (0.15, 0.5, 0.85)):
+                    continue
+                shift = min(max_move, (target_gap - max(gaps)) / 2)
+                for edge in (low, high):
+                    if axis == 1:
+                        xs = [x for x, y in coords]
+                        ys = [y for x, y in coords]
+                        if (edge[1] - edge[0] >= LUO_GESTURE_MAIN_H_MIN_W * (max(xs) - min(xs))
+                                and min(edge[4](t) for t in samples)
+                                < min(ys) + LUO_GESTURE_MAIN_H_BAND * (max(ys) - min(ys))):
+                            continue  # keep the bottom primary horizontal
+                    floor = LUO_READING_STROKE_FLOOR_EM[axis] * upm
+                    allowed = shift
+                    # Check the whole edge, including the part beyond the
+                    # shared gap, before moving its endpoints and controls.
+                    for fraction in (0.15, 0.5, 0.85):
+                        t = edge[0] + (edge[1] - edge[0]) * fraction
+                        p, direction = edge[4](t), edge[2]
+                        required = floor + 2 * allowed
+                        depth = 0.0
+                        while depth < required:
+                            next_depth = min(required, depth + 0.004 * upm)
+                            if not ink(*point(p + direction * next_depth, t)):
+                                break
+                            depth = next_depth
+                        # Two budgets reserve ink when the other side of a
+                        # shared stem also faces a narrow channel.
+                        if depth < required:
+                            allowed = min(allowed, max(0, (depth - floor) / 2))
+                    if allowed < 1:
+                        continue
+                    for idx in edge[3]:
+                        key = (idx, axis)
+                        delta = edge[2] * allowed
+                        if key not in moves or abs(delta) > abs(moves[key]):
+                            moves[key] = delta
+                    count += 1
+    for (i, axis), delta in moves.items():
+        p = list(glyph.coordinates[i])
+        p[axis] = round(p[axis] + delta)
+        glyph.coordinates[i] = p
+    if moves:
+        glyph.recalcBounds(glyf)
+    return count
+
+
+def _slim_dense_outline(glyph, glyf, upm: int) -> bool:
+    """Keep the existing whole-glyph density correction unchanged."""
+    min_c = LUO_DENSE_SLIM_MIN_CONTOUR_EM * upm
+    co = list(glyph.coordinates)
+    area = 0.0
+    s0 = 0
+    for e0 in glyph.endPtsOfContours:
+        pts = co[s0:e0 + 1]
+        s0 = e0 + 1
+        area += sum(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1] for i in range(len(pts))) / 2.0
+    xs = [p[0] for p in co]
+    ys = [p[1] for p in co]
+    box = max(1.0, (max(xs) - min(xs)) * (max(ys) - min(ys)))
+    ink = abs(area) / box
+    k = (ink - LUO_DENSE_SLIM_INK_START) / (LUO_DENSE_SLIM_INK_FULL - LUO_DENSE_SLIM_INK_START)
+    if k <= 0:
+        return False
+    k = min(1.0, k)
+    d = LUO_DENSE_SLIM_EM * upm * k
+    if d < 0.5:
+        return False
+    coords = list(glyph.coordinates)
+    new = list(coords)
+    # Contour list for junction tests: LXGW strokes are separate
+    # overlapping contours; insetting both sides of a shallow overlap
+    # opened hairline slits (翻/蟹/魔). Points near another contour's ink
+    # stay put.
+    cl = []
+    s1 = 0
+    for e1 in glyph.endPtsOfContours:
+        pts1 = coords[s1:e1 + 1]
+        xs1 = [q[0] for q in pts1]
+        ys1 = [q[1] for q in pts1]
+        cl.append((s1, pts1, min(xs1), max(xs1), min(ys1), max(ys1)))
+        s1 = e1 + 1
+    probe = 3.0 * d
+
+    def _near_other(ci, qx, qy):
+        for cj, (sj, pj, x0, x1, y0, y1) in enumerate(cl):
+            if cj == ci or qx < x0 - probe or qx > x1 + probe or qy < y0 - probe or qy > y1 + probe:
+                continue
+            for ox, oy in ((0, 0), (probe, 0), (-probe, 0), (0, probe), (0, -probe)):
+                tx, ty = qx + ox, qy + oy
+                inside = False
+                for (ax_, ay_), (bx_, by_) in zip(pj, pj[1:] + pj[:1]):
+                    if (ay_ > ty) != (by_ > ty) and tx < ax_ + (bx_ - ax_) * (ty - ay_) / (by_ - ay_):
+                        inside = not inside
+                if inside:
+                    return True
+        return False
+
+    start = 0
+    ci = -1
+    for end in glyph.endPtsOfContours:
+        ci += 1
+        n = end - start + 1
+        pts = coords[start:end + 1]
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        if n < 3 or max(max(xs) - min(xs), max(ys) - min(ys)) < min_c:
+            start = end + 1
+            continue
+        # Pinned factor per point, then smoothed along the contour so
+        # the inset fades in and out instead of stepping (a hard pin next
+        # to moved neighbours left spikes: 灏 页 top bar, 篪 竹).
+        fac = [0.0 if _near_other(ci, pts[j][0], pts[j][1]) else 1.0 for j in range(n)]
+        for _ in range(3):
+            fac = [min(fac[j], (fac[j - 1] + fac[j] + fac[(j + 1) % n]) / 3.0) for j in range(n)]
+        for j in range(n):
+            px, py = pts[j]
+            ax, ay = pts[j - 1]
+            bx, by = pts[(j + 1) % n]
+            if fac[j] <= 0.0:
+                continue
+            nx = ny = 0.0
+            for (x0, y0), (x1, y1) in (((ax, ay), (px, py)), ((px, py), (bx, by))):
+                ex, ey = x1 - x0, y1 - y0
+                el = math.hypot(ex, ey)
+                if el > 1e-6:
+                    nx += ey / el
+                    ny += -ex / el
+            nl = math.hypot(nx, ny)
+            if nl < 1e-6:
+                continue
+            sc = min(2.0, 2.0 / nl) if nl > 1.0 else 1.0
+            dd = d * fac[j]
+            new[start + j] = (int(round(px + dd * sc * nx / nl)), int(round(py + dd * sc * ny / nl)))
+        start = end + 1
+    for i, c in enumerate(new):
+        glyph.coordinates[i] = c
+    glyph.recalcBounds(glyf)
+    return True
+
+
 def luo_dense_slim(font: TTFont) -> None:
-    """Round 18: inset outlines of dense glyphs (see LUO_DENSE_SLIM_*)."""
+    """Relieve dense outlines and locally crowded horizontal/vertical gaps."""
     if LUO_DENSE_SLIM_EM <= 0:
         print("[luo] dense slim: skipped")
         return
     glyf = font["glyf"]
     rcmap = _build_reverse_cmap(font)
     upm = font["head"].unitsPerEm
-    min_c = LUO_DENSE_SLIM_MIN_CONTOUR_EM * upm
     skip = set(STRAIGHTEN_SKIP_CHARS) | set(LUO_HORIZ_CAP_FLATTEN_FROZEN_CHARS)
-    count = 0
+    count = gap_edges = 0
     for gname in font.getGlyphOrder():
         cp = rcmap.get(gname)
         if cp is None or not (0x3400 <= cp <= 0x9FFF) or chr(cp) in skip:
             continue
         glyph = glyf[gname]
         if glyph.numberOfContours < 3:
-            continue  # 一/二-like glyphs fill their own bbox; not dense
-        co = list(glyph.coordinates)
-        area = 0.0
-        s0 = 0
-        for e0 in glyph.endPtsOfContours:
-            pts = co[s0:e0 + 1]
-            s0 = e0 + 1
-            area += sum(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1] for i in range(len(pts))) / 2.0
-        xs = [p[0] for p in co]
-        ys = [p[1] for p in co]
-        box = max(1.0, (max(xs) - min(xs)) * (max(ys) - min(ys)))
-        ink = abs(area) / box
-        k = (ink - LUO_DENSE_SLIM_INK_START) / (LUO_DENSE_SLIM_INK_FULL - LUO_DENSE_SLIM_INK_START)
-        if k <= 0:
             continue
-        k = min(1.0, k)
-        d = LUO_DENSE_SLIM_EM * upm * k
-        if d < 0.5:
-            continue
-        coords = list(glyph.coordinates)
-        new = list(coords)
-        # Contour list for junction tests: LXGW strokes are separate
-        # overlapping contours; insetting both sides of a shallow overlap
-        # opened hairline slits (翻/蟹/魔). Points near another contour's ink
-        # stay put.
-        cl = []
-        s1 = 0
-        for e1 in glyph.endPtsOfContours:
-            pts1 = coords[s1:e1 + 1]
-            xs1 = [q[0] for q in pts1]
-            ys1 = [q[1] for q in pts1]
-            cl.append((s1, pts1, min(xs1), max(xs1), min(ys1), max(ys1)))
-            s1 = e1 + 1
-        probe = 3.0 * d
-
-        def _near_other(ci, qx, qy):
-            for cj, (sj, pj, x0, x1, y0, y1) in enumerate(cl):
-                if cj == ci or qx < x0 - probe or qx > x1 + probe or qy < y0 - probe or qy > y1 + probe:
-                    continue
-                for ox, oy in ((0, 0), (probe, 0), (-probe, 0), (0, probe), (0, -probe)):
-                    tx, ty = qx + ox, qy + oy
-                    inside = False
-                    for (ax_, ay_), (bx_, by_) in zip(pj, pj[1:] + pj[:1]):
-                        if (ay_ > ty) != (by_ > ty) and tx < ax_ + (bx_ - ax_) * (ty - ay_) / (by_ - ay_):
-                            inside = not inside
-                    if inside:
-                        return True
-            return False
-
-        start = 0
-        ci = -1
-        for end in glyph.endPtsOfContours:
-            ci += 1
-            n = end - start + 1
-            pts = coords[start:end + 1]
-            xs = [p[0] for p in pts]
-            ys = [p[1] for p in pts]
-            if n < 3 or max(max(xs) - min(xs), max(ys) - min(ys)) < min_c:
-                start = end + 1
-                continue
-            # Pinned factor per point, then smoothed along the contour so
-            # the inset fades in and out instead of stepping (a hard pin next
-            # to moved neighbours left spikes: 灏 页 top bar, 篪 竹).
-            fac = [0.0 if _near_other(ci, pts[j][0], pts[j][1]) else 1.0 for j in range(n)]
-            for _ in range(3):
-                fac = [min(fac[j], (fac[j - 1] + fac[j] + fac[(j + 1) % n]) / 3.0) for j in range(n)]
-            for j in range(n):
-                px, py = pts[j]
-                ax, ay = pts[j - 1]
-                bx, by = pts[(j + 1) % n]
-                if fac[j] <= 0.0:
-                    continue
-                nx = ny = 0.0
-                for (x0, y0), (x1, y1) in (((ax, ay), (px, py)), ((px, py), (bx, by))):
-                    ex, ey = x1 - x0, y1 - y0
-                    el = math.hypot(ex, ey)
-                    if el > 1e-6:
-                        nx += ey / el
-                        ny += -ex / el
-                nl = math.hypot(nx, ny)
-                if nl < 1e-6:
-                    continue
-                sc = min(2.0, 2.0 / nl) if nl > 1.0 else 1.0
-                dd = d * fac[j]
-                new[start + j] = (int(round(px + dd * sc * nx / nl)), int(round(py + dd * sc * ny / nl)))
-            start = end + 1
-        for i, c in enumerate(new):
-            glyph.coordinates[i] = c
-        glyph.recalcBounds(glyf)
-        count += 1
-    print(f"[luo] dense slim: {count} glyphs (max inset {LUO_DENSE_SLIM_EM}em, ink {LUO_DENSE_SLIM_INK_START}-{LUO_DENSE_SLIM_INK_FULL})")
+        slimmed = _slim_dense_outline(glyph, glyf, upm)
+        opened = 0
+        if chr(cp) not in LUO_COMPONENT_SIMPLIFY_CHARS:
+            opened = _open_crowded_gaps(glyph, glyf, upm)
+        gap_edges += opened
+        count += bool(slimmed or opened)
+    print(f"[luo] dense slim: {count} glyphs, {gap_edges} crowded edges "
+          f"(max inset {LUO_DENSE_SLIM_EM}em, ink {LUO_DENSE_SLIM_INK_START}-{LUO_DENSE_SLIM_INK_FULL})")
 
 
 def luo_horiz_level(font: TTFont) -> None:

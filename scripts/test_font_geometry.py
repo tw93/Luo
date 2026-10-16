@@ -278,5 +278,103 @@ class ComponentSimplificationTests(unittest.TestCase):
                     self.assertEqual(before, list(glyph.coordinates))
 
 
+class SmallTextSpacingTests(unittest.TestCase):
+    @staticmethod
+    def font(char="青", gap=50, thickness=100, vertical=False, crossing=False):
+        fb = FontBuilder(1000, isTTF=True)
+        fb.setupGlyphOrder([".notdef", "sample"])
+        fb.setupCharacterMap({ord(char): "sample"})
+        pen = TTGlyphPen(None)
+        # Three stacked bars plus a remote stem keep overall density low.
+        # Locally the counters are crowded even though the bbox is mostly white.
+        rects = [(100, 200 + i * (thickness + gap), 600,
+                  200 + i * (thickness + gap) + thickness) for i in range(3)]
+        rects.append((850, 0, 930, 1000))
+        if crossing:
+            rects.append((300, 150, 400, 800))
+        for x0, y0, x1, y1 in rects:
+            points = [(x0, y1), (x1, y1), (x1, y0), (x0, y0)]
+            if vertical:
+                # A rotation preserves contour winding, unlike transposition.
+                points = [(y, 1000 - x) for x, y in points]
+            pen.moveTo(points[0])
+            for p in points[1:]:
+                pen.lineTo(p)
+            pen.closePath()
+        fb.setupGlyf({".notdef": TTGlyphPen(None).glyph(), "sample": pen.glyph()})
+        fb.setupHorizontalMetrics({".notdef": (1000, 0), "sample": (1000, 0)})
+        return fb.font
+
+    def run_refiner(self, font):
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.luo_dense_slim(font)
+        return font["glyf"]["sample"]
+
+    def test_local_horizontal_gaps_open_below_global_density_threshold(self):
+        font = self.font()
+        before = list(font["glyf"]["sample"].coordinates)
+        glyph = self.run_refiner(font)
+        # Lower bar top and next bar bottom bound the first white gap.
+        self.assertGreaterEqual(glyph.coordinates[6][1] - glyph.coordinates[0][1], 70)
+        self.assertGreaterEqual(glyph.coordinates[0][1] - glyph.coordinates[3][1], 45)
+        self.assertEqual([x for x, y in before], [x for x, y in glyph.coordinates])
+        self.assertEqual((glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax), (100, 0, 930, 1000))
+        self.assertEqual(font["hmtx"]["sample"], (1000, 0))
+
+    def test_open_component_gaps_follow_the_same_rule_vertically(self):
+        glyph = self.run_refiner(self.font(vertical=True))
+        self.assertGreaterEqual(glyph.coordinates[6][0] - glyph.coordinates[0][0], 70)
+        self.assertGreaterEqual(glyph.coordinates[0][0] - glyph.coordinates[3][0], 60)
+
+    def test_thin_strokes_and_roomy_gaps_are_not_lightened(self):
+        for kwargs in ({"thickness": 40}, {"gap": 140}):
+            with self.subTest(kwargs=kwargs):
+                font = self.font(**kwargs)
+                before = list(font["glyf"]["sample"].coordinates)
+                self.assertEqual(before, list(self.run_refiner(font).coordinates))
+
+    def test_inked_crossings_are_not_mistaken_for_white_gaps(self):
+        font = self.font(crossing=True)
+        before = list(font["glyf"]["sample"].coordinates)
+        self.assertEqual(before, list(self.run_refiner(font).coordinates))
+
+    def test_selected_components_and_frozen_moon_keep_their_outlines(self):
+        for char in "月魔鬣纸面":
+            with self.subTest(char=char):
+                font = self.font(char=char)
+                before = list(font["glyf"]["sample"].coordinates)
+                self.assertEqual(before, list(self.run_refiner(font).coordinates))
+
+    def test_bottom_primary_bar_keeps_its_weight(self):
+        font = self.font()
+        glyph = font["glyf"]["sample"]
+        for i in range(12):
+            x, y = glyph.coordinates[i]
+            if i < 4 and x == 600:
+                x = 750  # broad enough to be the primary bottom bar
+            glyph.coordinates[i] = (x, y - 200)
+        before = list(glyph.coordinates[:4])
+        self.run_refiner(font)
+        self.assertEqual(before, list(glyph.coordinates[:4]))
+        self.assertGreater(glyph.coordinates[6][1], 150)
+
+    def test_closed_counters_keep_the_shared_bar_above_the_floor(self):
+        font = self.font()
+        pen = TTGlyphPen(None)
+        # Clockwise outside, counterclockwise holes, each only 0.05em high.
+        for points in [((100, 700), (700, 700), (700, 100), (100, 100)),
+                       ((200, 300), (600, 300), (600, 350), (200, 350)),
+                       ((200, 450), (600, 450), (600, 500), (200, 500))]:
+            pen.moveTo(points[0])
+            for point in points[1:]:
+                pen.lineTo(point)
+            pen.closePath()
+        font["glyf"]["sample"] = pen.glyph()
+        glyph = self.run_refiner(font)
+        for start in (4, 8):
+            self.assertGreater(glyph.coordinates[start + 2][1] - glyph.coordinates[start][1], 65)
+        self.assertGreaterEqual(glyph.coordinates[8][1] - glyph.coordinates[6][1], 45)
+
+
 if __name__ == "__main__":
     unittest.main()
