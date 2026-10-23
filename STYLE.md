@@ -74,7 +74,7 @@
 - Tsanger W04 是当前唯一主参考；W05 只看是否超过黑度上限，不把 W05 的更重状态当成下一轮方向。
 - `HOMEPAGE_P6_LEFT_RIGHT_GLYPHS` 是 homepage/starter 当前可见队列，不是 GB2312 扩字入口。左右结构风险用 `luo_homepage_p6_left_right` 的共享 topology refiner 处理：左旁降灰、中宫开白、右下尾轻收。
 - `luo_horiz_cap_flatten` 和 `luo_diag_endpoint_clean` 是目标队列 final polish，只服务当前截图风险字；不要全局化，也不要把它们扩大成新的大覆盖 pass。
-- `luo_curve_tail_polish` 只处理截图反馈的 `风气成` 右下曲尾，目标是连续、短、收住；不要用它替代全局 hook/tail 规则。`荒` / `自` 的单字修补也只属于 final visible-defect correction，不代表 dense-top 或 frame 字可以整体加码。
+- `luo_curve_tail_polish` 只处理截图反馈的 `风气成` 右下曲尾，目标是连续、短、收住；不要用它替代全局 hook/tail 规则。`荒` / `自` / `蔼` 的单字修补也只属于 final visible-defect correction，不代表 dense-top 或 frame 字可以整体加码。
 - 凡是让字变得更亲和、更圆润、更手写、更舒展的处理，都要二次审查；凡是让字更清、更稳、更有骨节但不变粗的处理，优先保留。
 - v0.4 加入 `straighten_strokes` 后，目测看 bow distance 应该从 v0.3 的 ~29u 降到更接近私有印刷楷意参考的区间。这是去源字体相似度的真正杠杆。
 - 官网优先字不能只是“更有骨的源字体”。但 256x256 raster IoU 对纯权重变化不敏感（笔画变细时反而 IoU 升高），所以 v0.4 不再把 IoU 当硬门，改用「IoU + bow distance + 视觉对照」三位一体判断。普通字 IoU 0.60 是历史目标，留作回归参考；私有参考门只写入 `local/ref/metrics/` 的本地报告。

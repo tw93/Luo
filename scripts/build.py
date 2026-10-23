@@ -1754,7 +1754,7 @@ CHAR_CATEGORIES: dict[str, str] = {
         "霜露霞雪草落蓝营笔简答篇藏艺蒙节茂荒蓄蒸薄蔽莫苦"
         "暮暗暑"
         "慕幕募墓"
-        "春茅荟萃万"
+        "春茅荟萃万蔼"
     ),
     "wide_split": (
         "说读诗语论设计清流润源终结经续纸妙好如社视"
@@ -1974,7 +1974,7 @@ HOMEPAGE_P2_SOURCE_RISK_GLYPHS = "堆共皋其组要稚携净直粟独樽鹿古�
 HOMEPAGE_P3_STRUCTURE_GLYPHS = "曲抽角重争盘者岫虽盏求种复基斗色相革事再棹堵难官县每植堆"
 HOMEPAGE_P4_RESIDUAL_RISK_GLYPHS = "去要共朗型携考单技粟稚第樽便理鱼具邑仲皋独值律其身虾快看腹雅柯距展更鹿直扁耳槊由车帖强免建郎轼算走藉里净盛使组主真徘果暑畴路昌夫同较古关如寓追着蓄查眄眼撇详支嫠供境蛟疏旗象细窗娱绝诵根裳维挪别荆很狼输谢奇"
 HOMEPAGE_P5_STUBBORN_RISK_GLYPHS = "曲去重抽种盘斗仲如堆考求律盏樽"
-HOMEPAGE_P6_LEFT_RIGHT_GLYPHS = "抽独种技虾便雅柯携稚供堵朗难建邑仲快看腹距展更鹿鱼具皋值律其身"
+HOMEPAGE_P6_LEFT_RIGHT_GLYPHS = "抽独种技虾便雅柯携稚供堵朗难建邑仲快看腹距展更鹿鱼具皋值律其身阶"
 # v0.4.11: luo_horiz_cap_flatten was a 8-char whitelist; v0.4.11 generalised
 # it to a geometry-only pass (chord-line clamp) so every horizontal-with-cap
 # benefits, not just the named anchors. The list below is kept as a
@@ -1983,7 +1983,7 @@ LUO_HORIZ_CAP_FLATTEN_CHARS = "正晋章书世西二南"
 LUO_DIAG_ENDPOINT_CLEAN_CHARS = "从入人八为失"
 LUO_CURVE_TAIL_POLISH_CHARS = "风气成饥荒"  # v0.4.12: +饥荒 (Tang's 380px screenshots: 几/竖弯钩 lower-right tails still club-blunt after the generic hook-tail taper; same defect class as the original 风气成 queue)
 VISIBLE_PROBLEM_GLYPHS = "".join(dict.fromkeys(
-    "两月或则魔答荒平刚晋书风字赢"  # v0.4.12 ugly-queue: +字赢
+    "蔼两月或则魔答荒平刚晋书风字赢"  # v0.4.12 ugly-queue: +字赢, +蔼 (Issue #2)
     + HOMEPAGE_P0_GRID_GLYPHS
     + HOMEPAGE_P0_HOOK_GLYPHS
     + HOMEPAGE_P0_COMPONENT_GLYPHS
@@ -4863,12 +4863,73 @@ def _refine_problem_ying(glyph, glyf, upm: int) -> bool:
     return touched
 
 
+def _refine_problem_ai(glyph, glyf, upm: int) -> bool:
+    """蔼 (U+853C): fix left-weak/right-heavy balance and dense counter clogging (Issue #2).
+
+    1. Expand lower-right inner counter to prevent ink clogging at title sizes.
+    2. Strengthen speech radical (left side): widen slightly and stabilize the rising foot.
+    3. Moderate grass head (艹) top-right protrusion.
+    4. Compensate complex-glyph narrowing so the character restores modern print-kai posture.
+    """
+    coords = glyph.coordinates
+    endPts = glyph.endPtsOfContours
+    if len(endPts) != 7:
+        return False
+
+    # 1. Expand inner counter 1
+    c1_start = endPts[0] + 1
+    c1_end = endPts[1]
+    c1_cx = sum(coords[i][0] for i in range(c1_start, c1_end + 1)) / (c1_end - c1_start + 1)
+    c1_cy = sum(coords[i][1] for i in range(c1_start, c1_end + 1)) / (c1_end - c1_start + 1)
+    for i in range(c1_start, c1_end + 1):
+        x, y = coords[i]
+        coords[i] = (int(round(c1_cx + 1.08 * (x - c1_cx))), int(round(c1_cy + 1.06 * (y - c1_cy))))
+
+    # 2. Strengthen and expand speech radical (Contour 5 & 6)
+    c5_start = endPts[4] + 1
+    c5_end = endPts[5]
+    c5_cx = sum(coords[i][0] for i in range(c5_start, c5_end + 1)) / (c5_end - c5_start + 1)
+    for i in range(c5_start, c5_end + 1):
+        x, y = coords[i]
+        nx = c5_cx + 1.05 * (x - c5_cx) - 15
+        ny = y
+        if y < 150:
+            ny = y - 30
+        coords[i] = (int(round(nx)), int(round(ny)))
+
+    c6_start = endPts[5] + 1
+    c6_end = endPts[6]
+    for i in range(c6_start, c6_end + 1):
+        x, y = coords[i]
+        coords[i] = (x - 12, y)
+
+    # 3. Contour 2: grass head top-right peak containment
+    c2_start = endPts[1] + 1
+    c2_end = endPts[2]
+    for i in range(c2_start, c2_end + 1):
+        x, y = coords[i]
+        if 1100 <= x <= 1400 and y > 1500:
+            coords[i] = (x, y - 25)
+
+    # 4. Compensate overall narrowing by widening horizontally ~1.035x around glyph center
+    box = _glyph_box(coords)
+    if box:
+        gx_min, gx_max, gy_min, gy_max, gw, gh, cx, cy = box
+        for i in range(len(coords)):
+            x, y = coords[i]
+            coords[i] = (int(round(cx + 1.035 * (x - cx))), y)
+
+    glyph.recalcBounds(glyf)
+    return True
+
+
 def refine_visible_problem_glyphs(font: TTFont) -> None:
     """Final correction pass for the glyphs surfaced in the visual audit."""
     glyf = font["glyf"]
     cmap = _build_cmap(font)
     upm = font["head"].unitsPerEm
     refiners = {
+        "蔼": _refine_problem_ai,
         "两": _refine_problem_liang,
         "月": _refine_problem_moon,
         "或": _refine_problem_huo,
