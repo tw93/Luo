@@ -471,8 +471,9 @@ LUO_FACE_SCALE_X = float(os.environ.get("LUO_FACE_SCALE_X", "0.97"))
 # Interior off-curves between the chord endpoints move with the chord.
 # Long chords are main strokes by definition; secondary horizontals are
 # shorter than the MIN_RATIO gate and keep their v0.4.3 readability weight.
+# Small-text B: retain more horizontal ink without changing the midline.
 # Delta 0 = no-op early return (kill-switch pattern).
-LUO_LONG_HORIZ_THIN_EM = float(os.environ.get("LUO_LONG_HORIZ_THIN_EM", "0.006"))
+LUO_LONG_HORIZ_THIN_EM = float(os.environ.get("LUO_LONG_HORIZ_THIN_EM", "0.003"))
 LUO_LONG_HORIZ_THIN_MIN_RATIO = float(os.environ.get("LUO_LONG_HORIZ_THIN_MIN_RATIO", "0.35"))
 LUO_LONG_HORIZ_THIN_ANGLE_DEG = float(os.environ.get("LUO_LONG_HORIZ_THIN_ANGLE_DEG", "10.0"))
 # Tang-flagged 玄云两来清: long-H thin stacks with gesture free-end taper into
@@ -662,7 +663,8 @@ LUO_NA_SWELL_STEP_EM = float(os.environ.get("LUO_NA_SWELL_STEP_EM", "0.08"))
 # band. A stem is a pair of long near-vertical on-curve chords: an upward
 # chord (left edge, ink to its right) and the nearest downward chord to its
 # right that overlaps it vertically. Both edges move symmetrically.
-LUO_STEM_NORM_HI_EM = float(os.environ.get("LUO_STEM_NORM_HI_EM", "0.080"))
+# Small-text B caps heavy stems at 0.076em; regular stems keep their weight.
+LUO_STEM_NORM_HI_EM = float(os.environ.get("LUO_STEM_NORM_HI_EM", "0.076"))
 LUO_STEM_NORM_LO_EM = float(os.environ.get("LUO_STEM_NORM_LO_EM", "0.068"))
 LUO_STEM_NORM_MIN_LEN_RATIO = float(os.environ.get("LUO_STEM_NORM_MIN_LEN_RATIO", "0.18"))
 LUO_STEM_NORM_BULGE_MAX_EM = float(os.environ.get("LUO_STEM_NORM_BULGE_MAX_EM", "0.050"))  # round 10: how far an outward-bowed stem edge (书 竖钩 belly) is pulled back to its chord
@@ -715,9 +717,9 @@ LUO_HORIZ_LEVEL_K = float(os.environ.get("LUO_HORIZ_LEVEL_K", "1.0"))
 LUO_HORIZ_LEVEL_TARGET_DEG = 1.0
 LUO_HORIZ_LEVEL_MAX_DEG = float(os.environ.get("LUO_HORIZ_LEVEL_MAX_DEG", "9.0"))
 LUO_HORIZ_LEVEL_MIN_RATIO = float(os.environ.get("LUO_HORIZ_LEVEL_MIN_RATIO", "0.22"))
-# Reviewed counter restorations alter the long-edge vote in these glyphs.
+# Reviewed counter restorations and weight changes alter the long-edge vote.
 # Use actual ink-backed bars without changing the wider single-edge population.
-LUO_HORIZ_LEVEL_BODY_CHARS = frozenset("嫡蟠觑酆龋龌")
+LUO_HORIZ_LEVEL_BODY_CHARS = frozenset("嫡蟠觑酆龋龌既梓")
 
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,

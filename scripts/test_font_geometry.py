@@ -258,7 +258,7 @@ class InstalledFontTests(unittest.TestCase):
 
 class HorizontalPostureTests(unittest.TestCase):
     def test_reviewed_single_long_edge_uses_real_bar_support(self):
-        for char in "嫡人":
+        for char in "嫡既梓人":
             with self.subTest(char=char):
                 font = fixture(char, 4)
                 pen = TTGlyphPen(None)
@@ -691,6 +691,72 @@ class SmallTextSpacingTests(unittest.TestCase):
         for start in (4, 8):
             self.assertGreater(glyph.coordinates[start + 2][1] - glyph.coordinates[start][1], 65)
         self.assertGreaterEqual(glyph.coordinates[8][1] - glyph.coordinates[6][1], 45)
+
+
+class SmallTextBalanceTests(unittest.TestCase):
+    def font(self, stem_width=90):
+        fb = FontBuilder(1000, isTTF=True)
+        fb.setupGlyphOrder([".notdef", "sample"])
+        fb.setupCharacterMap({ord("木"): "sample"})
+        pen = TTGlyphPen(None)
+        # A long 70-unit horizontal, with rounded caps, above a real stem.
+        pen.moveTo((100, 800))
+        pen.lineTo((900, 800))
+        pen.qCurveTo((905, 800), (905, 795))
+        pen.lineTo((905, 735))
+        pen.qCurveTo((905, 730), (900, 730))
+        pen.lineTo((100, 730))
+        pen.qCurveTo((95, 730), (95, 735))
+        pen.lineTo((95, 795))
+        pen.qCurveTo((95, 800), (100, 800))
+        pen.closePath()
+        pen.moveTo((100, 100))
+        pen.lineTo((100, 600))
+        pen.lineTo((100 + stem_width, 600))
+        pen.lineTo((100 + stem_width, 100))
+        pen.closePath()
+        fb.setupGlyf({".notdef": TTGlyphPen(None).glyph(), "sample": pen.glyph()})
+        fb.setupHorizontalMetrics({".notdef": (1000, 0), "sample": (1000, 0)})
+        return fb.font
+
+    def test_long_horizontal_keeps_small_text_body(self):
+        font = self.font()
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.luo_long_horiz_thin(font)
+        glyph = font["glyf"]["sample"]
+        # Sample the ink, not the unchanged extrema of the rounded caps.
+        ink = []
+        for y in range(720, 811):
+            pen = PointInsidePen(font.getGlyphSet(), (500, y + 0.5), evenOdd=False)
+            glyph.draw(pen, font["glyf"])
+            if pen.getResult():
+                ink.append(y)
+        self.assertGreaterEqual(len(ink), 66)
+        self.assertLess(len(ink), 70)
+        self.assertEqual(font["hmtx"]["sample"], (1000, 0))
+
+    def test_balanced_weight_keeps_reviewed_bars_within_two_degrees(self):
+        path = Path(os.environ.get("LUO_TEST_FONT", build.DIST_DIR / "Luo-Regular.ttf"))
+        with TTFont(path) as font:
+            for char in "既梓":
+                with self.subTest(char=char):
+                    glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                    bars = build._horizontal_stroke_bodies(glyph, font["glyf"], font["head"].unitsPerEm)
+                    self.assertTrue(bars)
+                    self.assertLess(max(abs(math.degrees(math.atan(s))) for s, run in bars), 2)
+
+    def test_heavy_stem_is_capped_without_lightening_regular_stem(self):
+        for width, expected in ((90, 76), (70, 70)):
+            with self.subTest(width=width):
+                font = self.font(width)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.luo_stem_normalize(font)
+                glyph = font["glyf"]["sample"]
+                start = glyph.endPtsOfContours[0] + 1
+                xs = [x for x, y in glyph.coordinates[start:]]
+                self.assertEqual(max(xs) - min(xs), expected)
+                self.assertEqual((max(xs) + min(xs)) / 2, 100 + width / 2)
+                self.assertEqual(font["hmtx"]["sample"], (1000, 0))
 
 
 if __name__ == "__main__":
