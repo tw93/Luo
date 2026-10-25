@@ -6733,13 +6733,66 @@ def luo_dense_slim(font: TTFont) -> None:
           f"(max inset {LUO_DENSE_SLIM_EM}em, ink {LUO_DENSE_SLIM_INK_START}-{LUO_DENSE_SLIM_INK_FULL})")
 
 
+def _horizontal_stroke_bodies(glyph, glyf, upm):
+    """Return (centreline slope, overlap length) for ink-backed edge pairs.
+
+    Short component bars must also vote on posture. Opposing outline edges
+    need comparable directions, plausible stroke thickness and actual ink
+    between them; a counter's white gap or a tapered foot is not a bar.
+    """
+    coords = list(glyph.coordinates)
+    width = max(x for x, y in coords) - min(x for x, y in coords)
+    min_run = max(0.09 * upm, 0.12 * width)
+    max_slope = math.tan(math.radians(LUO_HORIZ_LEVEL_MAX_DEG))
+    edges = []
+    start = 0
+    for end in glyph.endPtsOfContours:
+        on = [i for i in range(start, end + 1) if glyph.flags[i] & 1]
+        for i, j in zip(on, on[1:] + on[:1]):
+            (ax, ay), (bx, by) = coords[i], coords[j]
+            dx = bx - ax
+            if abs(dx) < min_run:
+                continue
+            slope = (by - ay) / dx
+            if abs(slope) <= max_slope:
+                lo, hi = sorted((ax, bx))
+                edges.append((lo, hi, slope, ay - slope * ax, dx))
+        start = end + 1
+
+    bodies = []
+    for n, a in enumerate(edges):
+        for b in edges[n + 1:]:
+            if a[4] * b[4] >= 0:
+                continue
+            lo, hi = max(a[0], b[0]), min(a[1], b[1])
+            run = hi - lo
+            if run < max(min_run, 0.65 * min(a[1] - a[0], b[1] - b[0])):
+                continue
+            if abs(math.degrees(math.atan(a[2])) - math.degrees(math.atan(b[2]))) > 4:
+                continue
+            gaps = [abs((a[2] - b[2]) * x + a[3] - b[3]) for x in (lo, hi)]
+            if min(gaps) < 0.018 * upm or max(gaps) > 0.12 * upm:
+                continue
+            slope = (a[2] + b[2]) / 2
+            for t in (0.25, 0.5, 0.75):
+                x = lo + run * t
+                pen = PointInsidePen(None, (x, slope * x + (a[3] + b[3]) / 2), evenOdd=False)
+                glyph.draw(pen, glyf)
+                if not pen.getResult():
+                    break
+            else:
+                bodies.append((slope, run))
+    return bodies
+
+
 def luo_horiz_level(font: TTFont) -> None:
     """Level final horizontal posture with one y-shear per glyph.
 
     Per-edge rotation left steps where a bar edge is split by stem joins and
     nubs at the caps. A y-shear (y -= (x - cx) * s) turns every horizontal by
     the same angle, leaves verticals exactly vertical and cannot open a seam.
-    Correct only the excess beyond the one-degree final posture band.
+    Correct only the excess beyond the one-degree final posture band, and
+    only when real stroke bodies confirm that the shear improves posture.
     """
     if LUO_HORIZ_LEVEL_K <= 0:
         print("[luo] horiz level: skipped")
@@ -6797,6 +6850,11 @@ def luo_horiz_level(font: TTFont) -> None:
         if abs(med) <= target_s:
             continue
         s_corr = (med - math.copysign(target_s, med)) * min(1.0, LUO_HORIZ_LEVEL_K)
+        bodies = _horizontal_stroke_bodies(glyph, glyf, font["head"].unitsPerEm)
+        before = sum(run * abs(slope) for slope, run in bodies)
+        after = sum(run * abs(slope - s_corr) for slope, run in bodies)
+        if not bodies or after >= before:
+            continue
         cx = (max(xs) + min(xs)) / 2.0
         for i, (x, y) in enumerate(coords):
             glyph.coordinates[i] = (x, int(round(y - (x - cx) * s_corr)))

@@ -6,8 +6,8 @@
   "raster_size": 256,
   "char_count": 30,
   "skipped": [],
-  "avg_raster_iou": 0.5283,
-  "avg_bbox_centered_iou": 0.6823,
+  "avg_raster_iou": 0.5282,
+  "avg_bbox_centered_iou": 0.6828,
   "regular_gate": 0.6,
   "simple_gate": 0.75,
   "above_gate": [
@@ -52,8 +52,8 @@
     {
       "char": "文",
       "codepoint": "U+6587",
-      "raster_iou": 0.3528,
-      "bbox_centered_iou": 0.6863,
+      "raster_iou": 0.3504,
+      "bbox_centered_iou": 0.7016,
       "gate": 0.6,
       "pass": false
     },

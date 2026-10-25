@@ -177,6 +177,50 @@ class InstalledFontTests(unittest.TestCase):
 
 
 class HorizontalPostureTests(unittest.TestCase):
+    def test_short_component_bars_are_not_tilted_by_other_edges(self):
+        # These source outlines reproduce the production failure after the
+        # early cap treatment: short 弓/羽 bars lose the old width vote to
+        # sloped outlines elsewhere, including the 捺 foot in 翅.
+        with TTFont(build.BASE_FONT) as font, contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "溺翅")
+            build.bolden_glyphs(font, build.BOLDEN_H, build.BOLDEN_V)
+            build.soften_endpoints(font)
+            build.straighten_strokes(font)
+            build.luo_horiz_kink_join(font)
+            before = {ch: list(font["glyf"][font.getBestCmap()[ord(ch)]].coordinates)
+                      for ch in "溺翅"}
+            build.luo_horiz_level(font)
+            for ch in before:
+                with self.subTest(char=ch):
+                    self.assertEqual(before[ch], list(font["glyf"][font.getBestCmap()[ord(ch)]].coordinates))
+
+    def test_unpaired_tapered_edges_cannot_set_whole_glyph_posture(self):
+        font = fixture("人", 4)
+        glyph = font["glyf"]["stroke"]
+        # A broad tapered diagonal can have two long, nearly horizontal
+        # outline edges without being a horizontal stroke.
+        glyph.coordinates[2] = (1500, 500)
+        glyph.coordinates[3] = (300, 450)
+        before = list(glyph.coordinates)
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.luo_horiz_level(font)
+        self.assertEqual(before, list(glyph.coordinates))
+
+    def test_white_gap_between_thin_edges_is_not_a_stroke_body(self):
+        font = fixture("用", 4)
+        pen = TTGlyphPen(None)
+        for y in (700, 800):
+            pen.moveTo((300, y))
+            pen.lineTo((1500, y + 84))
+            pen.lineTo((1500, y + 104))
+            pen.lineTo((300, y + 20))
+            pen.closePath()
+        glyph = font["glyf"]["stroke"] = pen.glyph()
+        before = list(glyph.coordinates)
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.luo_horiz_level(font)
+        self.assertEqual(before, list(glyph.coordinates))
+
     def test_built_frame_bars_stay_in_final_posture_band(self):
         path = Path(os.environ.get("LUO_TEST_FONT", build.DIST_DIR / "Luo-Regular.ttf"))
         with TTFont(path) as font:
