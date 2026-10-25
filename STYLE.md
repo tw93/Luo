@@ -141,5 +141,5 @@
 - 回归底线：仍然是落文，不是任何现成字库复刻；不是 LXGW WenKai 软楷，不是商业字库抄轮廓，不是石刻字。
 - 私有参考门：设置 `LUO_PRIVATE_KAI_REF` 后，本地 `local/ref/metrics/` 报告可用于检查 private reference band；`lxgw_below_max` 是软指标（IoU 对纯权重不敏感）。
 - Tsanger W04 raw 应保持在 `0.56-0.63`（v0.4.12 两次解冻：0.60 到 0.62 是维护者批准靠近参考气质；0.62 到 0.63 是修斜笔针尖时尖端不再被削细，接近度自然到 0.6206，维护者批准。上限仍然守"不复制轮廓"的边界，落文和底稿 LXGW 的 raw 约 0.66，对 W04 不能接近这条线；再放宽必须是显式决策，不能是漂移，也不要一次放到 0.7 这类值）。W05 只作黑度上限检查，不能因为追 W05 让正文黑度继续上升。
-- 六维 style vector 目标带（v0.4.12 起的主进度指标，population 均值，不做逐字硬门）：`d_bot ∈ [−0.018, 0]`、`d_cy ∈ [−0.022, 0]`、`|d_bh| ≤ 0.008`、`d_dens ≤ +0.028`、`|d_hv| ≤ 0.02`、`over_w05 ≤ 15%`。d_dens / over_w05 的残余被 BOLDEN_V=14 红线锁定（超重集中在密框字的竖笔），这是文档化的接受边界，不要用降 V 来"修"。跑法见 AGENTS.md Verification 的 `scripts/audit_tsanger_style.py`。
+- 六维 style vector 目标带（v0.4.12 起的主进度指标，population 均值，不做逐字硬门）：`d_bot ∈ [−0.018, 0]`、`d_cy ∈ [−0.022, 0]`、`|d_bh| ≤ 0.008`、`d_dens ≤ +0.028`、`|d_hv| ≤ 0.02`、`over_w05 ≤ 15%`。维护者选定的小字号 B 均衡粗细方向保留较弱的横竖反差，当前官网 773 字样本的 `d_hv` 从 +0.0342 变为 +0.0450，是本次选定方向的明确取舍，不为追旧理想带恢复已被替换的粗竖与细横。d_dens / over_w05 的残余被 BOLDEN_V=14 红线锁定（超重集中在密框字的竖笔），这是文档化的接受边界，不要用降 V 来"修"。跑法见 AGENTS.md Verification 的 `scripts/audit_tsanger_style.py`。
 - 全站 `raw >= 0.87` 风险字应持续下降，且 generic bucket 不能回升；如果两者冲突，优先保住 generic 均值和 body 可读性。
