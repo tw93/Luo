@@ -441,6 +441,11 @@ LUO_POSTURE_LIFT_EM = float(os.environ.get("LUO_POSTURE_LIFT_EM", "0.012"))
 # stands them up (about 70 / 60 / 54 deg left to right) and makes each a
 # teardrop, ~0.045em at the top and ~0.09em at the foot. 点/黑's second dot
 # was the worst case: 35-41 deg, 0.06em wide, sitting above the row.
+# Complete rows use the maintainer-selected broad point direction. The
+# previous parameters below remain for partial rows with a connected fourth dot.
+LUO_HUO_POINT_ANGLES = (62.0, 73.0, 63.0, 53.0)
+LUO_HUO_POINT_LENGTH_EM = tuple(v * 1.15 * .86 / .74 for v in (.145, .115, .125, .160))
+LUO_HUO_POINT_WIDTH_EM = tuple(v * 1.40 * .86 / .88 for v in (.064, .053, .055, .063))
 LUO_HUO_DOT_ANGLES = (68.0, 60.0, 54.0)
 LUO_HUO_DOT_WMAX_EM = float(os.environ.get("LUO_HUO_DOT_WMAX_EM", "0.086"))
 LUO_HUO_DOT_TOP = 0.60           # width factor at the top end (1.0 at the foot)
@@ -710,6 +715,9 @@ LUO_HORIZ_LEVEL_K = float(os.environ.get("LUO_HORIZ_LEVEL_K", "1.0"))
 LUO_HORIZ_LEVEL_TARGET_DEG = 1.0
 LUO_HORIZ_LEVEL_MAX_DEG = float(os.environ.get("LUO_HORIZ_LEVEL_MAX_DEG", "9.0"))
 LUO_HORIZ_LEVEL_MIN_RATIO = float(os.environ.get("LUO_HORIZ_LEVEL_MIN_RATIO", "0.22"))
+# Reviewed counter restorations alter the long-edge vote in these glyphs.
+# Use actual ink-backed bars without changing the wider single-edge population.
+LUO_HORIZ_LEVEL_BODY_CHARS = frozenset("嫡蟠觑酆龋龌")
 
 # --- v0.4.12 pie tail fill (luo_pie_tail_fill) ---
 # Full-glyph sweep against W04: long left-falling 撇 (厂/广/疒/尸 heads,
@@ -6845,7 +6853,13 @@ def luo_horiz_level(font: TTFont) -> None:
                 slopes.append(sl)
                 weights.append(abs(dx))
             start = end + 1
-        if len(slopes) < 2:
+        body_vote = chr(cp) in LUO_HORIZ_LEVEL_BODY_CHARS
+        bodies = None
+        if body_vote:
+            bodies = _horizontal_stroke_bodies(glyph, glyf, font["head"].unitsPerEm)
+            slopes = [slope for slope, run in bodies]
+            weights = [run for slope, run in bodies]
+        if not slopes or (len(slopes) < 2 and not body_vote):
             continue
         order = sorted(range(len(slopes)), key=lambda i: slopes[i])
         acc = 0.0
@@ -6859,7 +6873,17 @@ def luo_horiz_level(font: TTFont) -> None:
         if abs(med) <= target_s:
             continue
         s_corr = (med - math.copysign(target_s, med)) * min(1.0, LUO_HORIZ_LEVEL_K)
-        bodies = _horizontal_stroke_bodies(glyph, glyf, font["head"].unitsPerEm)
+        if bodies is None:
+            bodies = _horizontal_stroke_bodies(glyph, glyf, font["head"].unitsPerEm)
+        if body_vote and bodies:
+            # A weighted vote can straighten the longest bar while sending
+            # another bar far in the opposite direction. Balance the extremes
+            # when a reviewed glyph cannot keep every bar within two degrees.
+            worst = max(abs(slope - s_corr) for slope, run in bodies)
+            balanced = (min(slopes) + max(slopes)) / 2.0
+            balanced *= min(1.0, LUO_HORIZ_LEVEL_K)
+            if worst > 2 * target_s and max(abs(slope - balanced) for slope, run in bodies) < worst:
+                s_corr = balanced
         before = sum(run * abs(slope) for slope, run in bodies)
         after = sum(run * abs(slope - s_corr) for slope, run in bodies)
         if not bodies or after >= before:
@@ -8272,15 +8296,127 @@ def luo_diag_endpoint_clean(font: TTFont) -> None:
         print(f"[luo] diagonal endpoint clean: {''.join(touched)}")
 
 
-def luo_huo_dot_teardrop(font: TTFont) -> None:
-    """Round 23: reshape 四点底 (灬) dots into print-kai teardrops.
+def _huo_dot_row(glyph, upm, *, complete_only=False):
+    """Find a detached 灬 row; exclude counters and low connecting strokes."""
+    if glyph.numberOfContours < 4:
+        return ([], [])
+    coords = glyph.coordinates
+    box = _glyph_box(coords)
+    if box is None:
+        return ([], [])
+    _, _, gy0, _, gw, gh, _, _ = box
+    infos = []
+    start = 0
+    for end in glyph.endPtsOfContours:
+        xs = [coords[i][0] for i in range(start, end + 1)]
+        ys = [coords[i][1] for i in range(start, end + 1)]
+        infos.append((start, end, min(xs), max(xs), min(ys), max(ys), _contour_signed_area(coords, start, end)))
+        start = end + 1
+    outer_sign = 1 if max(infos, key=lambda c: abs(c[6]))[6] > 0 else -1
+    candidates = []
+    for contour in infos:
+        st, en, x0, x1, y0, y1, area = contour
+        if area * outer_sign <= 0 or en - st < 5:
+            continue
+        if y1 > gy0 + 0.32 * gh or max(x1 - x0, y1 - y0) > 0.3 * upm:
+            continue
+        pts = [coords[i] for i in range(st, en + 1)]
+        mx = sum((x for x, y in pts)) / len(pts)
+        my = sum((y for x, y in pts)) / len(pts)
+        sxx = sum(((x - mx) ** 2 for x, y in pts))
+        syy = sum(((y - my) ** 2 for x, y in pts))
+        sxy = sum(((x - mx) * (y - my) for x, y in pts))
+        theta = 0.5 * math.atan2(2 * sxy, sxx - syy)
+        ux, uy = (math.cos(theta), math.sin(theta))
+        projections = [(x - mx) * ux + (y - my) * uy for x, y in pts]
+        if max(projections) - min(projections) < 0.1 * upm:
+            continue
+        angle = math.degrees(math.atan2(abs(uy), abs(ux)))
+        if not 10 <= angle <= 89.5:
+            continue
+        candidates.append({'c': contour, 'down_right': ux * uy < 0, 'x0': x0, 'ang': angle, 'length': max(projections) - min(projections)})
+    if len(candidates) not in ((4,) if complete_only else (3, 4)):
+        return ([], [])
+    if len(candidates) == 3 and any((not 20 <= d['ang'] <= 80 or d['length'] < 0.12 * upm or d['c'][5] > gy0 + 0.3 * gh for d in candidates)):
+        return ([], [])
+    row = sorted(candidates, key=lambda d: d['x0'])
+    foot = min((d['c'][4] for d in row))
+    if any((d['c'][4] > foot + 0.09 * upm for d in row)):
+        return ([], [])
+    if row[0]['down_right'] or not all((d['down_right'] for d in row[1:])):
+        return ([], [])
+    if row[-1]['c'][3] - row[0]['c'][2] < 0.45 * gw:
+        return ([], [])
+    row_ids = {d['c'][0] for d in row}
+    gap0, gap1 = (row[0]['c'][3], row[-1]['c'][2])
+    for c in infos:
+        if c[0] in row_ids or c[6] * outer_sign <= 0:
+            continue
+        low = [coords[i][0] for i in range(c[0], c[1] + 1) if coords[i][1] < foot + 0.1 * upm]
+        if low and max(low) - min(low) >= 0.2 * gw and (min(low) < gap1) and (max(low) > gap0):
+            return ([], [])
+    return (row, infos)
 
-    A glyph qualifies when its bottom 30% holds a row of >= 3 small outer
-    contours whose feet sit within 0.09em of each other, the leftmost leaning
-    down-left and at least two leaning down-right. Each down-right dot is
-    rebuilt in its own axis frame: rotated about its foot to the reference
-    angle and tapered from LUO_HUO_DOT_TOP at the top to full width at the foot.
-    """
+def _reshape_complete_huo_row(glyph, upm, row):
+    """Apply the selected broad point shape to all four detached ink contours."""
+    from array import array
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+    from fontTools.pens.reverseContourPen import ReverseContourPen
+    from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+    old = list(glyph.coordinates)
+    flags = list(glyph.flags)
+    replacements = {}
+    floor = min((d['c'][4] for d in row)) + 0.018 * upm
+    # Fit narrow right-side radicals without moving row centres or advance.
+    row_width = row[-1]['c'][3] - row[0]['c'][2]
+    point_scale = min(1.0, row_width / (0.66 * upm))
+    for rank, (d, angle) in enumerate(zip(row, LUO_HUO_POINT_ANGLES)):
+        # The left point has a full head and a tapered lower-left exit.
+        right = d['down_right']
+        st, en, x0, x1, y0, y1, _ = d['c']
+        h = LUO_HUO_POINT_LENGTH_EM[rank] * upm * point_scale
+        w = LUO_HUO_POINT_WIDTH_EM[rank] * upm * point_scale
+        a = math.radians(angle)
+        v = ((-1 if right else 1) * math.cos(a), math.sin(a))
+        n = (math.sin(a), (1 if right else -1) * math.cos(a))
+        cx = (x0 + x1) / 2
+        cy = floor + h * v[1] / 2
+
+        def xy(x, t):
+            if not right:
+                t = 1 - t
+                x = -x
+            return (round(cx + (t - 0.5) * h * v[0] + x * w * n[0]), round(cy + (t - 0.5) * h * v[1] + x * w * n[1]))
+        basepen = TTGlyphPen(None)
+        pen = ReverseContourPen(basepen)
+        pen.moveTo(xy(-0.04, 1))
+        pen.qCurveTo(xy(-0.2, 1.02), xy(-0.24, 0.82))
+        pen.qCurveTo(xy(-0.28, 0.62), xy(-0.4, 0.36))
+        pen.qCurveTo(xy(-0.54, 0.08), xy(-0.22, 0.02))
+        pen.qCurveTo(xy(0.1, -0.04), xy(0.34, 0.08))
+        pen.qCurveTo(xy(0.51, 0.17), xy(0.4, 0.39))
+        pen.qCurveTo(xy(0.24, 0.77), xy(0.09, 0.96))
+        pen.qCurveTo(xy(0.02, 1.02), xy(-0.04, 1))
+        pen.closePath()
+        g = basepen.glyph()
+        replacements[st] = (list(g.coordinates), list(g.flags))
+    coords = []
+    newflags = []
+    ends = []
+    st = 0
+    for en in glyph.endPtsOfContours:
+        pts, fs = replacements.get(st, (old[st:en + 1], flags[st:en + 1]))
+        coords.extend(pts)
+        newflags.extend(fs)
+        ends.append(len(coords) - 1)
+        st = en + 1
+    glyph.coordinates = GlyphCoordinates(coords)
+    glyph.flags = array('B', newflags)
+    glyph.endPtsOfContours = ends
+
+
+def luo_huo_dot_teardrop(font: TTFont) -> None:
+    """Shape complete four-dot rows; retain the existing connected-row route."""
     if LUO_HUO_DOT_WMAX_EM <= 0:
         print("[luo] huo dot teardrop: skipped")
         return
@@ -8288,79 +8424,26 @@ def luo_huo_dot_teardrop(font: TTFont) -> None:
     rcmap = _build_reverse_cmap(font)
     upm = font["head"].unitsPerEm
     wmax_t = LUO_HUO_DOT_WMAX_EM * upm
-    touched: list[str] = []
+    touched = []
     for gname in font.getGlyphOrder():
         cp = rcmap.get(gname)
-        if cp is None or not (0x3400 <= cp <= 0x9FFF):
+        if cp is None or not 0x3400 <= cp <= 0x9FFF:
             continue
         glyph = glyf[gname]
-        if glyph.numberOfContours < 4:
+        row, infos = _huo_dot_row(glyph, upm)
+        if not row:
+            continue
+        if len(row) == 4:
+            _reshape_complete_huo_row(glyph, upm, row)
+            glyph.recalcBounds(glyf)
+            touched.append(chr(cp))
             continue
         coords = glyph.coordinates
-        box = _glyph_box(coords)
-        if box is None:
-            continue
-        _gx0, _gx1, gy0, _gy1, gw, gh, _gcx, _gcy = box
-        infos = []
-        start = 0
-        for end in glyph.endPtsOfContours:
-            xs = [coords[i][0] for i in range(start, end + 1)]
-            ys = [coords[i][1] for i in range(start, end + 1)]
-            infos.append((start, end, min(xs), max(xs), min(ys), max(ys),
-                          _contour_signed_area(coords, start, end)))
-            start = end + 1
-        outer_sign = 1.0 if max(infos, key=lambda c: abs(c[6]))[6] > 0 else -1.0
-        cand = []
-        for c in infos:
-            st, en, x0, x1, y0, y1, ar = c
-            if ar * outer_sign <= 0 or en - st < 5:
-                continue
-            if y1 > gy0 + 0.30 * gh or max(x1 - x0, y1 - y0) > 0.30 * upm:
-                continue
-            xs = [coords[i][0] for i in range(st, en + 1)]
-            ys = [coords[i][1] for i in range(st, en + 1)]
-            mx = sum(xs) / len(xs)
-            my = sum(ys) / len(ys)
-            sxx = sum((x - mx) ** 2 for x in xs)
-            syy = sum((y - my) ** 2 for y in ys)
-            sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-            th = 0.5 * math.atan2(2 * sxy, sxx - syy)
-            ux, uy = math.cos(th), math.sin(th)
-            ts = [(x - mx) * ux + (y - my) * uy for x, y in zip(xs, ys)]
-            length = max(ts) - min(ts)
-            if length < 0.12 * upm:
-                continue
-            ang = math.degrees(math.atan2(abs(uy), abs(ux)))
-            if not 20.0 <= ang <= 80.0:
-                continue
-            cand.append({"c": c, "down_right": ux * uy < 0, "ang": ang, "x0": x0})
-        if len(cand) < 3:
-            continue
-        foot = min(d["c"][4] for d in cand)
-        row = sorted((d for d in cand if d["c"][4] <= foot + 0.09 * upm), key=lambda d: d["x0"])
-        if len(row) < 3 or row[0]["down_right"]:
-            continue
-        rights = [d for d in row[1:] if d["down_right"]]
-        if len(rights) < 2 or row[-1]["c"][3] - row[0]["c"][2] < 0.45 * gw:
-            continue
-        angles = LUO_HUO_DOT_ANGLES[-len(rights):] if len(rights) <= 3 else None
-        if angles is None:
-            continue
+        foot = min(d["c"][4] for d in row)
+        rights = row[1:]
+        angles = LUO_HUO_DOT_ANGLES[-len(rights):]
         row_ids = {d["c"][0] for d in row}
         others = [c for c in infos if c[0] not in row_ids]
-        # 心 (卧钩) and similar: a big stroke reaching down into the row means
-        # these dots are not a free-standing 四点底.
-        gap0, gap1 = row[0]["c"][3], row[-1]["c"][2]
-        lying = False
-        for c in others:
-            if c[6] * outer_sign <= 0:
-                continue
-            low = [coords[i][0] for i in range(c[0], c[1] + 1) if coords[i][1] < foot + 0.10 * upm]
-            if low and max(low) - min(low) >= 0.20 * gw and min(low) < gap1 and max(low) > gap0:
-                lying = True
-                break
-        if lying:
-            continue
         changed = False
         for d, ang_t in zip(rights, angles):
             st, en = d["c"][0], d["c"][1]
@@ -9153,8 +9236,22 @@ def refine_dot_contours(font: TTFont) -> None:
         glyph_y_range = max(all_ys) - glyph_y_min
         touched = False
 
+        # Counter contours describe white space, not detached ink dots.
+        # Use the largest contour as the winding reference so both outline
+        # orientations preserve holes (including the small bowls in 撬/橇/新).
+        row, _ = _huo_dot_row(glyph, font["head"].unitsPerEm, complete_only=True)
+        row_starts = {d["c"][0] for d in row}
+        contour_areas = []
         start = 0
         for end in ends:
+            contour_areas.append(_contour_signed_area(coords, start, end))
+            start = end + 1
+        outer_area = max(contour_areas, key=abs)
+        start = 0
+        for end, area in zip(ends, contour_areas):
+            if area * outer_area <= 0 or start in row_starts:
+                start = end + 1
+                continue
             n_pts = end - start + 1
             if n_pts > DOT_MAX_POINTS:
                 start = end + 1
@@ -10718,6 +10815,7 @@ def refine_heart_chars(font: TTFont) -> None:
                 "cx": c_cx, "cy": c_cy,
                 "area": c_area, "pct": c_area / total_area * 100,
                 "xmin": min(c_xs),
+                "signed_area": _contour_signed_area(coords, start, end),
             })
             start = end + 1
 
@@ -10737,9 +10835,11 @@ def refine_heart_chars(font: TTFont) -> None:
             continue
 
         hook_contour = max(bottom_contours, key=lambda c: c["area"])
+        ink_area = max(contour_info, key=lambda c: abs(c["signed_area"]))["signed_area"]
         dot_contours = sorted(
             [c for c in bottom_contours
-             if c["idx"] != hook_contour["idx"] and c["pct"] < 12],
+             if c["idx"] != hook_contour["idx"] and c["pct"] < 12
+             and c["signed_area"] * ink_area > 0],
             key=lambda c: c["cx"],
         )
 

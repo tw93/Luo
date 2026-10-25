@@ -76,7 +76,7 @@ class NaStrokeClassificationTests(unittest.TestCase):
 
 
 class RadicalDotTests(unittest.TestCase):
-    def prepare(self, char):
+    def prepare(self, char, *, heart=True):
         font = TTFont(build.BASE_FONT)
         self.addCleanup(font.close)
         with contextlib.redirect_stdout(io.StringIO()):
@@ -89,8 +89,87 @@ class RadicalDotTests(unittest.TestCase):
                                    build.NARROW_REGULAR, build.NARROW_COMPLEX,
                                    build.SCALE_Y)
             build.refine_by_category(font)
-            build.refine_heart_chars(font)
+            if heart:
+                build.refine_heart_chars(font)
         return font
+
+    def test_white_counters_are_not_reshaped_as_dots(self):
+        for char in "撬橇毳新":
+            with self.subTest(char=char):
+                font = self.prepare(char)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                before = copy.deepcopy(glyph.coordinates)
+                spans = []
+                start = 0
+                for end in glyph.endPtsOfContours:
+                    spans.append((start, end, build._contour_signed_area(before, start, end)))
+                    start = end + 1
+                outer = max(spans, key=lambda span: abs(span[2]))[2]
+                counters = [(a, b) for a, b, area in spans if area * outer < 0]
+                self.assertTrue(counters)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.refine_dot_contours(font)
+                for a, b in counters:
+                    self.assertEqual(list(before[a:b + 1]), list(glyph.coordinates[a:b + 1]))
+
+    def test_heart_dots_preserve_inner_counters(self):
+        for char in "悟惠愈意感慎慰":
+            with self.subTest(char=char):
+                font = self.prepare(char, heart=False)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                before = copy.deepcopy(glyph.coordinates)
+                spans = []
+                start = 0
+                for end in glyph.endPtsOfContours:
+                    spans.append((start, end, build._contour_signed_area(before, start, end)))
+                    start = end + 1
+                outer = max(spans, key=lambda span: abs(span[2]))[2]
+                counters = [(a, b) for a, b, area in spans if area * outer < 0]
+                self.assertTrue(counters)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.refine_heart_chars(font)
+                for a, b in counters:
+                    self.assertEqual(list(before[a:b + 1]), list(glyph.coordinates[a:b + 1]))
+
+    def test_complete_four_dot_rows_bypass_generic_dot_shaping(self):
+        for char in "燕熟燃":
+            with self.subTest(char=char):
+                font = self.prepare(char)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                row, _ = build._huo_dot_row(glyph, font["head"].unitsPerEm,
+                                           complete_only=True)
+                self.assertEqual(len(row), 4)
+                before = copy.deepcopy(glyph.coordinates)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.refine_dot_contours(font)
+                for dot in row:
+                    a, b = dot["c"][:2]
+                    self.assertEqual(list(before[a:b + 1]), list(glyph.coordinates[a:b + 1]))
+
+    def test_four_dot_shape_changes_left_dot_and_keeps_open_gaps(self):
+        for char in "燕熟燃黑点糕镳":
+            with self.subTest(char=char):
+                font = self.prepare(char)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                row, _ = build._huo_dot_row(glyph, font["head"].unitsPerEm,
+                                           complete_only=True)
+                self.assertEqual(len(row), 4)
+                original = copy.deepcopy(glyph.coordinates)
+                spans = [dot["c"][:2] for dot in row]
+                contour_indices = [list(glyph.endPtsOfContours).index(end)
+                                   for start, end in spans]
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.luo_huo_dot_teardrop(font)
+                boxes = []
+                for (old_start, old_end), index in zip(spans, contour_indices):
+                    start = glyph.endPtsOfContours[index - 1] + 1 if index else 0
+                    end = glyph.endPtsOfContours[index]
+                    pts = list(glyph.coordinates[start:end + 1])
+                    self.assertNotEqual(pts, list(original[old_start:old_end + 1]))
+                    self.assertLess(build._contour_signed_area(glyph.coordinates, start, end), 0)
+                    boxes.append((min(x for x, y in pts), max(x for x, y in pts)))
+                for left, right in zip(boxes, boxes[1:]):
+                    self.assertGreater(right[0] - left[1], 0)
 
     def test_water_and_speech_dots_keep_their_ink(self):
         # 清 is the existing SOFT control; the other radicals used to lose
@@ -178,6 +257,47 @@ class InstalledFontTests(unittest.TestCase):
 
 
 class HorizontalPostureTests(unittest.TestCase):
+    def test_reviewed_single_long_edge_uses_real_bar_support(self):
+        for char in "嫡人":
+            with self.subTest(char=char):
+                font = fixture(char, 4)
+                pen = TTGlyphPen(None)
+                slope = math.tan(math.radians(4))
+                pen.moveTo((300, 900))
+                pen.lineTo((1500, round(900 + 1200 * slope)))
+                # Each lower segment is shorter than the whole-glyph edge
+                # threshold, but long enough to support an ink-backed bar.
+                for x in (1500, 1260, 1020, 780, 540, 300):
+                    pen.lineTo((x, round(800 + (x - 300) * slope)))
+                pen.closePath()
+                glyph = font["glyf"]["stroke"] = pen.glyph()
+                before = list(glyph.coordinates)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.luo_horiz_level(font)
+                if char == "人":
+                    self.assertEqual(before, list(glyph.coordinates))
+                else:
+                    bars = build._horizontal_stroke_bodies(glyph, font["glyf"], 2048)
+                    self.assertTrue(bars)
+                    self.assertLess(max(abs(math.degrees(math.atan(s))) for s, run in bars), 1.2)
+
+    def test_reviewed_conflicting_bars_balance_the_extreme_slopes(self):
+        font = fixture("龋", 4)
+        pen = TTGlyphPen(None)
+        for y, angle in ((1200, 7), (800, 6.5), (400, 2)):
+            rise = round(1200 * math.tan(math.radians(angle)))
+            pen.moveTo((300, y))
+            pen.lineTo((1500, y + rise))
+            pen.lineTo((1500, y + rise - 100))
+            pen.lineTo((300, y - 100))
+            pen.closePath()
+        glyph = font["glyf"]["stroke"] = pen.glyph()
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.luo_horiz_level(font)
+        bars = build._horizontal_stroke_bodies(glyph, font["glyf"], 2048)
+        self.assertEqual(len(bars), 3)
+        self.assertLess(max(abs(math.degrees(math.atan(s))) for s, run in bars), 2.7)
+
     def test_short_component_bars_are_not_tilted_by_other_edges(self):
         # These source outlines reproduce the production failure after the
         # early cap treatment: short 弓/羽 bars lose the old width vote to
