@@ -8978,6 +8978,14 @@ DOT_SOFT_CHARS = (
     "计认议记许论设证识词试话诞该详语说请诸读调谢"  # 讠 radicals
     "述"  # standalone top dot: keep length, normalize angle only
 )
+# Reviewed water/speech radicals outside the original site-focused queue.
+# Only their left-side dots use SOFT; dots in the body retain their own route.
+# Keep 淤 on its original route: its bbox feeds a quantized na-tip gate, so
+# enlarging the left dots also changes the right-hand na in later passes.
+DOT_SOFT_RADICAL_CHARS = (
+    "汝池沃沐沟沾沿泠泯泱泷泸泼泽洋洗洲测涛涤淀淅淋淌淑淙淮淹渊"
+    "渔渡渭湘湛湾湿溃溺滑滔滞漆漏漠潘潭澄澜澡灌诤谜谶"
+)
 DOT_SHORT_AXIS_SOFT = 0.95  # SOFT: near-identity short axis; normalize angle, don't carve
 
 HOOK_FINAL_CHARS = (
@@ -9137,8 +9145,13 @@ def refine_dot_contours(font: TTFont) -> None:
             long_ax, long_ay = axis
 
             # Lerp short-axis carve factor toward 1.0 for elongated source dots.
-            long_axis_factor = DOT_LONG_AXIS_SOFT if use_soft else DOT_LONG_AXIS
-            base_short = DOT_SHORT_AXIS_SOFT if use_soft else DOT_SHORT_AXIS
+            soft_dot = use_soft or (
+                char in DOT_SOFT_RADICAL_CHARS
+                and max(c_xs) < min(all_xs) + 0.32 * (max(all_xs) - min(all_xs))
+                and cy > glyph_y_min + 0.45 * glyph_y_range
+            )
+            long_axis_factor = DOT_LONG_AXIS_SOFT if soft_dot else DOT_LONG_AXIS
+            base_short = DOT_SHORT_AXIS_SOFT if soft_dot else DOT_SHORT_AXIS
             relax_t = max(0.0, min(1.0, (aspect - DOT_RELAX_PIVOT) / (DOT_RELAX_GATE - DOT_RELAX_PIVOT)))
             short_axis_factor = base_short + (1.0 - base_short) * relax_t
 

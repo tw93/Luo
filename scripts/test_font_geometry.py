@@ -74,6 +74,73 @@ class NaStrokeClassificationTests(unittest.TestCase):
                     self.assertTrue(build._NA_TIPS.get(font.getBestCmap()[ord(ch)]))
 
 
+class RadicalDotTests(unittest.TestCase):
+    def prepare(self, char):
+        font = TTFont(build.BASE_FONT)
+        self.addCleanup(font.close)
+        with contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, char)
+            build.bolden_glyphs(font, build.BOLDEN_H, build.BOLDEN_V)
+            build.soften_endpoints(font)
+            build.straighten_strokes(font)
+            build.luo_horiz_kink_join(font)
+            build.narrow_and_scale(font, build.NARROW_SIMPLE,
+                                   build.NARROW_REGULAR, build.NARROW_COMPLEX,
+                                   build.SCALE_Y)
+            build.refine_by_category(font)
+            build.refine_heart_chars(font)
+        return font
+
+    def test_water_and_speech_dots_keep_their_ink(self):
+        # 清 is the existing SOFT control; the other radicals used to lose
+        # nearly half their area to the generic short-axis carve.
+        for char in "清溺漏涤淙谶":
+            with self.subTest(char=char):
+                font = self.prepare(char)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                before = copy.deepcopy(glyph.coordinates)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.refine_dot_contours(font)
+                checked = 0
+                start = 0
+                upm = font["head"].unitsPerEm
+                for end in glyph.endPtsOfContours:
+                    pts = list(before[start:end + 1])
+                    # Upper-left isolated dots, excluding the long rising
+                    # stroke below and every stroke in the right component.
+                    if (max(x for x, y in pts) < 0.35 * upm
+                            and min(y for x, y in pts) > 0.30 * upm
+                            and 12 <= len(pts) <= 20):
+                        old_area = abs(build._contour_signed_area(before, start, end))
+                        new_area = abs(build._contour_signed_area(glyph.coordinates, start, end))
+                        self.assertGreater(new_area / old_area, 0.90)
+                        self.assertLess(new_area / old_area, 1.02)
+                        checked += 1
+                    start = end + 1
+                self.assertGreater(checked, 0)
+
+    def test_body_dots_keep_the_generic_route(self):
+        for char in "溺漏涤淙谶淤":
+            with self.subTest(char=char):
+                font = self.prepare(char)
+                control = copy.deepcopy(font)
+                self.addCleanup(control.close)
+                glyph = font["glyf"][font.getBestCmap()[ord(char)]]
+                before = copy.deepcopy(glyph.coordinates)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build.refine_dot_contours(font)
+                    with patch.object(build, "DOT_SOFT_RADICAL_CHARS", "", create=True):
+                        build.refine_dot_contours(control)
+                generic = control["glyf"][control.getBestCmap()[ord(char)]]
+                upm = font["head"].unitsPerEm
+                checked = 0
+                for i, (x, y) in enumerate(before):
+                    if char == "淤" or x >= 0.35 * upm:
+                        self.assertEqual(glyph.coordinates[i], generic.coordinates[i])
+                        checked += 1
+                self.assertGreater(checked, 0)
+
+
 class InstalledFontTests(unittest.TestCase):
     def test_diagnostic_overwrite_cannot_change_validated_installation(self):
         with tempfile.TemporaryDirectory() as directory:
