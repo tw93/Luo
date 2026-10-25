@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from fontTools.fontBuilder import FontBuilder
+from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.pointInsidePen import PointInsidePen
 from fontTools.ttLib import TTFont
@@ -473,6 +474,54 @@ class SmallTextSpacingTests(unittest.TestCase):
         glyph = self.run_refiner(self.font(vertical=True))
         self.assertGreaterEqual(glyph.coordinates[6][0] - glyph.coordinates[0][0], 70)
         self.assertGreaterEqual(glyph.coordinates[0][0] - glyph.coordinates[3][0], 60)
+
+    def test_shared_strokes_retain_four_fifths_of_their_weight(self):
+        for vertical in (False, True):
+            with self.subTest(vertical=vertical):
+                glyph = self.run_refiner(self.font(vertical=vertical))
+                axis = 0 if vertical else 1
+                # Both sides of the middle bar face narrow white channels.
+                thickness = abs(glyph.coordinates[4][axis] - glyph.coordinates[7][axis])
+                self.assertGreaterEqual(thickness, 80)
+
+    def test_dense_two_contour_glyphs_receive_density_relief(self):
+        with TTFont(build.BASE_FONT) as font, contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "粥撬掏锤")
+            build.bolden_glyphs(font, build.BOLDEN_H, build.BOLDEN_V)
+            glyphs = {ch: font["glyf"][font.getBestCmap()[ord(ch)]] for ch in "粥撬掏锤"}
+            before = {ch: list(g.coordinates) for ch, g in glyphs.items()}
+            def ink_area(glyph):
+                pen = AreaPen(font.getGlyphSet())
+                glyph.draw(pen, font["glyf"])
+                return abs(pen.value)
+            areas = {ch: ink_area(g) for ch, g in glyphs.items()}
+            build.luo_dense_slim(font)
+            for ch, glyph in glyphs.items():
+                with self.subTest(char=ch):
+                    self.assertEqual(glyph.numberOfContours, 2)
+                    self.assertNotEqual(before[ch], list(glyph.coordinates))
+                    self.assertLess(ink_area(glyph), areas[ch])
+
+    def test_connected_frame_retains_accepted_density_route(self):
+        # Opening 榧 changes the edge vote used by final horizontal leveling.
+        with TTFont(build.BASE_FONT) as font, contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "榧")
+            build.bolden_glyphs(font, build.BOLDEN_H, build.BOLDEN_V)
+            glyph = font["glyf"][font.getBestCmap()[ord("榧")]]
+            before = list(glyph.coordinates)
+            build.luo_dense_slim(font)
+            self.assertEqual(before, list(glyph.coordinates))
+
+    def test_sparse_two_contour_glyphs_keep_their_weight(self):
+        with TTFont(build.BASE_FONT) as font, contextlib.redirect_stdout(io.StringIO()):
+            build.subset_to_seed(font, "二八口")
+            build.bolden_glyphs(font, build.BOLDEN_H, build.BOLDEN_V)
+            glyphs = {ch: font["glyf"][font.getBestCmap()[ord(ch)]] for ch in "二八口"}
+            before = {ch: list(g.coordinates) for ch, g in glyphs.items()}
+            build.luo_dense_slim(font)
+            for ch, glyph in glyphs.items():
+                with self.subTest(char=ch):
+                    self.assertEqual(before[ch], list(glyph.coordinates))
 
     def test_thin_strokes_and_roomy_gaps_are_not_lightened(self):
         for kwargs in ({"thickness": 40}, {"gap": 140}):

@@ -25,6 +25,13 @@ Side effects: `build.py` also patches four files with a cache-bust string derive
 
 Source font: `source/LXGWWenKaiScreen-Regular.ttf`
 
+## 2026-10-25 局部黑度均衡
+
+- `luo_dense_slim` 原先跳过少于三个轮廓的字，导致 `粥撬掏锤` 等连通密字没有进入密度和白缝检查。本轮允许两个轮廓的字进入原有检查，选定部件与冻结字仍受保护，不改变全局加粗、字面或字距。
+- 共用笔身两侧的白缝不能各自独立消耗全部厚度余量，新增单侧最多收退本次探测厚度 10% 的限制，绝对厚度下限继续生效。该限制只约束开隙步骤，不代表整个处理链的最终笔画厚度。
+- `榧` 的候选减重改变了末尾横画校正的长边投票，使上横从约 1.12 度变成 2.90 度，因此保留它原先跳过密度处理的路径，不用额外姿态补偿掩盖回归。
+- W04 继续只作气质和结构参照。`量` 的轻横与 `口` 的左右粗细差保留落文本身的节奏，不为接近参考逐字统一字重。栅格交接处的切片不能直接当作竖墙厚度，需先核对该步骤实际改变的坐标方向。
+
 ## Pipeline history
 
 1. Subset to starter/site/seed characters, or explicit GB2312 expansion mode

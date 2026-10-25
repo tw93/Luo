@@ -684,11 +684,13 @@ LUO_SMALL_PLUMP_MAX_SCALE = float(os.environ.get("LUO_SMALL_PLUMP_MAX_SCALE", "1
 # W04 thins strokes by density: horizontal stroke 45-57 per-mille em in
 # 鬣/镶/鬓 vs ~68 in normal glyphs, gaps 28-53. Luo stayed at the LXGW base
 # (53-63) because bolden can only add. Inset every outline of dense glyphs
-# along its normals, ramped by contour count.
+# along its normals, ramped by outline ink density.
 LUO_DENSE_SLIM_EM = float(os.environ.get("LUO_DENSE_SLIM_EM", "0.0065"))
 LUO_DENSE_SLIM_INK_START = float(os.environ.get("LUO_DENSE_SLIM_INK_START", "0.42"))  # outline ink/bbox where the inset starts
 LUO_DENSE_SLIM_INK_FULL = float(os.environ.get("LUO_DENSE_SLIM_INK_FULL", "0.50"))
 LUO_DENSE_SLIM_MIN_CONTOUR_EM = float(os.environ.get("LUO_DENSE_SLIM_MIN_CONTOUR_EM", "0.07"))
+# Opening this connected frame changes the final leveling vote and tilts its top bar.
+LUO_DENSE_SLIM_CONNECTED_SKIP_CHARS = "榧"
 
 # Small-text spacing is local: keep the frame and main strokes, opening only
 # proven white channels. At 15px, 0.10em leaves 1.5px between opposing edges.
@@ -6584,17 +6586,17 @@ def _open_crowded_gaps(glyph, glyf, upm: int) -> int:
                     for fraction in (0.15, 0.5, 0.85):
                         t = edge[0] + (edge[1] - edge[0]) * fraction
                         p, direction = edge[4](t), edge[2]
-                        required = floor + 2 * allowed
+                        probe_limit = max(floor + 2 * shift, 0.14 * upm)
                         depth = 0.0
-                        while depth < required:
-                            next_depth = min(required, depth + 0.004 * upm)
+                        while depth < probe_limit:
+                            next_depth = min(probe_limit, depth + 0.004 * upm)
                             if not ink(*point(p + direction * next_depth, t)):
                                 break
                             depth = next_depth
-                        # Two budgets reserve ink when the other side of a
-                        # shared stem also faces a narrow channel.
-                        if depth < required:
-                            allowed = min(allowed, max(0, (depth - floor) / 2))
+                        # Reserve both sides of a shared stem. Besides the
+                        # absolute floor, retain at least 80% of its sampled
+                        # thickness so repeated gaps do not strip its weight.
+                        allowed = min(allowed, max(0, (depth - floor) / 2), 0.10 * depth)
                     if allowed < 1:
                         continue
                     for idx in edge[3]:
@@ -6721,7 +6723,14 @@ def luo_dense_slim(font: TTFont) -> None:
         if cp is None or not (0x3400 <= cp <= 0x9FFF) or chr(cp) in skip:
             continue
         glyph = glyf[gname]
-        if glyph.numberOfContours < 3:
+        # Connected dense glyphs such as 粥/撬/掏 have only two contours.
+        # Existing density and white-channel checks gate each change.
+        # Preserve selected components and the accepted connected-frame route.
+        if glyph.numberOfContours < 2 or (
+            glyph.numberOfContours == 2
+            and (chr(cp) in LUO_COMPONENT_SIMPLIFY_CHARS
+                 or chr(cp) in LUO_DENSE_SLIM_CONNECTED_SKIP_CHARS)
+        ):
             continue
         slimmed = _slim_dense_outline(glyph, glyf, upm)
         opened = 0
