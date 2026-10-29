@@ -248,7 +248,7 @@ v0.3 不做 `Luo Complete`、`Luo Latin` 或内置 ASCII glyph。未来如需内
 
 - `README.md`
 - `STYLE.md`
-- `CLAUDE.md`
+- `AGENTS.md`
 - `OFL.txt`
 
 产物：
